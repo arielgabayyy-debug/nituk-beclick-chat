@@ -33,6 +33,10 @@ import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messag
 import { ActivityFeed } from './activity-feed'
 import { UserOfWeekWidget } from './user-of-week'
 import { MyStats } from './my-stats'
+import { SavingsCalculator } from './savings-calculator'
+import { PriceAlertsPanel } from './price-alerts'
+import { OnboardingChecklist } from './onboarding-checklist'
+import { PWAInstallBanner } from './pwa-install'
 import { DirectMessages } from './direct-messages'
 import { Pinboard } from './pinboard'
 import { ChatRulesCard } from './chat-rules'
@@ -144,6 +148,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [dmTarget, setDmTarget] = useState<ChatUser | null>(null)
   const [showPinboard, setShowPinboard] = useState(false)
+  const [showPriceAlerts, setShowPriceAlerts] = useState(false)
   const [showScheduled, setShowScheduled] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
@@ -514,6 +519,18 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* My personal stats */}
           <MyStats messages={messages} currentUser={currentUser} />
 
+          {/* Savings calculator */}
+          <SavingsCalculator onShareSaving={handleSendMessage} />
+
+          {/* Price alerts */}
+          <button
+            onClick={() => setShowPriceAlerts(true)}
+            className="w-full flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 bg-amber-500/10 border border-amber-400/20 rounded-xl px-4 py-2.5 transition hover:bg-amber-500/15"
+          >
+            🔔 <span className="font-medium">התראות מחיר</span>
+            <span className="mr-auto text-muted-foreground">קבל עדכון על עסקאות →</span>
+          </button>
+
           {/* User of the week voting */}
           <UserOfWeekWidget
             messages={messages}
@@ -677,6 +694,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Messages */}
           <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 chat-scrollbar">
+            {/* Onboarding checklist for new users */}
+            {!isLoading && currentUser.messages_count < 20 && (
+              <OnboardingChecklist
+                user={currentUser}
+                messagesCount={messages.filter(m => m.user_id === currentUser.id).length}
+                onSendMessage={handleSendMessage}
+              />
+            )}
             {isLoading ? (
               <MessageSkeleton />
             ) : error ? (
@@ -1161,6 +1186,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           onJumpToMessage={jumpToMessage}
           onClose={() => setShowNotificationCenter(false)}
         />
+      )}
+
+      {/* PWA install banner */}
+      <PWAInstallBanner />
+
+      {/* Price alerts panel */}
+      {showPriceAlerts && (
+        <PriceAlertsPanel onClose={() => setShowPriceAlerts(false)} />
       )}
 
       {/* Pinboard */}

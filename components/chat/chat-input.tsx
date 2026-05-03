@@ -10,6 +10,8 @@ import { VoiceRecorder } from './voice-recorder'
 import { SavedRepliesPanel } from './saved-replies'
 import { useSpeedDials, SpeedDialEditor } from './speed-dial-editor'
 import { FullEmojiPicker } from './full-emoji-picker'
+import { MarkdownPreview } from './markdown-preview'
+import { checkMessage } from '@/hooks/use-auto-mod'
 
 // Smart emoji suggestions based on message keywords
 const SMART_EMOJI_TRIGGERS: { keywords: string[]; emoji: string }[] = [
@@ -115,6 +117,8 @@ export function ChatInput({
   const [showSavedReplies, setShowSavedReplies] = useState(false)
   const [showSpeedDialEditor, setShowSpeedDialEditor] = useState(false)
   const { dials: customDials } = useSpeedDials()
+  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
+  const [modWarning, setModWarning] = useState<string | null>(null)
   const [smartEmojis, setSmartEmojis] = useState<string[]>([])
   const [templates, setTemplates] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null') || DEFAULT_TEMPLATES } catch { return DEFAULT_TEMPLATES }
@@ -222,6 +226,20 @@ export function ChatInput({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!message.trim() || disabled || slowModeRemaining > 0) return
+
+    // Auto-moderation check
+    const modResult = checkMessage(message)
+    if (!modResult.allowed) {
+      setModWarning(modResult.reason || 'ההודעה נחסמה')
+      setTimeout(() => setModWarning(null), 4000)
+      return
+    }
+    if (modResult.severity === 'warn' && modResult.reason) {
+      setModWarning(modResult.reason)
+      setTimeout(() => setModWarning(null), 3000)
+      // Still allow sending after warning
+    }
+
     const finalMessage = replyTo
       ? `↩️ בתגובה ל${replyTo.user?.name || 'משתמש'}: "${replyTo.content.slice(0, 50)}${replyTo.content.length > 50 ? '...' : ''}"\n${message}`
       : message
@@ -650,7 +668,8 @@ export function ChatInput({
                 { label: '`', wrap: '`', title: 'קוד' },
                 { label: '📋', wrap: '', title: 'תבניות שמורות', isTemplate: true },
                 { label: '⚡', wrap: '', title: 'תשובות שמורות', isSavedReply: true },
-              ].map(({ label, wrap, title, isTemplate, isSavedReply }) => (
+                { label: '👁', wrap: '', title: 'תצוגה מקדימה', isPreview: true },
+              ].map(({ label, wrap, title, isTemplate, isSavedReply, isPreview }) => (
                 <button
                   key={label}
                   type="button"
@@ -658,6 +677,7 @@ export function ChatInput({
                   onClick={() => {
                     if (isTemplate) { setShowTemplates(t => !t); return }
                     if (isSavedReply) { setShowSavedReplies(t => !t); return }
+                    if (isPreview) { setShowMarkdownPreview(t => !t); return }
                     const ta = textareaRef.current
                     if (!ta) return
                     const start = ta.selectionStart; const end = ta.selectionEnd
@@ -687,6 +707,18 @@ export function ChatInput({
                   {t}
                 </button>
               ))}
+            </div>
+          )}
+          {/* Markdown preview */}
+          {showMarkdownPreview && message.length > 0 && (
+            <div className="absolute -top-28 right-0 left-0 z-50">
+              <MarkdownPreview content={message} onClose={() => setShowMarkdownPreview(false)} />
+            </div>
+          )}
+          {/* Auto-mod warning */}
+          {modWarning && (
+            <div className="absolute -top-10 right-0 left-0 z-50 bg-red-500 text-white text-xs rounded-lg px-3 py-2 flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+              ⚠️ {modWarning}
             </div>
           )}
           <textarea
