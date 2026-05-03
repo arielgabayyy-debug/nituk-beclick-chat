@@ -21,8 +21,25 @@ interface ChatHeaderProps {
 export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
   const [showStatusEditor, setShowStatusEditor] = useState(false)
-  const { streak } = useStreak()
+  const [streakToast, setStreakToast] = useState<string | null>(null)
+  const { streak, isNewDay } = useStreak()
   const { status } = useUserStatus(currentUser?.id || '')
+
+  // Streak milestone celebrations
+  useEffect(() => {
+    if (!isNewDay) return
+    const milestones: Record<number, string> = {
+      7: '🔥 7 ימים רצופים! שבוע שלם בקהילה!',
+      14: '💪 שבועיים רצופים! מדהים!',
+      30: '🏆 חודש שלם! אתה אלוף!',
+      50: '👑 50 ימים! מי כמוך?',
+      100: '🌟 100 ימים! אגדה חיה!',
+    }
+    if (milestones[streak]) {
+      setStreakToast(milestones[streak])
+      setTimeout(() => setStreakToast(null), 5000)
+    }
+  }, [streak, isNewDay])
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
@@ -153,6 +170,15 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
       {/* Status editor modal */}
       {showStatusEditor && currentUser && (
         <UserStatusEditor userId={currentUser.id} onClose={() => setShowStatusEditor(false)} />
+      )}
+      {/* Streak milestone toast */}
+      {streakToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[70] animate-in slide-in-from-top-4 duration-400">
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl px-6 py-3 shadow-2xl font-bold text-sm flex items-center gap-2">
+            <span className="text-xl">🔥</span>
+            {streakToast}
+          </div>
+        </div>
       )}
     </>
   )

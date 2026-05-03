@@ -22,6 +22,7 @@ import { OfflineIndicator } from './offline-indicator'
 import { ChatStats } from './chat-stats'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
+import { QuickDeal } from './quick-deal'
 import { CommunityFAQ } from './community-faq'
 import { TrendingKeywords } from './trending-keywords'
 import { AchievementToast } from './achievement-toast'
@@ -104,6 +105,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
   const [mobilePanel, setMobilePanel] = useState<SidebarTab | null>(null)
+  const [showQuickDeal, setShowQuickDeal] = useState(false)
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null)
   const [showNotifBanner, setShowNotifBanner] = useState(false)
   const { permission, sendNotification } = useNotificationPermission()
@@ -732,6 +734,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 <Images className="w-4 h-4 text-muted-foreground" />
               </Button>
 
+              {/* Quick deal */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-orange-500"
+                onClick={() => setShowQuickDeal(true)}
+                title="שתף עסקה חמה 🔥"
+              >
+                <Flame className="w-4 h-4" />
+              </Button>
+
               {/* Export chat */}
               <Button
                 variant="ghost"
@@ -831,6 +844,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {mobilePanel === 'deals' && <HotDeals deals={hotDeals} currentUser={currentUser} onVote={voteDeal} onShare={shareDeal} />}
           {mobilePanel === 'users' && <OnlineUsers users={onlineUsers} currentUserId={currentUser.id} onUserClick={u => { handleUserClick(u); setMobilePanel(null) }} />}
         </div>
+      )}
+
+      {/* Quick deal modal */}
+      {showQuickDeal && (
+        <QuickDeal
+          onShare={(title, description, provider, savingsAmount) => {
+            shareDeal(title, description, provider, savingsAmount ?? 0)
+            handleSendMessage(`🔥 עסקה חמה: ${title} — ${provider}${savingsAmount ? ` (חיסכון: ${savingsAmount}₪)` : ''}`)
+          }}
+          onClose={() => setShowQuickDeal(false)}
+        />
       )}
 
       {/* Shortcuts modal */}
