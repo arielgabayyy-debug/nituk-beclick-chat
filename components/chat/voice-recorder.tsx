@@ -11,6 +11,18 @@ interface VoiceRecorderProps {
 
 const BAR_COUNT = 24
 
+// Detect iOS synchronously (needed before any async call)
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !(window as typeof window & { MSStream?: unknown }).MSStream
+}
+
+// Detect if we're inside an iframe
+function isInIframe(): boolean {
+  try { return window !== window.top } catch { return true }
+}
+
 export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   const [recording, setRecording] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -37,31 +49,45 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     return ''
   }
 
-  // ── Native file-input fallback (iOS iframe / permission denied) ──────────
-  const startNativeFallback = () => {
-    if (!fileInputRef.current) return
-    fileInputRef.current.value = ''
-    fileInputRef.current.click()
+  // ── Native file input (iOS / iframe fallback) ───────────────────────────
+  const openNativeFilePicker = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+      fileInputRef.current.click()
+    }
   }
 
   const handleNativeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const url = URL.createObjectURL(file)
-    setAudioUrl(url)
     setAudioBlob(file)
-    // Estimate duration from audio element
+    setAudioUrl(url)
+    // Get real duration from audio metadata
     const audio = new Audio(url)
     audio.onloadedmetadata = () => {
-      if (isFinite(audio.duration)) setDuration(Math.round(audio.duration))
+      if (isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(Math.round(audio.duration))
+      }
     }
   }
 
-  // ── getUserMedia flow ───────────────────────────────────────────────────
-  const startRecording = async () => {
+  // ── Main entry point (called synchronously from onClick) ────────────────
+  const handleMicClick = () => {
+    // iOS or iframe → go DIRECTLY to native file picker (sync, from user gesture)
+    if (isIOS() || isInIframe()) {
+      openNativeFilePicker()
+      return
+    }
+
+    // Desktop / Android → getUserMedia flow
+    startGetUserMedia()
+  }
+
+  // ── getUserMedia recording (desktop/Android) ────────────────────────────
+  const startGetUserMedia = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      // No getUserMedia → go straight to native fallback (iOS in iframe)
-      startNativeFallback()
+      openNativeFilePicker()
       return
     }
 
@@ -119,19 +145,13 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
       )
     } catch (err: unknown) {
       const name = err instanceof Error ? err.name : ''
-      // Permission denied OR iframe restriction → fall back to native file picker
-      if (
-        name === 'NotAllowedError' || name === 'PermissionDeniedError' ||
-        name === 'SecurityError' || name === 'NotSupportedError'
-      ) {
-        startNativeFallback()
-      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
         alert('לא נמצא מיקרופון במכשיר זה.')
       } else if (name === 'NotReadableError' || name === 'TrackStartError') {
         alert('המיקרופון תפוס על ידי אפליקציה אחרת. סגור אותה ונסה שוב.')
       } else {
-        // Unknown error — also try native fallback
-        startNativeFallback()
+        // Permission denied or any other error — no alert, no fallback on desktop
+        alert('לא ניתן לגשת למיקרופון. ודא שהדפדפן קיבל הרשאה.')
       }
     }
   }
@@ -160,17 +180,20 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     if (!audioBlob) return
     setUploading(true)
     try {
-      const ext = audioBlob.type.includes('mp4') ? 'mp4'
-        : audioBlob.type.includes('ogg') ? 'ogg'
-        : audioBlob.type.includes('webm') ? 'webm'
-        : 'm4a'
+      const type = audioBlob.type || ''
+      const ext = type.includes('mp4') || type.includes('m4a') ? 'm4a'
+        : type.includes('ogg') ? 'ogg'
+        : type.includes('webm') ? 'webm'
+        : 'audio'
       const fd = new FormData()
       fd.append('file', audioBlob, `voice.${ext}`)
       const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }
       onSend(`[voice:${data.url}:${duration}]`, duration)
-      setAudioBlob(null); setAudioUrl(null); setDuration(0)
+      setAudioBlob(null)
+      setAudioUrl(null)
+      setDuration(0)
     } catch {
       alert('שגיאה בשליחה, נסה שוב.')
     } finally {
@@ -187,17 +210,14 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
-  // ── Preview mode ──────────────────────────────────────────────────────
+  // ── Preview ───────────────────────────────────────────────────────────
   if (audioUrl && !recording) {
     return (
       <div className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2 border border-border/50">
-        <audio src={audioUrl} controls className="h-8 flex-1" style={{ minWidth: 160 }} />
+        <audio src={audioUrl} controls className="h-8 flex-1" style={{ minWidth: 140 }} />
         {duration > 0 && <span className="text-xs text-muted-foreground shrink-0">{fmt(duration)}</span>}
-        <button
-          onClick={sendVoice}
-          disabled={uploading}
-          className="p-1.5 bg-primary text-white rounded-full hover:bg-primary/90 transition shrink-0"
-        >
+        <button onClick={sendVoice} disabled={uploading}
+          className="p-1.5 bg-primary text-white rounded-full hover:bg-primary/90 transition shrink-0">
           <Send className="w-3.5 h-3.5" />
         </button>
         <button onClick={cancelRecording} className="p-1.5 hover:bg-muted rounded-full transition shrink-0">
@@ -207,7 +227,7 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     )
   }
 
-  // ── Recording mode ────────────────────────────────────────────────────
+  // ── Recording ─────────────────────────────────────────────────────────
   if (recording) {
     return (
       <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 rounded-xl px-3 py-2 border border-red-200 dark:border-red-800">
@@ -228,21 +248,20 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     )
   }
 
-  // ── Idle — mic button ─────────────────────────────────────────────────
+  // ── Idle ──────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Hidden native file input — fallback for iOS/iframe */}
+      {/* Hidden file input — iOS native audio recorder */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*,audio/mp4,audio/m4a,video/mp4"
-        capture="user"
+        accept="audio/*,audio/mp4,audio/m4a,.m4a,.mp4,.aac,.wav"
         className="hidden"
         onChange={handleNativeFile}
       />
       <button
         type="button"
-        onClick={startRecording}
+        onClick={handleMicClick}
         disabled={disabled}
         className={cn(
           "p-2.5 rounded-xl transition-all hover:bg-red-50 hover:text-red-500 text-muted-foreground",
