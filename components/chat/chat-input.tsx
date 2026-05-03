@@ -112,12 +112,39 @@ export function ChatInput({
     onSend(`[voice:${url}:${dur}]`)
   }
 
-  // ── Image upload ────────────────────────────────────────────────────────
+  // ── Image compression + upload ──────────────────────────────────────────
+  const compressImage = async (file: File, maxDimension = 1200, quality = 0.85): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        let { width, height } = img
+        if (width <= maxDimension && height <= maxDimension) { resolve(file); return }
+        const ratio = Math.min(maxDimension / width, maxDimension / height)
+        width = Math.round(width * ratio); height = Math.round(height * ratio)
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return }
+          resolve(new File([blob], file.name, { type: 'image/jpeg' }))
+        }, 'image/jpeg', quality)
+      }
+      img.onerror = () => resolve(file)
+      img.src = url
+    })
+  }
+
   const uploadImageFile = async (file: File) => {
     setIsUploading(true)
     try {
+      // Compress large images before upload
+      const compressed = file.type.startsWith('image/') && file.size > 500 * 1024
+        ? await compressImage(file)
+        : file
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', compressed)
       const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }

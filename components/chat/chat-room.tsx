@@ -22,6 +22,7 @@ import { OfflineIndicator } from './offline-indicator'
 import { ChatStats } from './chat-stats'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
+import { CommunityFAQ } from './community-faq'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
@@ -407,6 +408,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Hot messages */}
           <HotMessages messages={messages} onJumpToMessage={jumpToMessage} />
+
+          {/* Community FAQ */}
+          <CommunityFAQ />
 
           {/* Chat statistics */}
           <ChatStats messages={messages} onlineUsers={onlineUsers} />
