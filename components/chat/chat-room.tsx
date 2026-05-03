@@ -25,6 +25,7 @@ import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
 import { CommunityFAQ } from './community-faq'
 import { TrendingKeywords } from './trending-keywords'
+import { CommunityChallenge } from './community-challenge'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
@@ -409,6 +410,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Upcoming events */}
           <UpcomingEventsCard events={upcomingEvents} />
+
+          {/* Weekly challenge */}
+          <CommunityChallenge
+            userMessagesThisWeek={messages.filter(m => {
+              const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+              return m.user_id === currentUser.id && new Date(m.created_at).getTime() > weekAgo
+            }).length}
+          />
 
           {/* Trending keywords */}
           <TrendingKeywords
