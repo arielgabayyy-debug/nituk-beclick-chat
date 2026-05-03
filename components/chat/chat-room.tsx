@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images } from 'lucide-react'
+import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -24,6 +24,7 @@ import { ChatRulesCard } from './chat-rules'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
+import { ShortcutsModal } from './shortcuts-modal'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
@@ -91,6 +92,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showConfetti, setShowConfetti] = useState(false)
   const [showBookmarks, setShowBookmarks] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const [forwardedContent, setForwardedContent] = useState<string | null>(null)
   const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
   const prevMessagesLengthRef = useRef(messages.length)
@@ -247,7 +249,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     <div className="min-h-screen flex flex-col chat-bg-animated">
       <KeyboardShortcuts
         onSearch={() => { setShowSearch(s => !s); setSearchQuery('') }}
-        onEscape={() => { setShowSearch(false); setSearchQuery(''); setReplyTo(null) }}
+        onEscape={() => { setShowSearch(false); setSearchQuery(''); setReplyTo(null); setShowShortcuts(false) }}
+        onShowShortcuts={() => setShowShortcuts(s => !s)}
         onEditLastMessage={() => {
           const lastOwn = [...messages].reverse().find(m => m.user_id === currentUser.id)
           if (lastOwn) {
@@ -532,6 +535,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 </Button>
               )}
 
+              {/* Keyboard shortcuts */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => setShowShortcuts(s => !s)}
+                title="קיצורי דרך (?)"
+              >
+                <Keyboard className="w-4 h-4 text-muted-foreground" />
+              </Button>
+
               {/* Image gallery */}
               <Button
                 variant="ghost"
@@ -626,6 +640,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         <button onClick={() => setSidebarTab('deals')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><Flame className="w-5 h-5" /><span>עסקאות</span></button>
         <button onClick={() => setSidebarTab('polls')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><BarChart3 className="w-5 h-5" /><span>סקרים</span></button>
       </nav>
+
+      {/* Shortcuts modal */}
+      {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
 
       {/* Image Gallery Panel */}
       {showGallery && (

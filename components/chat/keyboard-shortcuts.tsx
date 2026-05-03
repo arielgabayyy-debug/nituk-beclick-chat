@@ -6,9 +6,10 @@ interface KeyboardShortcutsProps {
   onSearch: () => void
   onEscape: () => void
   onEditLastMessage?: () => void
+  onShowShortcuts?: () => void
 }
 
-export function KeyboardShortcuts({ onSearch, onEscape, onEditLastMessage }: KeyboardShortcutsProps) {
+export function KeyboardShortcuts({ onSearch, onEscape, onEditLastMessage, onShowShortcuts }: KeyboardShortcutsProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
@@ -27,6 +28,13 @@ export function KeyboardShortcuts({ onSearch, onEscape, onEditLastMessage }: Key
         return
       }
 
+      // ? when not in input → show shortcuts
+      if (e.key === '?' && !inInput) {
+        e.preventDefault()
+        onShowShortcuts?.()
+        return
+      }
+
       // Up arrow when input is empty → edit last message
       if (e.key === 'ArrowUp' && inInput) {
         const ta = e.target as HTMLTextAreaElement
@@ -38,7 +46,7 @@ export function KeyboardShortcuts({ onSearch, onEscape, onEditLastMessage }: Key
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onSearch, onEscape, onEditLastMessage])
+  }, [onSearch, onEscape, onEditLastMessage, onShowShortcuts])
 
   return null
 }
