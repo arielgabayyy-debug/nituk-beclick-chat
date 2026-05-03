@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
 import { VoiceMessage } from './voice-message'
+import { LinkPreview } from './link-preview'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -152,12 +153,17 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
     return inlineParts
   }
 
-  // Collect image URLs for preview
+  // Collect image URLs and non-image URLs for preview
   const imageUrls: string[] = []
+  const linkUrls: string[] = []
   const urlMatches = content.match(URL_REGEX) || []
   urlMatches.forEach(url => {
-    if (IMAGE_EXTENSIONS.test(url)) imageUrls.push(url)
+    if (IMAGE_EXTENSIONS.test(url)) { imageUrls.push(url) }
+    else { linkUrls.push(url) }
   })
+
+  // Only show link preview for the first non-image URL
+  const previewUrl = linkUrls[0] || null
 
   return (
     <>
@@ -183,6 +189,8 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
           />
         </a>
       ))}
+      {/* Link preview for first non-image URL */}
+      {previewUrl && <LinkPreview url={previewUrl} isOwn={!!isOwn} />}
     </>
   )
 }
@@ -272,7 +280,11 @@ export function ChatMessageComponent({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content)
   const [showHoverCard, setShowHoverCard] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const hoverCardTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const COLLAPSE_THRESHOLD = 300 // chars
+  const isLong = !message.content.startsWith('[voice:') && message.content.length > COLLAPSE_THRESHOLD
+  const displayContent = isLong && !expanded ? message.content.slice(0, COLLAPSE_THRESHOLD) + '…' : message.content
 
   const isOwn = message.user_id === currentUser?.id
   const isAdmin = currentUser?.user_type === 'admin'
@@ -432,7 +444,17 @@ export function ChatMessageComponent({
               </div>
             </div>
           ) : (
-            renderMessageContent(message.content, searchQuery, isOwn)
+            <>
+              {renderMessageContent(displayContent, searchQuery, isOwn)}
+              {isLong && (
+                <button
+                  onClick={() => setExpanded(e => !e)}
+                  className={`text-[11px] font-semibold mt-1 underline underline-offset-2 opacity-80 hover:opacity-100 transition ${isOwn ? 'text-white' : 'text-primary'}`}
+                >
+                  {expanded ? 'הצג פחות ▲' : 'קרא עוד ▼'}
+                </button>
+              )}
+            </>
           )}
 
           {/* Copy button on hover */}

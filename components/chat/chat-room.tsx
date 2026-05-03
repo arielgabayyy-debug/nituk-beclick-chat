@@ -131,6 +131,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     prevMessagesLengthRef.current = messages.length
   }, [messages, currentUser.id, soundEnabled])
 
+  // Update browser tab title with unread count
+  useEffect(() => {
+    const base = 'חיבור וניתוק בקליק'
+    if (unreadSinceScroll > 0) {
+      document.title = `(${unreadSinceScroll}) ${base}`
+    } else {
+      document.title = base
+    }
+    return () => { document.title = base }
+  }, [unreadSinceScroll])
+
   const jumpToMessage = (messageId: string) => {
     const element = document.getElementById(`message-${messageId}`)
     if (element) {
@@ -140,7 +151,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     }
   }
 
-  const allItems = [
+  const baseItems = [
     ...messages.map(m => ({ type: 'message' as const, data: m, time: new Date(m.created_at).getTime() })),
     ...systemMessages
       .filter(s => s.message_type === 'announcement')
@@ -154,6 +165,30 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       }
       return true
     })
+
+  // Inject date separators between messages from different days
+  const formatDateLabel = (ts: number) => {
+    const d = new Date(ts)
+    const today = new Date(); today.setHours(0,0,0,0)
+    const yesterday = new Date(today); yesterday.setDate(today.getDate()-1)
+    d.setHours(0,0,0,0)
+    if (d.getTime() === today.getTime()) return 'היום'
+    if (d.getTime() === yesterday.getTime()) return 'אתמול'
+    return new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  type AllItem = (typeof baseItems)[0] | { type: 'date'; label: string; time: number }
+  const allItems: AllItem[] = []
+  let lastDate = ''
+  for (const item of baseItems) {
+    const d = new Date(item.time); d.setHours(0,0,0,0)
+    const dateKey = d.toISOString()
+    if (dateKey !== lastDate) {
+      allItems.push({ type: 'date', label: formatDateLabel(item.time), time: item.time - 1 })
+      lastDate = dateKey
+    }
+    allItems.push(item)
+  }
 
   const handleSendAnnouncement = () => {
     if (announcementText.trim()) {
@@ -342,27 +377,41 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               </div>
             ) : (
               <>
-                {allItems.map((item) => (
-                  item.type === 'message' ? (
-                    <div key={item.data.id} id={`message-${item.data.id}`}>
-                      <ChatMessageComponent
-                        message={item.data}
-                        currentUser={currentUser}
-                        onDelete={deleteMessage}
-                        onPin={togglePinMessage}
-                        onReact={addReaction}
-                        onUserClick={handleUserClick}
-                        onReply={(msg) => setReplyTo(msg)}
-                        onEdit={editMessage}
-                        searchQuery={searchQuery || undefined}
-                        isBookmarked={isBookmarked(item.data.id)}
-                        onToggleBookmark={toggleBookmark}
-                      />
-                    </div>
-                  ) : (
-                    <SystemMessageComponent key={item.data.id} message={item.data as SystemMessage} />
+                {allItems.map((item, idx) => {
+                  if (item.type === 'date') {
+                    return (
+                      <div key={`date-${item.time}`} className="flex items-center gap-3 my-2">
+                        <div className="flex-1 h-px bg-border/40" />
+                        <span className="text-[11px] text-muted-foreground font-medium px-2 py-0.5 bg-muted/50 rounded-full shrink-0">
+                          {item.label}
+                        </span>
+                        <div className="flex-1 h-px bg-border/40" />
+                      </div>
+                    )
+                  }
+                  if (item.type === 'message') {
+                    return (
+                      <div key={item.data.id} id={`message-${item.data.id}`}>
+                        <ChatMessageComponent
+                          message={item.data}
+                          currentUser={currentUser}
+                          onDelete={deleteMessage}
+                          onPin={togglePinMessage}
+                          onReact={addReaction}
+                          onUserClick={handleUserClick}
+                          onReply={(msg) => setReplyTo(msg)}
+                          onEdit={editMessage}
+                          searchQuery={searchQuery || undefined}
+                          isBookmarked={isBookmarked(item.data.id)}
+                          onToggleBookmark={toggleBookmark}
+                        />
+                      </div>
+                    )
+                  }
+                  return (
+                    <SystemMessageComponent key={(item as {data: SystemMessage}).data.id} message={(item as {data: SystemMessage}).data} />
                   )
-                ))}
+                })}
               </>
             )}
             <div ref={messagesEndRef} />
