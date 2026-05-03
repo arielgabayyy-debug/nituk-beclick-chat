@@ -36,7 +36,18 @@
       "Bash(node -e \"const d=require\\('C:/temp_swagger.json'\\); const rpcs=Object.keys\\(d.paths||{}\\).filter\\(p=>p.includes\\('rpc'\\)\\); console.log\\(rpcs.join\\('\\\\n'\\)\\)\")",
       "Bash(node -e \"let d=''; process.stdin.on\\('data',c=>d+=c\\); process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\); const deps={...j.dependencies,...j.devDependencies}; Object.entries\\(deps\\).filter\\(\\([k]\\)=>k.includes\\('supabase'\\)\\).forEach\\(\\([k,v]\\)=>console.log\\(k,v\\)\\)}\\)\")",
       "Bash(node -e \"let d=''; process.stdin.on\\('data',c=>d+=c\\); process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\); const deps={...j.dependencies,...j.devDependencies}; Object.entries\\(deps\\).filter\\(\\([k]\\)=>k==='pg'||k==='postgres'||k.includes\\('prisma'\\)\\).forEach\\(\\([k,v]\\)=>console.log\\(k,v\\)\\); console.log\\('---all---'\\); Object.keys\\({...j.dependencies,...j.devDependencies}\\).join\\('\\\\n'\\)|0; console.log\\(Object.keys\\({...j.dependencies,...j.devDependencies}\\).join\\('\\\\n'\\)\\)}\\)\")",
-      "Bash(node -e \"const p=require\\('./package.json'\\); p.dependencies['pg']='8.x'; require\\('fs'\\).writeFileSync\\('./package.json', JSON.stringify\\(p,null,2\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); p.dependencies['pg']='8.x'; require\\('fs'\\).writeFileSync\\('./package.json', JSON.stringify\\(p,null,2\\)\\)\")",
+      "Bash(curl -s \"https://nituk-beclick-chat.vercel.app/api/admin/migrate-full?secret=nituk_migrate_2026\")",
+      "Bash(curl -sf \"https://nituk-beclick-chat.vercel.app/api/admin/migrate-full?secret=nituk_migrate_2026\" -o /tmp/mig_result.txt)",
+      "Read(//tmp/**)",
+      "Bash(gh run *)",
+      "Bash(curl -s -X POST https://ltwyduffgrbenghdzbji.supabase.co/pg/query -H 'Content-Type: application/json' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk' -d '{\"query\":\"SELECT version\\(\\)\"}')",
+      "Bash(curl -s -X POST https://ltwyduffgrbenghdzbji.supabase.co/db/query -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk' -H 'Content-Type: application/json' -d '{\"query\":\"SELECT version\\(\\)\"}')",
+      "Read(//c/Users/אריאל/.vercel/**)",
+      "Read(//c/Users/אריאל/.config/vercel/**)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://ltwyduffgrbenghdzbji.supabase.co/__TRACKED_VAR__)",
+      "Read(//c/Users/אריאל/Desktop/b_jsSQ6JdrNLU/**)",
+      "Bash(npx supabase@latest --version)"
     ]
   }
 }

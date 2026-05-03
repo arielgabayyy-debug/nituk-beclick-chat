@@ -532,10 +532,9 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
       setTimeout(() => setHeartBurst(false), 600)
     }
     lastTapRef.current = now
-    // Long press → context menu
+    // Long press → context menu (mobile only — no floating toolbar)
     longPressTimerRef.current = setTimeout(() => {
       setShowContextMenu(true)
-      setShowActions(true)
       if ('vibrate' in navigator) navigator.vibrate(50)
     }, 600)
   }
@@ -882,10 +881,10 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
         )}
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons — desktop hover only, hidden on mobile */}
       {showActions && !isEditing && (
         <div className={cn(
-          "absolute -top-3 flex items-center gap-0.5 z-10",
+          "absolute -top-3 hidden sm:flex items-center gap-0.5 z-10",
           "bg-white dark:bg-muted border border-border/60 rounded-full px-1 py-0.5 shadow-lg",
           "animate-in fade-in zoom-in-95 duration-150",
           isOwn ? "left-12" : "right-12"
@@ -1106,50 +1105,149 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
     {lightboxSrc && (
       <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
     )}
-    {/* Mobile long-press context menu */}
+    {/* Mobile long-press context menu — WhatsApp style */}
     {showContextMenu && (
-      <div className="fixed inset-0 z-[55] bg-black/40" onClick={() => setShowContextMenu(false)}>
-        <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl p-4 animate-in slide-in-from-bottom-4 duration-200" onClick={e => e.stopPropagation()}>
-          <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-4" />
-          <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{message.content.slice(0, 60)}{message.content.length > 60 ? '...' : ''}</p>
-          {/* Quick reactions */}
-          <div className="flex gap-3 justify-center mb-4">
+      <div
+        className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-[2px]"
+        onClick={() => setShowContextMenu(false)}
+      >
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl animate-in slide-in-from-bottom-4 duration-250 pb-safe"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-10 h-1 bg-muted-foreground/20 rounded-full" />
+          </div>
+
+          {/* Quick reaction row — like WhatsApp */}
+          <div className="flex items-center justify-around px-6 py-3 border-b border-border/20">
             {REACTION_EMOJIS.map(emoji => (
-              <button key={emoji} onClick={() => { onReact?.(message.id, emoji); setShowContextMenu(false) }}
-                className="text-2xl hover:scale-125 transition-transform active:scale-95">
+              <button
+                key={emoji}
+                onClick={() => { onReact?.(message.id, emoji); setShowContextMenu(false) }}
+                className="text-[28px] active:scale-125 transition-transform"
+              >
                 {emoji}
               </button>
             ))}
           </div>
-          {/* Actions */}
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => { onReply?.(message); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
-              <Reply className="w-4 h-4" /> השב
+
+          {/* Message preview */}
+          <div className="px-4 py-2.5 border-b border-border/20">
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+              {message.content.startsWith('[voice:') ? '🎤 הודעה קולית' : message.content.slice(0, 80)}
+              {!message.content.startsWith('[voice:') && message.content.length > 80 ? '...' : ''}
+            </p>
+          </div>
+
+          {/* Action list — WhatsApp style rows */}
+          <div className="py-1">
+            <button
+              onClick={() => { onReply?.(message); setShowContextMenu(false) }}
+              className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right"
+            >
+              <Reply className="w-5 h-5 text-muted-foreground shrink-0" />
+              <span className="text-sm font-medium">השב</span>
             </button>
-            <button onClick={() => { navigator.clipboard.writeText(message.content); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
-              <Copy className="w-4 h-4" /> העתק טקסט
-            </button>
-            <button onClick={() => { handleCopyLink(); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
-              <Copy className="w-4 h-4" /> העתק קישור
-            </button>
-            <button onClick={() => { onToggleBookmark?.(message.id); setShowContextMenu(false) }} className={cn("flex items-center gap-2 p-3 rounded-xl text-sm", isBookmarked ? "bg-amber-100 text-amber-700" : "bg-muted/40 hover:bg-muted")}>
-              <Bookmark className="w-4 h-4" /> {isBookmarked ? 'הסר שמירה' : 'שמור'}
-            </button>
-            {!isOwn && onToggleMute && user && (
-              <button onClick={() => { onToggleMute(message.user_id); setShowContextMenu(false) }} className={cn("flex items-center gap-2 p-3 rounded-xl text-sm", isMuted ? "bg-orange-50 text-orange-600" : "bg-muted/40 hover:bg-muted")}>
-                {isMuted ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />} {isMuted ? 'הסר השתקה' : 'השתק'}
+
+            {!message.content.startsWith('[voice:') && (
+              <button
+                onClick={() => { navigator.clipboard.writeText(message.content); setShowContextMenu(false) }}
+                className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right"
+              >
+                <Copy className="w-5 h-5 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium">העתק הודעה</span>
               </button>
             )}
-            {!isOwn && (
-              <button onClick={() => { setShowReportDialog(true); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-sm">
-                <Flag className="w-4 h-4" /> דווח
+
+            <button
+              onClick={() => { onToggleBookmark?.(message.id); setShowContextMenu(false) }}
+              className={cn("w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right", isBookmarked && "text-amber-600")}
+            >
+              <Bookmark className={cn("w-5 h-5 shrink-0", isBookmarked ? "text-amber-500 fill-amber-500" : "text-muted-foreground")} />
+              <span className="text-sm font-medium">{isBookmarked ? 'הסר מסימניות' : 'שמור הודעה'}</span>
+            </button>
+
+            {!message.content.startsWith('[voice:') && (
+              <button
+                onClick={() => {
+                  const text = encodeURIComponent(`${user?.name || 'משתמש'}: "${message.content.slice(0, 200)}"`)
+                  window.open(`https://wa.me/?text=${text}`, '_blank')
+                  setShowContextMenu(false)
+                }}
+                className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right"
+              >
+                <svg className="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                <span className="text-sm font-medium">שתף בוואטסאפ</span>
               </button>
             )}
+
+            {onForward && !message.content.startsWith('[voice:') && (
+              <button
+                onClick={() => {
+                  onForward?.(`↪️ ${user?.name || 'משתמש'}: "${message.content.slice(0, 100)}${message.content.length > 100 ? '...' : ''}" `)
+                  setShowContextMenu(false)
+                }}
+                className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right"
+              >
+                <Forward className="w-5 h-5 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium">העבר הודעה</span>
+              </button>
+            )}
+
             {isOwn && onEdit && (
-              <button onClick={() => { setEditContent(message.content); setIsEditing(true); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
-                <Pencil className="w-4 h-4" /> ערוך
+              <button
+                onClick={() => { setEditContent(message.content); setIsEditing(true); setShowContextMenu(false) }}
+                className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right"
+              >
+                <Pencil className="w-5 h-5 text-muted-foreground shrink-0" />
+                <span className="text-sm font-medium">ערוך הודעה</span>
               </button>
             )}
+
+            {!isOwn && onToggleMute && user && (
+              <button
+                onClick={() => { onToggleMute(message.user_id); setShowContextMenu(false) }}
+                className={cn("w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right", isMuted && "text-orange-600")}
+              >
+                {isMuted ? <Volume2 className="w-5 h-5 text-orange-500 shrink-0" /> : <VolumeX className="w-5 h-5 text-muted-foreground shrink-0" />}
+                <span className="text-sm font-medium">{isMuted ? 'הסר השתקה' : `השתק את ${user.name}`}</span>
+              </button>
+            )}
+
+            {isAdmin && onDelete && (
+              <button
+                onClick={() => { onDelete(message.id); setShowContextMenu(false) }}
+                className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-red-50 transition-colors text-right text-red-600"
+              >
+                <Trash2 className="w-5 h-5 shrink-0" />
+                <span className="text-sm font-medium">מחק הודעה</span>
+              </button>
+            )}
+
+            {!isOwn && (
+              <button
+                onClick={() => { setShowReportDialog(true); setShowContextMenu(false) }}
+                className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-red-50 transition-colors text-right text-red-500"
+              >
+                <Flag className="w-5 h-5 shrink-0" />
+                <span className="text-sm font-medium">דווח על הודעה</span>
+              </button>
+            )}
+
+            {/* Cancel */}
+            <div className="border-t border-border/20 mt-1 pt-1">
+              <button
+                onClick={() => setShowContextMenu(false)}
+                className="w-full py-3.5 text-sm font-semibold text-muted-foreground active:bg-muted/60 transition-colors"
+              >
+                ביטול
+              </button>
+            </div>
           </div>
         </div>
       </div>
