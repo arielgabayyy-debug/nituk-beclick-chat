@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import type { UserType } from '@/lib/chat-types'
 import { getRandomAvatarColor, AVATAR_COLORS } from '@/lib/chat-types'
 
-const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com']
+const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
 
 interface LoginFormProps {
   mode: 'guest' | 'subscriber' | 'newsletter'
