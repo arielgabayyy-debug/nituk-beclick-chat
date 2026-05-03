@@ -24,10 +24,13 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
       }
     })
     if (data?.url) {
-      // אם בתוך iframe - פתח בטאב חדש
-      if (window !== window.top) {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      const isInIframe = window !== window.top
+      if (isInIframe && !isMobile) {
+        // דסקטופ בתוך iframe - פתח טאב חדש
         window.open(data.url, '_blank')
       } else {
+        // מובייל או ישיר - redirect רגיל (מהיר יותר)
         window.location.href = data.url
       }
     }
@@ -45,8 +48,9 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
       }
     })
     if (data?.url) {
-      // אם בתוך iframe - פתח בטאב חדש
-      if (window !== window.top) {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      const isInIframe = window !== window.top
+      if (isInIframe && !isMobile) {
         window.open(data.url, '_blank')
       } else {
         window.location.href = data.url
