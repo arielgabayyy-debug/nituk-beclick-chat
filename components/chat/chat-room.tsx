@@ -20,6 +20,11 @@ import { Confetti } from './confetti'
 import { useBookmarks, useMutedUsers, BookmarksPanel } from './message-bookmarks'
 import { OfflineIndicator } from './offline-indicator'
 import { ChatStats } from './chat-stats'
+import { ReactionLeaderboard } from './reaction-leaderboard'
+import { Icebreaker } from './icebreaker'
+import { ProviderComparison } from './provider-comparison'
+import { ChatExport } from './chat-export'
+import { CelebrationButton } from './celebration-button'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
@@ -109,6 +114,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [focusMode, setFocusMode] = useState(false)
   const [mobilePanel, setMobilePanel] = useState<SidebarTab | null>(null)
   const [showQuickDeal, setShowQuickDeal] = useState(false)
+  const [showExport, setShowExport] = useState(false)
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null)
   const [showNotifBanner, setShowNotifBanner] = useState(false)
   const { permission, sendNotification } = useNotificationPermission()
@@ -281,22 +287,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     setShowUserProfile(user)
   }
 
-  // Export chat as .txt
-  const handleExportChat = () => {
-    const lines = messages.map(m => {
-      const time = new Date(m.created_at).toLocaleString('he-IL')
-      const name = m.user?.name || 'משתמש'
-      const content = m.content.startsWith('[voice:') ? '[הודעה קולית]' : m.content
-      return `[${time}] ${name}: ${content}`
-    })
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `chat-${new Date().toISOString().slice(0, 10)}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  // Export chat — opens modal
+  const handleExportChat = () => setShowExport(true)
 
   // Confetti on first-ever message
   const handleSendMessage = (content: string) => {
@@ -444,6 +436,15 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Chat statistics */}
           <ChatStats messages={messages} onlineUsers={onlineUsers} />
+
+          {/* Reaction leaderboard */}
+          <ReactionLeaderboard messages={messages} onJumpToMessage={jumpToMessage} />
+
+          {/* Provider comparison */}
+          <ProviderComparison onShareDeal={(text) => sendMessage(text)} />
+
+          {/* Icebreaker question */}
+          <Icebreaker onAsk={(q) => sendMessage(q)} />
         </div>
 
         {/* Collapse toggle */}
@@ -817,6 +818,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               >
                 <Download className="w-4 h-4 text-muted-foreground" />
               </Button>
+              {/* Celebration button */}
+              <CelebrationButton onSend={handleSendMessage} />
             </div>
             <ChatInput
               onSend={handleSendMessage}
@@ -963,6 +966,15 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
             />
           </div>
         </div>
+      )}
+
+      {/* Chat Export Modal */}
+      {showExport && (
+        <ChatExport
+          messages={messages}
+          currentUser={currentUser}
+          onClose={() => setShowExport(false)}
+        />
       )}
 
     </div>
