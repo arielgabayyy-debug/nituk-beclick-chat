@@ -27,7 +27,8 @@
       "mcp__Claude_in_Chrome__form_input",
       "Bash(curl -s 'https://ltwyduffgrbenghdzbji.supabase.co/rest/v1/chat_users?select=*&limit=1' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk')",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d[0].keys\\(\\)\\) if d else 'empty'\\)\")",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(curl -s -X POST https://ltwyduffgrbenghdzbji.supabase.co/storage/v1/bucket/chat-images/policy -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk' -H 'Content-Type: application/json' -d '{\"name\":\"allow-uploads\",\"definition\":\"true\",\"operation\":\"INSERT\"}')"
     ]
   }
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Smile, X, Reply } from 'lucide-react'
+import { Send, Smile, X, Reply, ImagePlus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { QUICK_EMOJIS } from '@/lib/chat-types'
@@ -39,7 +39,9 @@ export function ChatInput({
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionResults, setMentionResults] = useState<MentionUser[]>([])
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const getMentionQuery = (text: string, cursorPos: number): string | null => {
@@ -47,6 +49,29 @@ export function ChatInput({
     const match = before.match(/@(\w*)$/)
     return match ? match[1] : null
   }
+
+  // ── Image upload ────────────────────────────────────────────────────────
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = '' // reset so same file can be re-selected
+
+    setIsUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }
+      // Send image URL as message — the auto-preview will render it
+      onSend(data.url)
+    } catch {
+      alert('שגיאה בהעלאת התמונה')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -241,7 +266,18 @@ export function ChatInput({
         </div>
       )}
 
+      {/* Hidden file input for image/camera */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture={undefined}
+        className="hidden"
+        onChange={handleImageSelect}
+      />
+
       <form onSubmit={handleSubmit} className="flex items-end gap-2">
+        {/* Emoji */}
         <Button
           type="button"
           variant="ghost"
@@ -250,6 +286,22 @@ export function ChatInput({
           onClick={() => setShowEmojis(!showEmojis)}
         >
           <Smile className="w-5 h-5" />
+        </Button>
+
+        {/* Image upload */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-xl"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || isUploading}
+          title="שלח תמונה מהגלריה או מצלמה"
+        >
+          {isUploading
+            ? <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            : <ImagePlus className="w-5 h-5" />
+          }
         </Button>
 
         <div className="flex-1 relative">
