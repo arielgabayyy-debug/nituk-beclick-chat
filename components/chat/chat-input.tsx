@@ -161,6 +161,7 @@ export function ChatInput({
     setMentionResults([])
     onTypingStop?.()
     onCancelReply?.()
+    localStorage.removeItem(DRAFT_KEY)
     // Record send time for slow mode
     localStorage.setItem('slow_mode_last_sent', Date.now().toString())
     checkSlowMode()
@@ -330,6 +331,20 @@ export function ChatInput({
       setTimeout(() => textareaRef.current?.focus(), 50)
     }
   }, [forwardedContent])
+
+  // Auto-save draft
+  const DRAFT_KEY = 'chat_input_draft'
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY)
+    if (saved && !forwardedContent) setMessage(saved)
+  }, [])
+  useEffect(() => {
+    if (message) {
+      localStorage.setItem(DRAFT_KEY, message)
+    } else {
+      localStorage.removeItem(DRAFT_KEY)
+    }
+  }, [message])
 
   return (
     <div className="relative">

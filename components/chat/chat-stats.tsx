@@ -90,6 +90,38 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
         </div>
       </div>
 
+      {/* Activity bar chart (last 12 hours) */}
+      {(() => {
+        const now = new Date()
+        const hours = Array.from({ length: 12 }, (_, i) => {
+          const h = (now.getHours() - 11 + i + 24) % 24
+          const count = messages.filter(m => new Date(m.created_at).getHours() === h && new Date(m.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length
+          return { h, count }
+        })
+        const max = Math.max(...hours.map(h => h.count), 1)
+        if (max === 0) return null
+        return (
+          <div>
+            <p className="text-[10px] text-muted-foreground mb-1.5">פעילות ב-12 שעות אחרונות</p>
+            <div className="flex items-end gap-0.5 h-10">
+              {hours.map(({ h, count }) => (
+                <div key={h} className="flex-1 flex flex-col items-center gap-0.5">
+                  <div
+                    className="w-full rounded-sm bg-primary/40 hover:bg-primary/70 transition-colors"
+                    style={{ height: `${Math.max(2, (count / max) * 100)}%` }}
+                    title={`${h}:00 — ${count} הודעות`}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between text-[8px] text-muted-foreground mt-0.5">
+              <span>{hours[0].h}:00</span>
+              <span>{now.getHours()}:00</span>
+            </div>
+          </div>
+        )
+      })()}
+
       {stats.topUser && (
         <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl px-3 py-2 flex items-center gap-2">
           <span className="text-base">🏆</span>

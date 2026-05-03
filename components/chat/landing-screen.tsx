@@ -213,8 +213,26 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
           ))}
         </div>
 
+        {/* Share button */}
+        <div className="mt-3 text-center">
+          <button
+            onClick={() => {
+              const url = 'https://nituk-beclick-chat.vercel.app'
+              const text = 'הצטרף לקהילת חיבור וניתוק בקליק — השוואת מחירים חכמה עם AI!'
+              if (navigator.share) {
+                navigator.share({ title: 'חיבור וניתוק בקליק', text, url })
+              } else {
+                window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank')
+              }
+            }}
+            className="text-xs text-muted-foreground hover:text-primary transition underline underline-offset-2"
+          >
+            📤 שתף עם חברים
+          </button>
+        </div>
+
         {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground mt-4">
+        <p className="text-center text-xs text-muted-foreground mt-3">
           בכניסה אתם מסכימים לתנאי השימוש ומדיניות הפרטיות
         </p>
       </div>
