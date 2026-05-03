@@ -53,6 +53,29 @@ function AnalyticsChart({ data, color = '#8b5cf6', label }: {
 }
 // ─────────────────────────────────────────────────────────────────────────
 
+function MessageActivityChart() {
+  const [data, setData] = useState<{ date: string; count: number }[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    fetch('/api/admin/analytics?days=14')
+      .then(r => r.json())
+      .then(d => { if (d.dailyData) setData(d.dailyData) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+  if (loading) return <div className="bg-white rounded-2xl p-6 shadow-sm border animate-pulse h-40" />
+  if (!data.length) return null
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border">
+      <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <MessageCircle className="w-5 h-5 text-green-600" />
+        הודעות — 14 ימים אחרונים
+      </h2>
+      <AnalyticsChart data={data} color="#10b981" label="הודעות יומיות" />
+    </div>
+  )
+}
+
 const supabase = createClient()
 
 interface Stats {
@@ -622,6 +645,9 @@ export default function AdminDashboard() {
                   <AnalyticsChart data={chartData} color="#8b5cf6" label="הרשמות יומיות" />
                 </div>
 
+                {/* Message activity from analytics API */}
+                <MessageActivityChart />
+
                 {/* Latest 5 registrations preview */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
                   <div className="flex items-center justify-between mb-4">
@@ -1087,6 +1113,43 @@ export default function AdminDashboard() {
                       className="w-full bg-purple-600 text-white rounded-xl py-3 font-semibold hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {isSending ? <><RefreshCw className="w-4 h-4 animate-spin" /> שולח...</> : <><Send className="w-4 h-4" /> שלח ניוזלטר</>}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Broadcast card */}
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-6 shadow-sm border border-purple-100">
+                  <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                    שידור מהיר לכולם
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">שלח הודעה ישירה לכל חברי הקהילה</p>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      {(['all', 'subscribers', 'newsletter'] as const).map(t => (
+                        <label key={t} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="radio" name="broadcast_target" value={t} className="accent-purple-600" defaultChecked={t === 'all'} />
+                          <span className="text-sm text-gray-700">{t === 'all' ? 'כולם' : t === 'subscribers' ? 'מנויים' : 'ניוזלטר'}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const target = (document.querySelector('input[name="broadcast_target"]:checked') as HTMLInputElement)?.value || 'all'
+                        if (!newsletterSubject || !newsletterContent) {
+                          alert('נא למלא נושא ותוכן בטופס הניוזלטר למעלה')
+                          return
+                        }
+                        const adminEmail = users.find(u => u.user_type === 'admin')?.email || ''
+                        fetch('/api/admin/broadcast', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ subject: newsletterSubject, message: newsletterContent, targetType: target, senderEmail: adminEmail }),
+                        }).then(r => r.json()).then(d => alert(`נשלח! ${d.sent} מיילים`)).catch(() => alert('שגיאה בשליחה'))
+                      }}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl py-2.5 font-semibold hover:opacity-90 transition flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Send className="w-4 h-4" /> שלח שידור
                     </button>
                   </div>
                 </div>
