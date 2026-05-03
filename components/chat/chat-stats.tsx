@@ -44,6 +44,13 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
     })
     const topProvider = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0]
 
+    // Trending emoji today
+    const emojiCounts: Record<string, number> = {}
+    todayMsgs.forEach(m => {
+      if (m.reactions) m.reactions.forEach(r => { emojiCounts[r.emoji] = (emojiCounts[r.emoji] || 0) + 1 })
+    })
+    const trendingEmoji = Object.entries(emojiCounts).sort((a, b) => b[1] - a[1])[0]
+
     // Next milestone
     const totalMsgs = messages.length
     const MILESTONES = [100, 500, 1000, 2500, 5000, 10000, 25000]
@@ -58,6 +65,7 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
       topUser,
       uniqueUsersToday: new Set(todayMsgs.map(m => m.user_id)).size,
       topProvider: topProvider ? { name: topProvider[0], count: topProvider[1] } : null,
+      trendingEmoji: trendingEmoji ? { emoji: trendingEmoji[0], count: trendingEmoji[1] } : null,
       nextMilestone,
       milestoneProgress,
       totalMsgs,
@@ -141,6 +149,16 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
           </div>
         )
       })()}
+
+      {stats.trendingEmoji && (
+        <div className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-2">
+          <span className="text-xl">{stats.trendingEmoji.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-muted-foreground">ריאקציה חמה היום</p>
+          </div>
+          <span className="text-xs font-bold text-muted-foreground">{stats.trendingEmoji.count}×</span>
+        </div>
+      )}
 
       {stats.topProvider && (
         <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-xl px-3 py-2 flex items-center gap-2">

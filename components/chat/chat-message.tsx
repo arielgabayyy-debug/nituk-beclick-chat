@@ -511,6 +511,13 @@ export function ChatMessageComponent({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}${window.location.pathname}#message-${message.id}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const handleReport = () => {
     setShowReportDialog(true)
   }
@@ -921,7 +928,10 @@ export function ChatMessageComponent({
               <Reply className="w-4 h-4" /> השב
             </button>
             <button onClick={() => { navigator.clipboard.writeText(message.content); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
-              <Copy className="w-4 h-4" /> העתק
+              <Copy className="w-4 h-4" /> העתק טקסט
+            </button>
+            <button onClick={() => { handleCopyLink(); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
+              <Copy className="w-4 h-4" /> העתק קישור
             </button>
             <button onClick={() => { onToggleBookmark?.(message.id); setShowContextMenu(false) }} className={cn("flex items-center gap-2 p-3 rounded-xl text-sm", isBookmarked ? "bg-amber-100 text-amber-700" : "bg-muted/40 hover:bg-muted")}>
               <Bookmark className="w-4 h-4" /> {isBookmarked ? 'הסר שמירה' : 'שמור'}
