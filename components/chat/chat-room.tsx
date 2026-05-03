@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useSwipe } from '@/hooks/use-swipe'
 import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
@@ -114,6 +115,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [searchResultIndex, setSearchResultIndex] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [unreadSinceScroll, setUnreadSinceScroll] = useState(0)
+  const [unreadMentions, setUnreadMentions] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
   const [showBookmarks, setShowBookmarks] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
@@ -121,6 +123,19 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
   const [mobilePanel, setMobilePanel] = useState<SidebarTab | null>(null)
+
+  const MOBILE_PANELS: Array<SidebarTab | null> = [null, 'leaderboard', 'deals', 'users']
+  const mobilePanelSwipe = useSwipe({
+    onSwipeLeft: () => setMobilePanel(p => {
+      const idx = MOBILE_PANELS.indexOf(p)
+      return MOBILE_PANELS[(idx + 1) % MOBILE_PANELS.length]
+    }),
+    onSwipeRight: () => setMobilePanel(p => {
+      const idx = MOBILE_PANELS.indexOf(p)
+      return MOBILE_PANELS[(idx - 1 + MOBILE_PANELS.length) % MOBILE_PANELS.length]
+    }),
+    threshold: 60,
+  })
   const [showQuickDeal, setShowQuickDeal] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [showNotificationCenter, setShowNotificationCenter] = useState(false)
@@ -201,6 +216,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
             body: lastMessage.content.slice(0, 100),
             messageId: lastMessage.id,
           })
+          setUnreadMentions(c => c + 1)
         }
       }
     }
@@ -289,17 +305,27 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   }
 
   type AllItem = (typeof baseItems)[0] | { type: 'date'; label: string; time: number }
-  const allItems: AllItem[] = []
+  const allItemsFull: AllItem[] = []
   let lastDate = ''
   for (const item of baseItems) {
     const d = new Date(item.time); d.setHours(0,0,0,0)
     const dateKey = d.toISOString()
     if (dateKey !== lastDate) {
-      allItems.push({ type: 'date', label: formatDateLabel(item.time), time: item.time - 1 })
+      allItemsFull.push({ type: 'date', label: formatDateLabel(item.time), time: item.time - 1 })
       lastDate = dateKey
     }
-    allItems.push(item)
+    allItemsFull.push(item)
   }
+
+  // Lazy loading: show last PAGE_SIZE items, reveal more on scroll to top
+  const PAGE_SIZE = 80
+  const [displayedCount, setDisplayedCount] = useState(PAGE_SIZE)
+  const allItems = allItemsFull.slice(-displayedCount)
+  const hasMore = allItemsFull.length > displayedCount
+
+  const handleLoadMore = useCallback(() => {
+    setDisplayedCount(c => Math.min(c + PAGE_SIZE, allItemsFull.length))
+  }, [allItemsFull.length])
 
   const handleSendAnnouncement = () => {
     if (announcementText.trim()) {
@@ -362,8 +388,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       )}
       <KeyboardShortcuts
         onSearch={() => { setShowSearch(s => !s); setSearchQuery('') }}
-        onEscape={() => { setShowSearch(false); setSearchQuery(''); setReplyTo(null); setShowShortcuts(false) }}
+        onEscape={() => { setShowSearch(false); setSearchQuery(''); setReplyTo(null); setShowShortcuts(false); setShowNotificationCenter(false); setShowPinboard(false) }}
         onShowShortcuts={() => setShowShortcuts(s => !s)}
+        onScrollToBottom={scrollToBottom}
+        onToggleFocusMode={() => setFocusMode(f => !f)}
+        onReactToLast={(emoji) => {
+          const lastMsg = [...messages].reverse().find(m => m.user_id !== currentUser.id)
+          if (lastMsg) addReaction(lastMsg.id, emoji)
+        }}
         onEditLastMessage={() => {
           const lastOwn = [...messages].reverse().find(m => m.user_id === currentUser.id)
           if (lastOwn) {
@@ -682,6 +714,18 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               </div>
             ) : (
               <>
+                {/* Load more older messages */}
+                {hasMore && (
+                  <div className="flex justify-center py-3">
+                    <button
+                      onClick={handleLoadMore}
+                      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary bg-muted/40 hover:bg-muted/70 border border-border/40 rounded-full px-4 py-1.5 transition"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                      טען {Math.min(PAGE_SIZE, allItemsFull.length - displayedCount)} הודעות ישנות יותר
+                    </button>
+                  </div>
+                )}
                 {allItems.map((item, idx) => {
                   if (item.type === 'date') {
                     return (
@@ -869,17 +913,28 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 <Flame className="w-4 h-4" />
               </Button>
 
+              {/* Unread @mentions badge */}
+              {unreadMentions > 0 && (
+                <button
+                  className="flex items-center gap-1 text-[10px] font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-400/30 rounded-full px-2 py-0.5 hover:bg-cyan-500/20 transition animate-in fade-in duration-300"
+                  onClick={() => { setShowSearch(true); setSearchQuery(`@${currentUser.name}`); setUnreadMentions(0) }}
+                  title="אזכורים שלא נקראו"
+                >
+                  @{unreadMentions}
+                </button>
+              )}
+
               {/* Notification center */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 shrink-0 relative"
-                onClick={() => setShowNotificationCenter(v => !v)}
+                onClick={() => { setShowNotificationCenter(v => !v); setUnreadMentions(0) }}
                 title="מרכז התראות"
               >
                 <Bell className="w-4 h-4 text-muted-foreground" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center badge-pulse">{unreadCount > 9 ? '9+' : unreadCount}</span>
                 )}
               </Button>
 
@@ -1004,7 +1059,19 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
       {/* Mobile panel sheet */}
       {mobilePanel && (
-        <div className="lg:hidden fixed inset-x-0 bottom-16 z-30 bg-white dark:bg-gray-900 border-t border-border/30 shadow-2xl rounded-t-2xl max-h-[60vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300">
+        <div
+          className="lg:hidden fixed inset-x-0 bottom-16 z-30 bg-white dark:bg-gray-900 border-t border-border/30 shadow-2xl rounded-t-2xl max-h-[60vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300"
+          {...mobilePanelSwipe}
+        >
+          {/* Swipe indicator */}
+          <div className="flex items-center justify-center gap-1.5 mb-2">
+            {MOBILE_PANELS.map((p, i) => (
+              <div
+                key={i}
+                className={`h-1 rounded-full transition-all ${mobilePanel === p ? 'w-6 bg-primary' : 'w-1.5 bg-muted'}`}
+              />
+            ))}
+          </div>
           {mobilePanel === 'leaderboard' && <Leaderboard users={leaderboard} currentUserId={currentUser.id} />}
           {mobilePanel === 'deals' && <HotDeals deals={hotDeals} currentUser={currentUser} onVote={voteDeal} onShare={shareDeal} />}
           {mobilePanel === 'users' && <OnlineUsers users={onlineUsers} currentUserId={currentUser.id} onUserClick={u => { handleUserClick(u); setMobilePanel(null) }} />}

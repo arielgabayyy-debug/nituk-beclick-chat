@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2 } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -475,6 +475,27 @@ export function ChatMessageComponent({
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [showTranslator, setShowTranslator] = useState(false)
   const [showDM, setShowDM] = useState(false)
+  const [manualTag, setManualTag] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem(`msg_tag_${message.id}`)
+  })
+  const [showTagMenu, setShowTagMenu] = useState(false)
+
+  const TAG_OPTIONS = [
+    { label: '❓ שאלה', value: 'שאלה' },
+    { label: '💡 טיפ', value: 'טיפ' },
+    { label: '💰 עסקה', value: 'עסקה' },
+    { label: '🆘 עזרה', value: 'עזרה' },
+    { label: '⭐ הצלחה', value: 'הצלחה' },
+    { label: '🚫 הסר', value: '' },
+  ]
+
+  const applyTag = (tag: string) => {
+    setManualTag(tag || null)
+    if (tag) { localStorage.setItem(`msg_tag_${message.id}`, tag) }
+    else { localStorage.removeItem(`msg_tag_${message.id}`) }
+    setShowTagMenu(false)
+  }
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX
@@ -697,9 +718,9 @@ export function ChatMessageComponent({
           {isEdited && (
             <span className="text-[10px] text-muted-foreground italic">(נערך)</span>
           )}
-          {msgCategory && !isGrouped && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${msgCategory.color}`}>
-              {msgCategory.icon} {msgCategory.label}
+          {(manualTag || (msgCategory && !isGrouped)) && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${manualTag ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' : msgCategory!.color}`}>
+              {manualTag ?? `${msgCategory!.icon} ${msgCategory!.label}`}
             </span>
           )}
         </div>
@@ -969,6 +990,30 @@ export function ChatMessageComponent({
               <Flag className="w-3.5 h-3.5 text-muted-foreground hover:text-red-500" />
             </button>
           )}
+
+          {/* Manual tag */}
+          <div className="relative">
+            <button
+              className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${manualTag ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600' : 'hover:bg-muted text-muted-foreground'}`}
+              onClick={() => setShowTagMenu(v => !v)}
+              title="תייג הודעה"
+            >
+              <Tag className="w-3.5 h-3.5" />
+            </button>
+            {showTagMenu && (
+              <div className={`absolute top-full mt-1 z-50 bg-white dark:bg-muted border border-border/60 rounded-xl shadow-xl p-1.5 flex flex-col gap-0.5 min-w-[110px] animate-in fade-in zoom-in-95 duration-150 ${isOwn ? 'right-0' : 'left-0'}`}>
+                {TAG_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => applyTag(opt.value)}
+                    className={`text-xs px-2.5 py-1.5 rounded-lg text-right hover:bg-muted transition whitespace-nowrap ${manualTag === opt.value ? 'bg-violet-100 text-violet-700 font-medium' : ''}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Admin actions */}
           {isAdmin && (
