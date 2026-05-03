@@ -127,13 +127,16 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     if (messages.length > prevMessagesLengthRef.current && soundEnabled) {
       const lastMessage = messages[messages.length - 1]
       if (lastMessage && lastMessage.user_id !== currentUser.id) {
+        const isMention = lastMessage.content.includes(`@${currentUser.name}`)
         const audio = new Audio('/notification.mp3')
-        audio.volume = 0.3
+        audio.volume = isMention ? 0.7 : 0.3
+        // Speed up for mention (higher pitch feel)
+        if (isMention && 'playbackRate' in audio) audio.playbackRate = 1.5
         audio.play().catch(() => {})
       }
     }
     prevMessagesLengthRef.current = messages.length
-  }, [messages, currentUser.id, soundEnabled])
+  }, [messages, currentUser.id, currentUser.name, soundEnabled])
 
   // Update browser tab title with unread count
   useEffect(() => {
@@ -420,6 +423,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                     )
                   }
                   if (item.type === 'message') {
+                    // Check if this message should be grouped (same user, within 5 min)
+                    const prevItem = allItems[idx - 1]
+                    const isGrouped = !!(
+                      prevItem &&
+                      prevItem.type === 'message' &&
+                      prevItem.data.user_id === item.data.user_id &&
+                      item.time - prevItem.time < 5 * 60 * 1000
+                    )
                     return (
                       <div key={item.data.id} id={`message-${item.data.id}`}>
                         <ChatMessageComponent
@@ -436,6 +447,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           onToggleBookmark={toggleBookmark}
                           onForward={(content) => { setForwardedContent(content); scrollToBottom() }}
                           onBanUser={currentUser.user_type === 'admin' ? banUser : undefined}
+                          isGrouped={isGrouped}
+                          onDoubleClick={() => setReplyTo(item.data)}
                         />
                       </div>
                     )

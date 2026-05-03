@@ -24,6 +24,8 @@ interface ChatMessageProps {
   onToggleBookmark?: (messageId: string) => void
   onForward?: (content: string) => void
   onBanUser?: (userId: string, userName: string) => void
+  isGrouped?: boolean
+  onDoubleClick?: () => void
 }
 
 function getInitials(name: string): string {
@@ -133,26 +135,93 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
   }
 
   const renderTextSegment = (text: string, segKey: string) => {
-    // Handle inline code within text segments
-    const inlineCodeRegex = /`([^`]+)`/g
-    const inlineParts: React.ReactNode[] = []
-    let inlineLastIdx = 0
-    let im: RegExpExecArray | null
-    while ((im = inlineCodeRegex.exec(text)) !== null) {
-      if (im.index > inlineLastIdx) {
-        inlineParts.push(renderInlineText(text.slice(inlineLastIdx, im.index), searchQuery, `${segKey}-plain-${inlineLastIdx}`))
+    // Split by lines and handle markdown-like patterns per line
+    const lines = text.split('\n')
+    const parts: React.ReactNode[] = []
+
+    lines.forEach((line, lineIdx) => {
+      const lineKey = `${segKey}-line-${lineIdx}`
+
+      // Heading: ## text
+      if (/^#{1,3}\s+/.test(line)) {
+        const level = line.match(/^(#{1,3})/)?.[1].length || 1
+        const headText = line.replace(/^#{1,3}\s+/, '')
+        const cls = level === 1 ? 'text-base font-bold' : level === 2 ? 'text-sm font-bold' : 'text-sm font-semibold'
+        parts.push(<p key={lineKey} className={cls}>{renderInlineLine(headText, searchQuery, lineKey)}</p>)
+        return
       }
-      inlineParts.push(
-        <code key={`${segKey}-inline-${im.index}`} className="inline-code bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-mono">
-          {im[1]}
-        </code>
-      )
-      inlineLastIdx = im.index + im[0].length
-    }
-    if (inlineLastIdx < text.length) {
-      inlineParts.push(renderInlineText(text.slice(inlineLastIdx), searchQuery, `${segKey}-plain-end`))
-    }
-    return inlineParts
+
+      // Bullet list: - item or * item
+      if (/^[-*]\s+/.test(line)) {
+        const itemText = line.replace(/^[-*]\s+/, '')
+        parts.push(
+          <div key={lineKey} className="flex items-start gap-1.5 my-0.5">
+            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60" />
+            <span>{renderInlineLine(itemText, searchQuery, lineKey)}</span>
+          </div>
+        )
+        return
+      }
+
+      // Numbered list: 1. item
+      if (/^\d+\.\s+/.test(line)) {
+        const num = line.match(/^(\d+)\./)?.[1]
+        const itemText = line.replace(/^\d+\.\s+/, '')
+        parts.push(
+          <div key={lineKey} className="flex items-start gap-1.5 my-0.5">
+            <span className="shrink-0 opacity-60 text-xs font-mono min-w-[1.2rem]">{num}.</span>
+            <span>{renderInlineLine(itemText, searchQuery, lineKey)}</span>
+          </div>
+        )
+        return
+      }
+
+      // Horizontal rule: ---
+      if (/^-{3,}$/.test(line.trim())) {
+        parts.push(<hr key={lineKey} className="border-current opacity-20 my-1" />)
+        return
+      }
+
+      // Quote: > text
+      if (/^>\s+/.test(line)) {
+        const qText = line.replace(/^>\s+/, '')
+        parts.push(
+          <div key={lineKey} className="border-r-2 border-current opacity-70 pr-2 my-0.5 italic text-xs">
+            {renderInlineLine(qText, searchQuery, lineKey)}
+          </div>
+        )
+        return
+      }
+
+      // Normal line — handle inline code
+      const inlineCodeRegex = /`([^`]+)`/g
+      const inlineParts: React.ReactNode[] = []
+      let inlineLastIdx = 0
+      let im: RegExpExecArray | null
+      while ((im = inlineCodeRegex.exec(line)) !== null) {
+        if (im.index > inlineLastIdx) {
+          inlineParts.push(renderInlineText(line.slice(inlineLastIdx, im.index), searchQuery, `${lineKey}-plain-${inlineLastIdx}`))
+        }
+        inlineParts.push(
+          <code key={`${lineKey}-inline-${im.index}`} className="inline-code bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-mono">
+            {im[1]}
+          </code>
+        )
+        inlineLastIdx = im.index + im[0].length
+      }
+      if (inlineLastIdx < line.length) {
+        inlineParts.push(renderInlineText(line.slice(inlineLastIdx), searchQuery, `${lineKey}-plain-end`))
+      }
+      if (inlineParts.length > 0 || line) {
+        parts.push(<span key={lineKey} className="block">{inlineParts}</span>)
+      }
+    })
+
+    return parts
+  }
+
+  const renderInlineLine = (text: string, sq: string | undefined, key: string): React.ReactNode => {
+    return renderInlineText(text, sq, key)
   }
 
   // Collect image URLs and non-image URLs for preview
@@ -174,9 +243,9 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
           return <CodeBlock key={`code-${i}`} code={seg.value} />
         }
         return (
-          <p key={`text-${i}`} className="whitespace-pre-wrap break-words">
+          <div key={`text-${i}`} className="break-words">
             {renderTextSegment(seg.value, `seg-${i}`)}
-          </p>
+          </div>
         )
       })}
       {/* Inline image previews */}
@@ -277,6 +346,8 @@ export function ChatMessageComponent({
   onToggleBookmark,
   onForward,
   onBanUser,
+  isGrouped,
+  onDoubleClick,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -333,12 +404,14 @@ export function ChatMessageComponent({
     <div
       id={`message-${message.id}`}
       className={cn(
-        "flex gap-3 group relative px-1 py-0.5 rounded-2xl transition-all message-enter",
+        "flex gap-3 group relative px-1 rounded-2xl transition-all message-enter",
+        isGrouped ? "py-0.5 mt-0.5" : "py-1.5 mt-1",
         isOwn && "flex-row-reverse",
         message.is_pinned && "bg-amber-500/5 rounded-xl p-2 -mx-2 border border-amber-500/20",
         isMentioned && "bg-cyan-500/5 rounded-xl px-2 py-1 -mx-2 border border-cyan-400/30"
       )}
       onMouseEnter={() => setShowActions(true)}
+      onDoubleClick={onDoubleClick}
       onMouseLeave={() => { setShowActions(false); setShowReactions(false) }}
     >
       {/* Pinned indicator */}
@@ -354,8 +427,8 @@ export function ChatMessageComponent({
         </div>
       )}
 
-      {/* Avatar with presence ring */}
-      <div className="relative shrink-0">
+      {/* Avatar with presence ring — hidden for grouped messages */}
+      <div className={cn("relative shrink-0", isGrouped && "invisible w-10")}>
         <button
           onClick={handleAvatarClick}
           onMouseLeave={handleAvatarMouseLeave}
@@ -392,8 +465,8 @@ export function ChatMessageComponent({
 
       {/* Message content */}
       <div className={cn("flex flex-col max-w-[78%]", isOwn && "items-end")}>
-        {/* User info */}
-        <div className={cn("flex items-center gap-2 mb-1", isOwn && "flex-row-reverse")}>
+        {/* User info — hidden for grouped messages */}
+        <div className={cn("flex items-center gap-2 mb-1", isOwn && "flex-row-reverse", isGrouped && "hidden")}>
           <button
             onClick={handleAvatarClick}
             onMouseLeave={handleAvatarMouseLeave}
