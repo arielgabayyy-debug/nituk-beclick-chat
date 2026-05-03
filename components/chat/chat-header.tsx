@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette, ChevronDown, Settings, X } from 'lucide-react'
+import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette, ChevronDown, Settings, X, CheckSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
@@ -20,9 +20,10 @@ interface ChatHeaderProps {
   onLogout: () => void
   onToggleSearch?: () => void
   onAvatarColorChange?: (color: string) => void
+  onShowOnboarding?: () => void
 }
 
-export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange }: ChatHeaderProps) {
+export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange, onShowOnboarding }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
   const [showStatusEditor, setShowStatusEditor] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
@@ -164,6 +165,11 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
                       <p className="text-sm font-semibold truncate">{currentUser.name}</p>
                       <p className="text-xs text-muted-foreground">{currentUser.points.toLocaleString()} נקודות · רמה {currentUser.level}</p>
                     </div>
+                    {onShowOnboarding && (
+                      <button onClick={onShowOnboarding} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition text-right">
+                        <CheckSquare className="w-4 h-4 text-primary" /> צעדים ראשונים
+                      </button>
+                    )}
                     <button onClick={() => setShowStatusEditor(true)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition text-right">
                       <Smile className="w-4 h-4 text-muted-foreground" /> עדכן סטטוס
                     </button>
@@ -257,6 +263,12 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
                   <UserPlus className="w-5 h-5" />
                   הזמן
                 </button>
+                {onShowOnboarding && (
+                  <button onClick={() => { onShowOnboarding(); setShowMobileSettings(false) }} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-primary/10 hover:bg-primary/20 transition text-xs font-medium text-primary">
+                    <CheckSquare className="w-5 h-5" />
+                    מדריך
+                  </button>
+                )}
                 {currentUser?.user_type === 'admin' && (
                   <a href="/admin" onClick={() => setShowMobileSettings(false)} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 transition text-xs font-medium text-amber-600 dark:text-amber-400">
                     <LayoutDashboard className="w-5 h-5" />

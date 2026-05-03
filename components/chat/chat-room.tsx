@@ -159,6 +159,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [displayedCount, setDisplayedCount] = useState(80)
   const [showScheduled, setShowScheduled] = useState(false)
   const [showMobileTools, setShowMobileTools] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
   const { scheduled, schedule: scheduleMessage, cancel: cancelScheduled, pendingCount: scheduledCount } = useScheduledMessages(useCallback((content: string) => sendMessageRef.current(content), []))
@@ -440,6 +441,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         onLogout={onLogout}
         onToggleSearch={() => { setShowSearch(prev => !prev); setSearchQuery('') }}
         onAvatarColorChange={() => setTimeout(() => window.location.reload(), 500)}
+        onShowOnboarding={currentUser.messages_count < 20 ? () => setShowOnboarding(true) : undefined}
       />
 
       {/* Main content */}
@@ -710,14 +712,6 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Messages */}
           <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 chat-scrollbar">
-            {/* Onboarding checklist for new users - desktop only */}
-            {!isLoading && currentUser.messages_count < 20 && (
-              <div className="hidden sm:block"><OnboardingChecklist
-                user={currentUser}
-                messagesCount={messages.filter(m => m.user_id === currentUser.id).length}
-                onSendMessage={handleSendMessage}
-              /></div>
-            )}
             {isLoading ? (
               <MessageSkeleton />
             ) : error ? (
@@ -1256,6 +1250,19 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           onClose={() => setThreadMessage(null)}
           onReply={(msg) => { setReplyTo(msg); setThreadMessage(null) }}
         />
+      )}
+
+      {/* Onboarding checklist modal */}
+      {showOnboarding && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowOnboarding(false)}>
+          <div className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <OnboardingChecklist
+              user={currentUser}
+              messagesCount={messages.filter(m => m.user_id === currentUser.id).length}
+              onSendMessage={handleSendMessage}
+            />
+          </div>
+        </div>
       )}
 
       {/* PWA install banner */}
