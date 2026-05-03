@@ -31,6 +31,7 @@ import { AdvancedSearch } from './advanced-search'
 import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messages'
 import { ActivityFeed } from './activity-feed'
 import { UserOfWeekWidget } from './user-of-week'
+import { DirectMessages } from './direct-messages'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
@@ -124,6 +125,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showNotificationCenter, setShowNotificationCenter] = useState(false)
   const [showPointsShop, setShowPointsShop] = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+  const [dmTarget, setDmTarget] = useState<ChatUser | null>(null)
   const [showScheduled, setShowScheduled] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
@@ -714,6 +716,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           currentUserUpvoted={JSON.parse(typeof window !== 'undefined' ? localStorage.getItem(`upvoted_${currentUser.id}`) || '[]' : '[]').includes(item.data.id)}
                           isMuted={item.data.user_id !== currentUser.id && isMuted(item.data.user_id)}
                           onToggleMute={item.data.user_id !== currentUser.id ? toggleMute : undefined}
+                          onDM={item.data.user_id !== currentUser.id ? setDmTarget : undefined}
                         />
                       </div>
                     )
@@ -1045,6 +1048,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               rank={leaderboard.findIndex(u => u.id === showUserProfile.id) + 1 || undefined}
               onClose={() => setShowUserProfile(null)}
               recentMessages={messages.filter(m => m.user_id === showUserProfile.id).slice(-5).reverse()}
+              currentUser={currentUser}
+              isCurrentUser={showUserProfile.id === currentUser.id}
             />
           </div>
         </div>
@@ -1069,6 +1074,15 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           onClearAll={clearNotifications}
           onJumpToMessage={jumpToMessage}
           onClose={() => setShowNotificationCenter(false)}
+        />
+      )}
+
+      {/* Direct Messages */}
+      {dmTarget && (
+        <DirectMessages
+          currentUser={currentUser}
+          targetUser={dmTarget}
+          onClose={() => setDmTarget(null)}
         />
       )}
 

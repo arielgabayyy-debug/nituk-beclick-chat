@@ -34,6 +34,7 @@ interface ChatMessageProps {
   currentUserUpvoted?: boolean
   isMuted?: boolean
   onToggleMute?: (userId: string) => void
+  onDM?: (user: ChatUser) => void
 }
 
 function getInitials(name: string): string {
@@ -44,9 +45,10 @@ interface HoverCardProps {
   user: ChatUser
   onOpenProfile: () => void
   onClose: () => void
+  onDM?: () => void
 }
 
-function UserHoverCard({ user, onOpenProfile, onClose }: HoverCardProps) {
+function UserHoverCard({ user, onOpenProfile, onClose, onDM }: HoverCardProps) {
   return (
     <div
       className="absolute z-50 top-10 right-0 w-52 bg-white dark:bg-muted border border-border/60 rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150"
@@ -88,12 +90,22 @@ function UserHoverCard({ user, onOpenProfile, onClose }: HoverCardProps) {
         } catch {}
         return null
       })()}
-      <button
-        onClick={() => { onOpenProfile(); onClose() }}
-        className="w-full text-xs bg-primary text-primary-foreground rounded-lg py-1.5 hover:opacity-90 transition"
-      >
-        פתח פרופיל
-      </button>
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => { onOpenProfile(); onClose() }}
+          className="flex-1 text-xs bg-primary text-primary-foreground rounded-lg py-1.5 hover:opacity-90 transition"
+        >
+          פרופיל
+        </button>
+        {onDM && (
+          <button
+            onClick={() => { onDM(); onClose() }}
+            className="flex-1 text-xs bg-muted text-muted-foreground rounded-lg py-1.5 hover:bg-muted/80 transition"
+          >
+            💬 DM
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -443,6 +455,7 @@ export function ChatMessageComponent({
   currentUserUpvoted,
   isMuted,
   onToggleMute,
+  onDM,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -461,6 +474,7 @@ export function ChatMessageComponent({
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [showTranslator, setShowTranslator] = useState(false)
+  const [showDM, setShowDM] = useState(false)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX
@@ -654,6 +668,7 @@ export function ChatMessageComponent({
             user={user}
             onOpenProfile={() => onUserClick?.(user)}
             onClose={() => setShowHoverCard(false)}
+            onDM={!isOwn && currentUser ? () => { onDM?.(user) } : undefined}
           />
         )}
       </div>

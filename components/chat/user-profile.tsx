@@ -10,6 +10,7 @@ import {
 } from '@/lib/chat-types'
 import { UserBadge } from './user-badge'
 import { StreakCalendar } from './streak-calendar'
+import { DMButton } from './direct-messages'
 
 interface UserProfileProps {
   user: ChatUser
@@ -19,9 +20,10 @@ interface UserProfileProps {
   isCurrentUser?: boolean
   onAvatarUpdate?: (avatarUrl: string) => void
   recentMessages?: ChatMessage[]
+  currentUser?: ChatUser
 }
 
-export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, onAvatarUpdate, recentMessages }: UserProfileProps) {
+export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, onAvatarUpdate, recentMessages, currentUser }: UserProfileProps) {
   const levelProgress = getPointsToNextLevel(user.points, user.level)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -127,11 +129,16 @@ export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, 
       {/* User Info */}
       <div className="p-4 pt-2 space-y-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h3 className="text-xl font-bold text-foreground">{user.name}</h3>
             <UserBadge userType={user.user_type} joinedAt={user.created_at} />
           </div>
-          <p className="text-sm text-muted-foreground">{USER_TYPE_LABELS[user.user_type]}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">{USER_TYPE_LABELS[user.user_type]}</p>
+            {currentUser && !isCurrentUser && (
+              <DMButton targetUser={user} currentUser={currentUser} />
+            )}
+          </div>
         </div>
 
         {/* Level & Progress */}
