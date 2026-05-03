@@ -101,20 +101,35 @@ export function useChat(currentUser: ChatUser | null) {
 
   // Slash commands
   const processSlashCommand = (content: string): string => {
-    const commands: Record<string, string> = {
-      '/shrug':   '¯\\_(ツ)_/¯',
-      '/flip':    '(╯°□°）╯︵ ┻━┻',
-      '/unflip':  '┬─┬ノ( º _ ºノ)',
-      '/lenny':   '( ͡° ͜ʖ ͡°)',
-      '/bear':    'ʕ•ᴥ•ʔ',
-      '/wave':    '( ﾟДﾟ)ﾉ',
-      '/hi':      '👋 שלום לכולם!',
-      '/deal':    '🔥 מצאתי עסקה מדהימה!',
-      '/thanks':  '🙏 תודה רבה לכולם!',
-      '/help':    '💡 פקודות זמינות: /shrug /flip /unflip /lenny /bear /wave /hi /deal /thanks',
+    const jokes = [
+      'למה לא אמר הפיל לחבר שלו? כי לא רצה להשמיע קול גדול! 🐘',
+      'מה אמר המחשב לאמא שלו? "אמא, ה-RAM שלי לא מספיק!"',
+      'למה הגיטריסט הצטרף לצ\'אט? כי הוא ידע לנגן על העצבים! 🎸',
+      'מה אמר הבנק לאיש העני? "סורי, אין לנו חשבון לך!" 💸',
+    ]
+    const tips = [
+      '💡 טיפ: תמיד השווה מחירים ב-3 מקומות לפחות לפני שאתה קונה!',
+      '💡 טיפ: הגדר Google Alerts על שם המוצר שאתה מחפש לקבל התראות על מחירים!',
+      '💡 טיפ: חברות מחדשות לרוב נותנות הנחות משמעותיות - שווה לבדוק!',
+      '💡 טיפ: בדוק תמיד את ה"מחיר לחודש" ולא רק את המחיר הראשון!',
+    ]
+
+    const commands: Record<string, () => string> = {
+      '/shrug':   () => '¯\\_(ツ)_/¯',
+      '/flip':    () => '(╯°□°）╯︵ ┻━┻',
+      '/unflip':  () => '┬─┬ノ( º _ ºノ)',
+      '/lenny':   () => '( ͡° ͜ʖ ͡°)',
+      '/bear':    () => 'ʕ•ᴥ•ʔ',
+      '/wave':    () => '( ﾟДﾟ)ﾉ',
+      '/hi':      () => '👋 שלום לכולם!',
+      '/deal':    () => '🔥 מצאתי עסקה מדהימה!',
+      '/thanks':  () => '🙏 תודה רבה לכולם!',
+      '/joke':    () => jokes[Math.floor(Math.random() * jokes.length)],
+      '/tip':     () => tips[Math.floor(Math.random() * tips.length)],
+      '/help':    () => '💡 פקודות: /shrug /flip /lenny /bear /wave /hi /deal /thanks /joke /tip',
     }
     const trimmed = content.trim().toLowerCase()
-    return commands[trimmed] || content
+    return commands[trimmed]?.() || content
   }
 
   // Send message

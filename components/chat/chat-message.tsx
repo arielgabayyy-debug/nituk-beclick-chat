@@ -378,6 +378,7 @@ export function ChatMessageComponent({
   const user = message.user as ChatUser | undefined
   const groupedReactions = groupReactions(message.reactions || [])
   const isMentioned = !isOwn && currentUser && message.content.includes(`@${currentUser.name}`)
+  const isDeal = !message.content.startsWith('[voice:') && /[₪%]|\d+\s*ש"ח|מבצע|חבילה|הנחה|עסקה|חינם|discount|sale/i.test(message.content)
 
   const isEdited = message.updated_at && message.updated_at !== message.created_at
 
@@ -421,7 +422,8 @@ export function ChatMessageComponent({
         isGrouped ? "py-0.5 mt-0.5" : "py-1.5 mt-1",
         isOwn && "flex-row-reverse",
         message.is_pinned && "bg-amber-500/5 rounded-xl p-2 -mx-2 border border-amber-500/20",
-        isMentioned && "bg-cyan-500/5 rounded-xl px-2 py-1 -mx-2 border border-cyan-400/30"
+        isMentioned && "bg-cyan-500/5 rounded-xl px-2 py-1 -mx-2 border border-cyan-400/30",
+        isDeal && !isOwn && "deal-message"
       )}
       onMouseEnter={() => setShowActions(true)}
       onDoubleClick={onDoubleClick}
@@ -488,6 +490,11 @@ export function ChatMessageComponent({
             {user?.name || 'משתמש'}
           </button>
           {user && <UserBadge userType={user.user_type} />}
+          {user && user.level > 1 && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gradient-to-r from-amber-400/20 to-orange-400/20 text-amber-600 dark:text-amber-400 rounded-full border border-amber-400/20">
+              Lv.{user.level}
+            </span>
+          )}
           <span className="text-[10px] text-muted-foreground">{formatTime(message.created_at)}</span>
           {isEdited && (
             <span className="text-[10px] text-muted-foreground italic">(נערך)</span>
@@ -610,7 +617,15 @@ export function ChatMessageComponent({
                 {REACTION_EMOJIS.map(emoji => (
                   <button
                     key={emoji}
-                    onClick={() => { onReact?.(message.id, emoji); setShowReactions(false) }}
+                    onClick={(e) => {
+                      onReact?.(message.id, emoji)
+                      setShowReactions(false)
+                      // Burst animation on the clicked button
+                      const el = e.currentTarget
+                      el.classList.remove('reaction-burst')
+                      void el.offsetWidth // reflow
+                      el.classList.add('reaction-burst')
+                    }}
                     className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xl transition-all hover:scale-125 text-lg"
                   >
                     {emoji}

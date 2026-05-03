@@ -357,6 +357,53 @@ body {
   border: 1px solid oklch(0.92 0.01 270);
 }
 
+/* Reaction burst animation */
+@keyframes reaction-burst {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.5) rotate(-5deg); }
+  50% { transform: scale(0.9) rotate(5deg); }
+  70% { transform: scale(1.2) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.reaction-burst {
+  animation: reaction-burst 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Deal highlight for messages with price mentions */
+.deal-message {
+  position: relative;
+}
+.deal-message::before {
+  content: '🔥';
+  position: absolute;
+  top: -8px;
+  right: -4px;
+  font-size: 14px;
+  animation: bounce 1s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Highlight message animation */
+@keyframes highlight-pulse {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: oklch(0.7 0.15 85 / 0.2); }
+}
+
+.highlight-message {
+  animation: highlight-pulse 2s ease-in-out;
+  border-radius: 12px;
+}
+
+/* Cursor zoom for images */
+.cursor-zoom-in {
+  cursor: zoom-in;
+}
+
 .message-bubble-own {
   background: linear-gradient(135deg, oklch(0.55 0.15 195), oklch(0.5 0.15 195));
   color: white;

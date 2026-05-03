@@ -28,6 +28,8 @@ const SLASH_COMMANDS = [
   { cmd: '/hi', desc: 'ברכה לכולם' },
   { cmd: '/deal', desc: 'הודעת עסקה' },
   { cmd: '/thanks', desc: 'תודה לכולם' },
+  { cmd: '/joke', desc: 'בדיחה אקראית' },
+  { cmd: '/tip', desc: 'טיפ חסכון' },
   { cmd: '/help', desc: 'רשימת פקודות' },
 ]
 
