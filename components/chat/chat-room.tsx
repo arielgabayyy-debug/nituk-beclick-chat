@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark } from 'lucide-react'
+import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -18,6 +18,7 @@ import { KeyboardShortcuts } from './keyboard-shortcuts'
 import { WelcomeToast } from './welcome-toast'
 import { Confetti } from './confetti'
 import { useBookmarks, BookmarksPanel } from './message-bookmarks'
+import { OfflineIndicator } from './offline-indicator'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
@@ -203,6 +204,23 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     setShowUserProfile(user)
   }
 
+  // Export chat as .txt
+  const handleExportChat = () => {
+    const lines = messages.map(m => {
+      const time = new Date(m.created_at).toLocaleString('he-IL')
+      const name = m.user?.name || 'משתמש'
+      const content = m.content.startsWith('[voice:') ? '[הודעה קולית]' : m.content
+      return `[${time}] ${name}: ${content}`
+    })
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `chat-${new Date().toISOString().slice(0, 10)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // Confetti on first-ever message
   const handleSendMessage = (content: string) => {
     const key = `first_msg_${currentUser.id}`
@@ -227,6 +245,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       />
       <WelcomeToast user={currentUser} />
       <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
+      <OfflineIndicator />
       {/* Header */}
       <ChatHeader
         currentUser={currentUser}
@@ -478,6 +497,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                   <Bell className="w-4 h-4" />
                 </Button>
               )}
+
+              {/* Export chat */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={handleExportChat}
+                title="ייצא שיחה כקובץ טקסט"
+              >
+                <Download className="w-4 h-4 text-muted-foreground" />
+              </Button>
             </div>
             <ChatInput
               onSend={handleSendMessage}

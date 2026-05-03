@@ -99,6 +99,24 @@ export function useChat(currentUser: ChatUser | null) {
     }
   }, [])
 
+  // Slash commands
+  const processSlashCommand = (content: string): string => {
+    const commands: Record<string, string> = {
+      '/shrug':   '¯\\_(ツ)_/¯',
+      '/flip':    '(╯°□°）╯︵ ┻━┻',
+      '/unflip':  '┬─┬ノ( º _ ºノ)',
+      '/lenny':   '( ͡° ͜ʖ ͡°)',
+      '/bear':    'ʕ•ᴥ•ʔ',
+      '/wave':    '( ﾟДﾟ)ﾉ',
+      '/hi':      '👋 שלום לכולם!',
+      '/deal':    '🔥 מצאתי עסקה מדהימה!',
+      '/thanks':  '🙏 תודה רבה לכולם!',
+      '/help':    '💡 פקודות זמינות: /shrug /flip /unflip /lenny /bear /wave /hi /deal /thanks',
+    }
+    const trimmed = content.trim().toLowerCase()
+    return commands[trimmed] || content
+  }
+
   // Send message
   const sendMessage = useCallback(async (content: string) => {
     if (!currentUser || !content.trim()) return
@@ -106,6 +124,9 @@ export function useChat(currentUser: ChatUser | null) {
       setError('החשבון שלך חסום. צור קשר עם המנהל.')
       return
     }
+
+    // Process slash commands
+    const processedContent = processSlashCommand(content.trim())
 
     // Check banned words (reload from localStorage each call to stay fresh)
     const currentBanned = (() => {
@@ -115,7 +136,7 @@ export function useChat(currentUser: ChatUser | null) {
       }
       return bannedWords
     })()
-    const lowerContent = content.toLowerCase()
+    const lowerContent = processedContent.toLowerCase()
     const foundBanned = currentBanned.find(w => w && lowerContent.includes(w.toLowerCase()))
     if (foundBanned) {
       setError('ההודעה מכילה מילה אסורה ולא ניתן לשלוח אותה.')
@@ -128,7 +149,7 @@ export function useChat(currentUser: ChatUser | null) {
         .from('chat_messages')
         .insert({
           user_id: currentUser.id,
-          content: content.trim()
+          content: processedContent
         })
 
       if (error) throw error
