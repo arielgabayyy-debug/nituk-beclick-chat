@@ -121,6 +121,23 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
     return <VoiceMessage url={voiceMatch[1]} duration={parseInt(voiceMatch[2])} isOwn={!!isOwn} />
   }
 
+  // Detect reply format: ↩️ בתגובה לName: "quoted..."\nactual message
+  const replyMatch = content.match(/^↩️ בתגובה ל(.+?): "(.+?)"\n([\s\S]*)$/)
+  if (replyMatch) {
+    const [, replyToName, quotedText, actualMessage] = replyMatch
+    return (
+      <div>
+        {/* Quote block */}
+        <div className={`mb-1.5 rounded-lg px-2.5 py-1.5 border-r-2 ${isOwn ? 'border-white/40 bg-white/10' : 'border-primary/50 bg-primary/5'}`}>
+          <p className={`text-[10px] font-semibold mb-0.5 ${isOwn ? 'text-white/70' : 'text-primary'}`}>↩️ {replyToName}</p>
+          <p className={`text-xs leading-relaxed line-clamp-2 ${isOwn ? 'text-white/70' : 'text-muted-foreground'}`}>{quotedText}</p>
+        </div>
+        {/* Actual message */}
+        {renderMessageContent(actualMessage.trim(), searchQuery, isOwn, onImageClick)}
+      </div>
+    )
+  }
+
   // Handle triple backtick code blocks first
   const codeBlockRegex = /```([\s\S]*?)```/g
   const segments: { type: 'code' | 'inline' | 'text'; value: string }[] = []

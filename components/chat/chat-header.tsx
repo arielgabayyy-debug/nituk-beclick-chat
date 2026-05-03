@@ -7,6 +7,7 @@ import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
 import { StreakBadge, useStreak } from './streak-badge'
 import { UserStatusEditor, useUserStatus } from './user-status'
+import { AvatarPicker } from './avatar-picker'
 import type { ChatUser } from '@/lib/chat-types'
 
 interface ChatHeaderProps {
@@ -14,9 +15,10 @@ interface ChatHeaderProps {
   onlineCount: number
   onLogout: () => void
   onToggleSearch?: () => void
+  onAvatarColorChange?: (color: string) => void
 }
 
-export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch }: ChatHeaderProps) {
+export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
   const [showStatusEditor, setShowStatusEditor] = useState(false)
   const { streak } = useStreak()
@@ -81,6 +83,10 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch 
             </div>
             {/* Streak badge next to logo */}
             <StreakBadge streak={streak} compact />
+            {/* Avatar color picker */}
+            {currentUser && onAvatarColorChange && (
+              <AvatarPicker currentUser={currentUser} onColorChange={onAvatarColorChange} />
+            )}
           </div>
 
           {/* Right controls */}

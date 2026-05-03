@@ -346,6 +346,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         onlineCount={onlineCount}
         onLogout={onLogout}
         onToggleSearch={() => { setShowSearch(prev => !prev); setSearchQuery('') }}
+        onAvatarColorChange={() => setTimeout(() => window.location.reload(), 500)}
       />
 
       {/* Main content */}
@@ -458,7 +459,25 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Admin announcement input */}
           {currentUser.user_type === 'admin' && showAnnouncement && (
-            <div className="p-4 bg-amber-500/10 border-b border-amber-500/20">
+            <div className="p-4 bg-amber-500/10 border-b border-amber-500/20 space-y-2">
+              {/* Quick templates */}
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  '🎉 ברוכים הבאים לצ׳אט!',
+                  '🔥 יש עסקה חדשה! בדקו',
+                  '📢 עדכון חשוב לכולם',
+                  '⚡ שעת מומחה כבר עכשיו!',
+                  '🏆 כל הכבוד למשתמש השבוע!',
+                ].map(template => (
+                  <button
+                    key={template}
+                    onClick={() => setAnnouncementText(template)}
+                    className="text-xs bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg px-2 py-1 transition text-amber-700 dark:text-amber-400"
+                  >
+                    {template}
+                  </button>
+                ))}
+              </div>
               <div className="flex gap-2">
                 <input
                   type="text"
