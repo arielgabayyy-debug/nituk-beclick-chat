@@ -56,7 +56,6 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
   const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [countdown, setCountdown] = useState(0)
-  const [devCode, setDevCode] = useState<string | null>(null) // For development mode
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   // Load saved credentials on mount
@@ -110,13 +109,6 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
       if (!response.ok) {
         setError(data.error || 'שגיאה בשליחת הקוד')
         return
-      }
-
-      // If devCode is returned (no email service), save it for display
-      if (data.devCode) {
-        setDevCode(data.devCode)
-      } else {
-        setDevCode(null)
       }
 
       setStep('verify')
@@ -426,13 +418,9 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
                 <p className="text-sm font-medium text-primary" dir="ltr">
                   {email}
                 </p>
-                {devCode && (
-                  <div className="mt-4 p-4 bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/30 rounded-xl">
-                    <p className="text-xs text-muted-foreground mb-2">הזן את הקוד הבא:</p>
-                    <p className="text-3xl font-bold gradient-text tracking-[0.5em] text-center" dir="ltr">{devCode}</p>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">הקוד תקף ל-10 דקות</p>
-                  </div>
-                )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  בדקו את תיבת הדואר הנכנס (ואולי ספאם)
+                </p>
               </div>
 
               <div className="space-y-6">
