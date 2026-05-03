@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-// Cryptographically secure 6-digit OTP
 function generateOTP(): string {
   const array = new Uint32Array(1)
   crypto.getRandomValues(array)
@@ -15,7 +15,6 @@ function generateOTP(): string {
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
-
     if (!email || !isValidEmail(email)) {
       return NextResponse.json({ error: 'אימייל לא תקין' }, { status: 400 })
     }
@@ -23,36 +22,49 @@ export async function POST(request: Request) {
     const supabase = await createClient()
     const normalizedEmail = email.toLowerCase().trim()
 
-    // ── Rate limiting: 1 send per 60 seconds ─────────────────────────────
-    const { data: existing } = await supabase
-      .from('otp_codes')
-      .select('last_sent_at')
-      .eq('email', normalizedEmail)
-      .maybeSingle()
+    // ── Rate limit check (graceful — skipped if column missing) ──────────
+    try {
+      const { data: existing } = await supabase
+        .from('otp_codes')
+        .select('last_sent_at')
+        .eq('email', normalizedEmail)
+        .maybeSingle()
 
-    if (existing?.last_sent_at) {
-      const elapsed = Date.now() - new Date(existing.last_sent_at).getTime()
-      if (elapsed < 60_000) {
-        const remaining = Math.ceil((60_000 - elapsed) / 1000)
-        return NextResponse.json(
-          { error: `נא להמתין ${remaining} שניות לפני שליחה חוזרת` },
-          { status: 429 }
-        )
+      if (existing?.last_sent_at) {
+        const elapsed = Date.now() - new Date(existing.last_sent_at).getTime()
+        if (elapsed < 60_000) {
+          const remaining = Math.ceil((60_000 - elapsed) / 1000)
+          return NextResponse.json(
+            { error: `נא להמתין ${remaining} שניות לפני שליחה חוזרת` },
+            { status: 429 }
+          )
+        }
       }
-    }
+    } catch { /* column missing — skip rate limit */ }
     // ─────────────────────────────────────────────────────────────────────
 
     const code = generateOTP()
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
 
-    // Save OTP to DB (upsert — resets attempts on new code)
-    const { error: dbError } = await supabase.from('otp_codes').upsert({
+    // Try upsert with all columns, fall back to basic if columns missing
+    let dbError = null
+    const { error: fullError } = await supabase.from('otp_codes').upsert({
       email: normalizedEmail,
       code,
       expires_at: expiresAt.toISOString(),
       attempts: 0,
       last_sent_at: new Date().toISOString(),
     }, { onConflict: 'email' })
+
+    if (fullError) {
+      // Columns might be missing — try basic upsert
+      const { error: basicError } = await supabase.from('otp_codes').upsert({
+        email: normalizedEmail,
+        code,
+        expires_at: expiresAt.toISOString(),
+      }, { onConflict: 'email' })
+      dbError = basicError
+    }
 
     if (dbError) {
       console.error('OTP DB error:', dbError)
@@ -69,7 +81,6 @@ export async function POST(request: Request) {
             </h1>
             <p style="color:#64748b;margin:6px 0 0;font-size:14px">הקהילה הכי חוסכת בישראל</p>
           </div>
-
           <div style="background:linear-gradient(135deg,#f0f9ff,#f5f3ff);border-radius:16px;padding:28px;text-align:center">
             <p style="margin:0 0 8px;color:#475569;font-size:15px">קוד האימות שלך לכניסה לצ׳אט:</p>
             <div style="background:white;border-radius:14px;padding:20px 32px;display:inline-block;box-shadow:0 4px 20px rgba(8,145,178,0.18);margin:12px 0">
@@ -77,10 +88,8 @@ export async function POST(request: Request) {
             </div>
             <p style="margin:8px 0 0;color:#94a3b8;font-size:13px">הקוד תקף ל-10 דקות בלבד</p>
           </div>
-
           <p style="color:#94a3b8;font-size:12px;text-align:center;margin-top:28px;line-height:1.7">
-            לא ביקשת קוד? ניתן להתעלם מהודעה זו.<br>
-            הקוד חד-פעמי ומתחלף בכל בקשה.
+            לא ביקשת קוד? ניתן להתעלם מהודעה זו.<br>הקוד חד-פעמי ומתחלף בכל בקשה.
           </p>
         </div>
       </div>
@@ -96,20 +105,18 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: process.env.RESEND_FROM_EMAIL || 'ניתוק בקליק <onboarding@resend.dev>',
           to: email,
-          subject: `${code} — קוד הכניסה שלך לצ׳אט`,
+          subject: `${code} — קוד הכניסה שלך`,
           html: emailHtml,
         }),
       })
 
-      if (res.ok) {
-        return NextResponse.json({ success: true })
-      }
+      if (res.ok) return NextResponse.json({ success: true })
+
       const errText = await res.text()
       console.error('Resend error:', errText)
-      return NextResponse.json({ error: 'שגיאה בשליחת המייל' }, { status: 500 })
+      return NextResponse.json({ error: 'שגיאה בשליחת המייל. נסה שוב.' }, { status: 500 })
     }
 
-    // No provider
     return NextResponse.json(
       { error: 'שירות המייל אינו פעיל. נסה להתחבר עם Google.' },
       { status: 503 }
