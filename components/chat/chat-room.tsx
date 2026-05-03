@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard } from 'lucide-react'
+import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2 } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -94,6 +94,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showGallery, setShowGallery] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
+  const [focusMode, setFocusMode] = useState(false)
   const [forwardedContent, setForwardedContent] = useState<string | null>(null)
   const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
   const prevMessagesLengthRef = useRef(messages.length)
@@ -301,10 +302,10 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
       {/* Main content */}
       <div className="flex-1 flex gap-4 p-4 max-w-[1600px] mx-auto w-full">
-        {/* Left sidebar - Community features (hidden on mobile) */}
+        {/* Left sidebar - Community features (hidden on mobile, hidden in focus mode) */}
         <div className={cn(
           "hidden xl:flex flex-col gap-4 transition-all duration-300",
-          sidebarCollapsed ? "w-0 overflow-hidden opacity-0" : "w-80 shrink-0"
+          sidebarCollapsed || focusMode ? "w-0 overflow-hidden opacity-0" : "w-80 shrink-0"
         )}>
           {/* Daily widgets */}
           <DailyQuestionCard question={dailyQuestion} />
@@ -564,6 +565,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 </Button>
               )}
 
+              {/* Focus mode */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-8 w-8 shrink-0", focusMode && "bg-primary/10 text-primary")}
+                onClick={() => setFocusMode(f => !f)}
+                title={focusMode ? "צא ממצב פוקוס" : "מצב פוקוס (הסתר סרגלים צדדיים)"}
+              >
+                {focusMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4 text-muted-foreground" />}
+              </Button>
+
               {/* Keyboard shortcuts */}
               <Button
                 variant="ghost"
@@ -610,8 +622,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           </div>
         </div>
 
-        {/* Right sidebar - Users & Leaderboard */}
-        <div className="hidden lg:flex flex-col w-80 shrink-0 gap-4">
+        {/* Right sidebar - Users & Leaderboard (hidden in focus mode) */}
+        <div className={cn("hidden lg:flex flex-col w-80 shrink-0 gap-4 transition-all duration-300", focusMode && "!hidden")}>
           {/* Sidebar tabs */}
           <div className="flex gap-1 p-1 bg-card/30 backdrop-blur-xl rounded-xl border border-border/30">
             <button

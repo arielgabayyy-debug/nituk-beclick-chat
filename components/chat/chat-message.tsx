@@ -579,20 +579,27 @@ export function ChatMessageComponent({
         {/* Reactions */}
         {groupedReactions.length > 0 && (
           <div className={cn("flex flex-wrap gap-1 mt-1.5", isOwn && "justify-end")}>
-            {groupedReactions.map(({ emoji, count, userIds }) => (
-              <button
-                key={emoji}
-                onClick={() => onReact?.(message.id, emoji)}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all",
-                  "bg-white dark:bg-muted border border-border/50 shadow-sm hover:scale-105",
-                  userIds.includes(currentUser?.id || '') && "border-primary/50 bg-primary/10"
-                )}
-              >
-                <span>{emoji}</span>
-                <span className="text-muted-foreground font-medium">{count}</span>
-              </button>
-            ))}
+            {groupedReactions.map(({ emoji, count, userIds }) => {
+              const reacters = (message.reactions || [])
+                .filter(r => r.emoji === emoji)
+                .map(r => r.user?.name || 'מישהו')
+                .join(', ')
+              return (
+                <button
+                  key={emoji}
+                  onClick={() => onReact?.(message.id, emoji)}
+                  title={reacters}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all",
+                    "bg-white dark:bg-muted border border-border/50 shadow-sm hover:scale-105",
+                    userIds.includes(currentUser?.id || '') && "border-primary/50 bg-primary/10"
+                  )}
+                >
+                  <span>{emoji}</span>
+                  <span className="text-muted-foreground font-medium">{count}</span>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
