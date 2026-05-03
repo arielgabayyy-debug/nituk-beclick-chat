@@ -10,6 +10,7 @@ import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
 import { VoiceMessage } from './voice-message'
 import { LinkPreview } from './link-preview'
 import { ImageLightbox } from './image-lightbox'
+import { YoutubeEmbed, isYoutubeUrl } from './youtube-embed'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -234,8 +235,10 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
     else { linkUrls.push(url) }
   })
 
-  // Only show link preview for the first non-image URL
-  const previewUrl = linkUrls[0] || null
+  // Check for YouTube URL first
+  const youtubeUrl = linkUrls.find(u => isYoutubeUrl(u)) || null
+  // Only show link preview for the first non-image, non-youtube URL
+  const previewUrl = youtubeUrl ? null : (linkUrls[0] || null)
 
   return (
     <>
@@ -266,7 +269,9 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
           />
         </button>
       ))}
-      {/* Link preview for first non-image URL */}
+      {/* YouTube embed */}
+      {youtubeUrl && <YoutubeEmbed url={youtubeUrl} isOwn={!!isOwn} />}
+      {/* Link preview for first non-image, non-youtube URL */}
       {previewUrl && <LinkPreview url={previewUrl} isOwn={!!isOwn} />}
     </>
   )

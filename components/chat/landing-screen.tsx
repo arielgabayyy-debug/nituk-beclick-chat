@@ -187,8 +187,25 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
           </button>
         </div>
 
+        {/* Feature highlights */}
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          {[
+            { emoji: '🔥', label: 'עסקאות חמות' },
+            { emoji: '🏆', label: 'דירוג שבועי' },
+            { emoji: '🎤', label: 'הודעות קוליות' },
+            { emoji: '🔖', label: 'שמירת הודעות' },
+            { emoji: '📊', label: 'סקרים חיים' },
+            { emoji: '🎯', label: 'הישגים' },
+          ].map(f => (
+            <div key={f.label} className="flex flex-col items-center gap-1 bg-muted/20 rounded-xl py-2.5 px-1 text-center border border-border/20">
+              <span className="text-xl">{f.emoji}</span>
+              <span className="text-[10px] text-muted-foreground font-medium">{f.label}</span>
+            </div>
+          ))}
+        </div>
+
         {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-4">
           בכניסה אתם מסכימים לתנאי השימוש ומדיניות הפרטיות
         </p>
       </div>
