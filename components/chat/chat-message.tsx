@@ -416,7 +416,26 @@ export function ChatMessageComponent({
   const [showHoverCard, setShowHoverCard] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [swipeOffset, setSwipeOffset] = useState(0)
   const hoverCardTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const touchStartXRef = useRef<number | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX
+  }
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return
+    const dx = e.touches[0].clientX - touchStartXRef.current
+    // Swipe right = reply (rtl layout, left swipe = reply for own messages)
+    const swipeDir = isOwn ? -1 : 1
+    const offset = Math.max(0, Math.min(60, dx * swipeDir))
+    setSwipeOffset(offset)
+  }
+  const handleTouchEnd = () => {
+    if (swipeOffset > 40) onDoubleClick?.()
+    setSwipeOffset(0)
+    touchStartXRef.current = null
+  }
   const COLLAPSE_THRESHOLD = 300 // chars
   const isLong = !message.content.startsWith('[voice:') && message.content.length > COLLAPSE_THRESHOLD
   const displayContent = isLong && !expanded ? message.content.slice(0, COLLAPSE_THRESHOLD) + '…' : message.content
@@ -476,6 +495,10 @@ export function ChatMessageComponent({
       onMouseEnter={() => setShowActions(true)}
       onDoubleClick={onDoubleClick}
       onMouseLeave={() => { setShowActions(false); setShowReactions(false) }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={swipeOffset > 0 ? { transform: `translateX(${isOwn ? -swipeOffset : swipeOffset}px)`, transition: swipeOffset === 0 ? 'transform 0.2s' : 'none' } : undefined}
     >
       {/* Pinned indicator */}
       {message.is_pinned && (

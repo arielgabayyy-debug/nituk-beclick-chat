@@ -21,6 +21,7 @@ import { useBookmarks, BookmarksPanel } from './message-bookmarks'
 import { OfflineIndicator } from './offline-indicator'
 import { ChatStats } from './chat-stats'
 import { ChatRulesCard } from './chat-rules'
+import { HotMessages } from './hot-messages'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
@@ -401,6 +402,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Upcoming events */}
           <UpcomingEventsCard events={upcomingEvents} />
 
+          {/* Hot messages */}
+          <HotMessages messages={messages} onJumpToMessage={jumpToMessage} />
+
           {/* Chat statistics */}
           <ChatStats messages={messages} onlineUsers={onlineUsers} />
         </div>
@@ -561,7 +565,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           onPin={togglePinMessage}
                           onReact={addReaction}
                           onUserClick={handleUserClick}
-                          onReply={(msg) => setReplyTo(msg)}
+                          onReply={(msg) => {
+                            setReplyTo(msg)
+                            // Auto-mention the user being replied to (if not own)
+                            if (msg.user_id !== currentUser.id && msg.user?.name) {
+                              setForwardedContent(`@${msg.user.name} `)
+                            }
+                          }}
                           onEdit={editMessage}
                           searchQuery={searchQuery || undefined}
                           isBookmarked={isBookmarked(item.data.id)}
