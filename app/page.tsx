@@ -40,11 +40,17 @@ export default function ChatApp() {
       const urlParams = new URLSearchParams(window.location.search)
       if (urlParams.get('oauth') === 'success') {
         window.history.replaceState({}, '', '/')
-        setLoadingMessage('מתחבר עם הפרופיל שלך...')
       }
 
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
+        const email = session.user.email || ''
+        // Admin with active session → go straight to dashboard
+        if (ADMIN_EMAILS.includes(email.toLowerCase())) {
+          window.location.replace('/admin')
+          return
+        }
+        setLoadingMessage('מתחבר עם הפרופיל שלך...')
         await syncOAuthUser(session.user)
       } else if (!currentUser) {
         setTimeout(() => setScreen('landing'), 800)
@@ -59,19 +65,23 @@ export default function ChatApp() {
     if (currentUser && !oauthUser) setScreen('chat')
   }, [currentUser, oauthUser])
 
-  const ADMIN_EMAILS_LOCAL = ADMIN_EMAILS
-
   const syncOAuthUser = async (authUser: { email?: string; user_metadata?: Record<string, string> }) => {
-    const supabase = createClient()
     const email = authUser.email
+    if (!email) { setScreen('landing'); return }
+
+    // ── Admin: immediate redirect — no waiting, no DB ops needed ─────────
+    if (ADMIN_EMAILS.includes(email.toLowerCase())) {
+      window.location.replace('/admin')
+      return
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
+    const supabase = createClient()
     const name = authUser.user_metadata?.full_name ||
                  authUser.user_metadata?.name ||
-                 email?.split('@')[0] || 'משתמש'
+                 email.split('@')[0] || 'משתמש'
     const avatarUrl = authUser.user_metadata?.avatar_url ||
                       authUser.user_metadata?.picture || null
-    const isAdmin = email ? ADMIN_EMAILS_LOCAL.includes(email.toLowerCase()) : false
-
-    if (!email) { setScreen('landing'); return }
 
     try {
       const { data: existingUser } = await supabase
@@ -84,7 +94,6 @@ export default function ChatApp() {
         await supabase.from('chat_users').update({
           is_online: true,
           avatar_url: avatarUrl,
-          user_type: isAdmin ? 'admin' : existingUser.user_type,
           last_seen: new Date().toISOString()
         }).eq('id', existingUser.id)
 
@@ -94,9 +103,8 @@ export default function ChatApp() {
         const { data: newUser } = await supabase
           .from('chat_users')
           .insert({
-            name,
-            email,
-            user_type: isAdmin ? 'admin' : 'subscriber',
+            name, email,
+            user_type: 'subscriber',
             avatar_color: '#06b6d4',
             avatar_url: avatarUrl,
             is_online: true,
@@ -108,12 +116,6 @@ export default function ChatApp() {
           localStorage.setItem('chat_user_id', newUser.id)
           setOauthUser(newUser)
         }
-      }
-
-      // Admin → redirect to dashboard
-      if (isAdmin) {
-        window.location.href = '/admin'
-        return
       }
       setScreen('chat')
     } catch {
