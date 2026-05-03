@@ -258,54 +258,55 @@ export function useCommunity(currentUser: ChatUser | null) {
         .select('id, vote_type')
         .eq('deal_id', dealId)
         .eq('user_id', currentUser.id)
-        .single()
+        .maybeSingle()
 
       if (existingVote) {
         if (existingVote.vote_type === voteType) {
           // Remove vote
-          await supabase
-            .from('deal_votes')
-            .delete()
-            .eq('id', existingVote.id)
+          await supabase.from('deal_votes').delete().eq('id', existingVote.id)
 
-          // Update deal upvotes
-          await supabase
-            .from('hot_deals')
-            .update({ upvotes: supabase.rpc('decrement', { x: 1 }) })
-            .eq('id', dealId)
+          // Decrement upvotes
+          const { data: deal } = await supabase
+            .from('hot_deals').select('upvotes').eq('id', dealId).single()
+          if (deal) {
+            await supabase.from('hot_deals')
+              .update({ upvotes: Math.max(0, deal.upvotes - 1) })
+              .eq('id', dealId)
+          }
         } else {
           // Change vote
-          await supabase
-            .from('deal_votes')
-            .update({ vote_type: voteType })
-            .eq('id', existingVote.id)
+          await supabase.from('deal_votes')
+            .update({ vote_type: voteType }).eq('id', existingVote.id)
         }
       } else {
         // New vote
-        await supabase
-          .from('deal_votes')
-          .insert({
-            deal_id: dealId,
-            user_id: currentUser.id,
-            vote_type: voteType
-          })
+        await supabase.from('deal_votes').insert({
+          deal_id: dealId,
+          user_id: currentUser.id,
+          vote_type: voteType
+        })
 
         if (voteType === 'up') {
-          // Add helpful points to deal creator
+          // Increment upvotes on deal
           const { data: deal } = await supabase
-            .from('hot_deals')
-            .select('user_id')
-            .eq('id', dealId)
-            .single()
+            .from('hot_deals').select('upvotes, user_id').eq('id', dealId).single()
 
-          if (deal && deal.user_id !== currentUser.id) {
-            await supabase
-              .from('chat_users')
-              .update({ 
-                helpful_count: supabase.rpc('increment', { x: 1 }),
-                points: supabase.rpc('increment', { x: 5 })
-              })
-              .eq('id', deal.user_id)
+          if (deal) {
+            await supabase.from('hot_deals')
+              .update({ upvotes: deal.upvotes + 1 }).eq('id', dealId)
+
+            // Add helpful points to deal creator
+            if (deal.user_id !== currentUser.id) {
+              const { data: creator } = await supabase
+                .from('chat_users').select('helpful_count, points').eq('id', deal.user_id).single()
+              if (creator) {
+                await supabase.from('chat_users')
+                  .update({
+                    helpful_count: creator.helpful_count + 1,
+                    points: creator.points + 5
+                  }).eq('id', deal.user_id)
+              }
+            }
           }
         }
       }
@@ -371,13 +372,15 @@ export function useCommunity(currentUser: ChatUser | null) {
           })
 
         // Add helpful count to message author
-        await supabase
-          .from('chat_users')
-          .update({ 
-            helpful_count: supabase.rpc('increment', { x: 1 }),
-            points: supabase.rpc('increment', { x: 3 })
-          })
-          .eq('id', messageUserId)
+        const { data: author } = await supabase
+          .from('chat_users').select('helpful_count, points').eq('id', messageUserId).single()
+        if (author) {
+          await supabase.from('chat_users')
+            .update({
+              helpful_count: author.helpful_count + 1,
+              points: author.points + 3
+            }).eq('id', messageUserId)
+        }
 
         // Check helpful achievements
         const { data: userData } = await supabase
@@ -417,10 +420,10 @@ export function useCommunity(currentUser: ChatUser | null) {
 
         await supabase
           .from('chat_users')
-          .update({ 
+          .update({
             points: newPoints,
             level: newLevel,
-            weekly_points: supabase.rpc('increment', { x: points })
+            weekly_points: (userData.weekly_points || 0) + points
           })
           .eq('id', currentUser.id)
       }
@@ -439,7 +442,7 @@ export function useCommunity(currentUser: ChatUser | null) {
         .select('id')
         .eq('user_id', currentUser.id)
         .eq('achievement_type', achievementType)
-        .single()
+        .maybeSingle()
 
       if (!existing) {
         await supabase
@@ -465,7 +468,7 @@ export function useCommunity(currentUser: ChatUser | null) {
         .select('id')
         .eq('user_id', userId)
         .eq('achievement_type', achievementType)
-        .single()
+        .maybeSingle()
 
       if (!existing) {
         await supabase

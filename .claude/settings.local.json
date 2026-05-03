@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mcp-registry__search_mcp_registry",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__find",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__tabs_create_mcp",
+      "Bash(curl -X POST \"https://ltwyduffgrbenghdzbji.supabase.co/rest/v1/rpc/query\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk\" -H \"Content-Type: application/json\")",
+      "Bash(curl -X POST https://ltwyduffgrbenghdzbji.supabase.co/rest/v1/otp_codes -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk' -H 'Content-Type: application/json' -d '{\"email\":\"test@test.com\",\"code\":\"123456\",\"expires_at\":\"2099-01-01T00:00:00Z\"}')",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ]
+  }
+}

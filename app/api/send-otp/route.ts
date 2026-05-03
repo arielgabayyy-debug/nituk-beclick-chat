@@ -1,32 +1,37 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-// Generate a 6-digit OTP code
+// Generate a cryptographically secure 6-digit OTP code
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
+  const array = new Uint32Array(1)
+  crypto.getRandomValues(array)
+  return (100000 + (array[0] % 900000)).toString()
+}
+
+// Validate email format
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
 
-    if (!email || !email.includes('@')) {
+    if (!email || !isValidEmail(email)) {
       return NextResponse.json({ error: 'אימייל לא תקין' }, { status: 400 })
     }
 
     const supabase = await createClient()
+    const normalizedEmail = email.toLowerCase().trim()
     const code = generateOTP()
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
 
-    // Delete any existing OTP for this email
-    await supabase.from('otp_codes').delete().eq('email', email.toLowerCase())
-
-    // Insert new OTP
-    const { error: insertError } = await supabase.from('otp_codes').insert({
-      email: email.toLowerCase(),
+    // Upsert OTP - insert or update if exists
+    const { error: insertError } = await supabase.from('otp_codes').upsert({
+      email: normalizedEmail,
       code,
       expires_at: expiresAt.toISOString(),
-    })
+    }, { onConflict: 'email' })
 
     if (insertError) {
       console.error('Error inserting OTP:', insertError)
