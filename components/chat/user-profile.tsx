@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { Star, Trophy, MessageSquare, Heart, TrendingUp, Award, Zap, Camera, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ChatUser, UserAchievement } from '@/lib/chat-types'
+import type { ChatUser, UserAchievement, ChatMessage } from '@/lib/chat-types'
 import { 
   LEVEL_NAMES, ACHIEVEMENT_INFO, getPointsToNextLevel, 
   formatNumber, USER_TYPE_LABELS 
@@ -17,9 +17,10 @@ interface UserProfileProps {
   onClose?: () => void
   isCurrentUser?: boolean
   onAvatarUpdate?: (avatarUrl: string) => void
+  recentMessages?: ChatMessage[]
 }
 
-export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, onAvatarUpdate }: UserProfileProps) {
+export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, onAvatarUpdate, recentMessages }: UserProfileProps) {
   const levelProgress = getPointsToNextLevel(user.points, user.level)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -217,6 +218,24 @@ export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, 
           </div>
           <span className="font-bold text-purple-400">{formatNumber(user.weekly_points)}</span>
         </div>
+
+        {/* Recent messages */}
+        {recentMessages && recentMessages.length > 0 && (
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+              <MessageSquare className="w-3.5 h-3.5" /> הודעות אחרונות
+            </h4>
+            <div className="space-y-1.5">
+              {recentMessages.slice(0, 3).map(msg => (
+                <div key={msg.id} className="bg-muted/40 rounded-xl px-3 py-2">
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                    {msg.content.startsWith('[voice:') ? '🎤 הודעה קולית' : msg.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

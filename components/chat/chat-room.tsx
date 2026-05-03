@@ -91,6 +91,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchUserFilter, setSearchUserFilter] = useState('')
+  const [showMentionsOnly, setShowMentionsOnly] = useState(false)
   const [searchResultIndex, setSearchResultIndex] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [unreadSinceScroll, setUnreadSinceScroll] = useState(0)
@@ -221,10 +222,11 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   ]
     .sort((a, b) => a.time - b.time)
     .filter(item => {
-      if (item.type !== 'message') return !searchQuery.trim()
+      if (item.type !== 'message') return !searchQuery.trim() && !showMentionsOnly
       const textMatch = !searchQuery.trim() || item.data.content.toLowerCase().includes(searchQuery.toLowerCase())
       const userMatch = !searchUserFilter || (item.data.user?.name || '').toLowerCase().includes(searchUserFilter.toLowerCase())
-      return textMatch && userMatch
+      const mentionMatch = !showMentionsOnly || item.data.content.includes(`@${currentUser.name}`)
+      return textMatch && userMatch && mentionMatch
     })
 
   // Inject date separators between messages from different days
@@ -438,6 +440,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                   autoFocus
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
                 />
+                {/* Mentions filter */}
+                <button
+                  onClick={() => setShowMentionsOnly(m => !m)}
+                  className={cn("text-xs px-2 py-0.5 rounded-full transition shrink-0 font-medium", showMentionsOnly ? "bg-cyan-500 text-white" : "bg-muted/60 text-muted-foreground hover:bg-muted")}
+                  title="הצג רק הודעות שאזכרו אותי"
+                >
+                  @אני
+                </button>
                 {/* User filter */}
                 <input
                   type="text"
@@ -851,6 +861,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               achievements={showUserProfile.id === currentUser.id ? userAchievements : []}
               rank={leaderboard.findIndex(u => u.id === showUserProfile.id) + 1 || undefined}
               onClose={() => setShowUserProfile(null)}
+              recentMessages={messages.filter(m => m.user_id === showUserProfile.id).slice(-5).reverse()}
             />
           </div>
         </div>
