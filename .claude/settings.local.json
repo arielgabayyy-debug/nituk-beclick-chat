@@ -47,7 +47,8 @@
       "Read(//c/Users/אריאל/.config/vercel/**)",
       "Bash(curl -s -o /dev/null -w '%{http_code}' https://ltwyduffgrbenghdzbji.supabase.co/__TRACKED_VAR__)",
       "Read(//c/Users/אריאל/Desktop/b_jsSQ6JdrNLU/**)",
-      "Bash(npx supabase@latest --version)"
+      "Bash(npx supabase@latest --version)",
+      "WebFetch(domain:nitukbeclick.co.il)"
     ]
   }
 }
