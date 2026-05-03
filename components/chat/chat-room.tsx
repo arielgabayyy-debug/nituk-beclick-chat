@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2 } from 'lucide-react'
+import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -25,6 +25,8 @@ import { Icebreaker } from './icebreaker'
 import { ProviderComparison } from './provider-comparison'
 import { ChatExport } from './chat-export'
 import { CelebrationButton } from './celebration-button'
+import { useNotificationCenter, NotificationCenter } from './notification-center'
+import { PointsShop } from './points-shop'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
@@ -115,6 +117,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [mobilePanel, setMobilePanel] = useState<SidebarTab | null>(null)
   const [showQuickDeal, setShowQuickDeal] = useState(false)
   const [showExport, setShowExport] = useState(false)
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false)
+  const [showPointsShop, setShowPointsShop] = useState(false)
+  const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null)
   const [showNotifBanner, setShowNotifBanner] = useState(false)
   const { permission, sendNotification } = useNotificationPermission()
@@ -176,10 +181,19 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         // Speed up for mention (higher pitch feel)
         if (isMention && 'playbackRate' in audio) audio.playbackRate = 1.5
         audio.play().catch(() => {})
+        // In-app notification
+        if (isMention) {
+          addNotification({
+            type: 'mention',
+            title: `${lastMessage.user?.name || 'מישהו'} אזכר אותך`,
+            body: lastMessage.content.slice(0, 100),
+            messageId: lastMessage.id,
+          })
+        }
       }
     }
     prevMessagesLengthRef.current = messages.length
-  }, [messages, currentUser.id, currentUser.name, soundEnabled])
+  }, [messages, currentUser.id, currentUser.name, soundEnabled, addNotification])
 
   // Show notification permission banner after 30s if not granted
   useEffect(() => {
@@ -808,13 +822,38 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 <Flame className="w-4 h-4" />
               </Button>
 
+              {/* Notification center */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 relative"
+                onClick={() => setShowNotificationCenter(v => !v)}
+                title="מרכז התראות"
+              >
+                <Bell className="w-4 h-4 text-muted-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </Button>
+
+              {/* Points shop */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-amber-500"
+                onClick={() => setShowPointsShop(true)}
+                title={`חנות נקודות — ${currentUser.points} נקודות`}
+              >
+                <Star className="w-4 h-4" />
+              </Button>
+
               {/* Export chat */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 shrink-0"
                 onClick={handleExportChat}
-                title="ייצא שיחה כקובץ טקסט"
+                title="ייצא שיחה"
               >
                 <Download className="w-4 h-4 text-muted-foreground" />
               </Button>
@@ -974,6 +1013,34 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           messages={messages}
           currentUser={currentUser}
           onClose={() => setShowExport(false)}
+        />
+      )}
+
+      {/* Notification Center */}
+      {showNotificationCenter && (
+        <NotificationCenter
+          notifications={notifications}
+          unreadCount={unreadCount}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+          onClearAll={clearNotifications}
+          onJumpToMessage={jumpToMessage}
+          onClose={() => setShowNotificationCenter(false)}
+        />
+      )}
+
+      {/* Points Shop */}
+      {showPointsShop && (
+        <PointsShop
+          currentUser={currentUser}
+          onClose={() => setShowPointsShop(false)}
+          onPurchase={(item, newPoints) => {
+            addNotification({
+              type: 'achievement',
+              title: `רכשת: ${item.name}!`,
+              body: `השתמשת ב-${item.cost} נקודות. יתרה: ${newPoints}`,
+            })
+          }}
         />
       )}
 
