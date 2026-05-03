@@ -17,7 +17,8 @@
       "Bash(node -e \"console.log\\('node ok'\\)\")",
       "Bash(npm list *)",
       "Bash(npm install *)",
-      "Bash(node scripts/generate-logo.mjs)"
+      "Bash(node scripts/generate-logo.mjs)",
+      "Bash(npm uninstall *)"
     ]
   }
 }
