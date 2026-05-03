@@ -155,6 +155,25 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
     return <VoiceMessage url={voiceMatch[1]} duration={parseInt(voiceMatch[2])} isOwn={!!isOwn} />
   }
 
+  // Detect video messages
+  const videoMatch = content.match(/^\[video:(https?:\/\/[^\]]+):(\d+)\]$/)
+  if (videoMatch) {
+    return (
+      <div className="relative rounded-xl overflow-hidden max-w-[280px] border border-border/40 shadow-sm">
+        <video
+          src={videoMatch[1]}
+          controls
+          playsInline
+          className="w-full max-h-[200px] object-cover bg-black"
+          style={{ maxWidth: 280 }}
+        />
+        <div className={`absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded-full ${isOwn ? 'bg-black/40 text-white' : 'bg-white/80 text-gray-700'}`}>
+          🎥 {Math.floor(parseInt(videoMatch[2]) / 60)}:{String(parseInt(videoMatch[2]) % 60).padStart(2, '0')}
+        </div>
+      </div>
+    )
+  }
+
   // Detect reply format: ↩️ בתגובה לName: "quoted..."\nactual message
   const replyMatch = content.match(/^↩️ בתגובה ל(.+?): "(.+?)"\n([\s\S]*)$/)
   if (replyMatch) {

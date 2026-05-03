@@ -7,9 +7,11 @@ import { cn } from '@/lib/utils'
 import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
 import { VoiceRecorder } from './voice-recorder'
+import { VideoRecorder } from './video-recorder'
 import { SavedRepliesPanel } from './saved-replies'
 import { useSpeedDials, SpeedDialEditor } from './speed-dial-editor'
 import { FullEmojiPicker } from './full-emoji-picker'
+import { SmartSuggestions } from './smart-suggestions'
 import { MarkdownPreview } from './markdown-preview'
 import { checkMessage } from '@/hooks/use-auto-mod'
 
@@ -524,6 +526,17 @@ export function ChatInput({
         </div>
       )}
 
+      {/* Smart text suggestions */}
+      {message.length > 3 && !showEmojis && (
+        <SmartSuggestions
+          message={message}
+          onSelect={(suffix) => {
+            setMessage(prev => prev + suffix)
+            setTimeout(() => textareaRef.current?.focus(), 0)
+          }}
+        />
+      )}
+
       {/* Full Emoji picker */}
       {showEmojis && (
         <FullEmojiPicker
@@ -654,9 +667,12 @@ export function ChatInput({
           }
         </Button>
 
-        {/* Voice recorder - show only when message is empty */}
+        {/* Voice + Video recorders - show only when message is empty */}
         {!message && (
-          <VoiceRecorder onSend={handleVoiceSend} disabled={disabled} />
+          <>
+            <VoiceRecorder onSend={handleVoiceSend} disabled={disabled} />
+            <VideoRecorder onSend={(content) => { onSend(content) }} disabled={disabled} />
+          </>
         )}
 
         <div className="flex-1 relative">

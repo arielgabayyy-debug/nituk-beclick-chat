@@ -1,7 +1,7 @@
 "use client"
 
-import { Crown, Medal, TrendingUp, Star, Sparkles, Search } from 'lucide-react'
-import { useState } from 'react'
+import { Crown, Medal, TrendingUp, Star, Sparkles, Search, ArrowUp, ArrowDown, Minus } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { ChatUser } from '@/lib/chat-types'
 import { LEVEL_NAMES, formatNumber } from '@/lib/chat-types'
@@ -12,16 +12,30 @@ interface LeaderboardProps {
   currentUserId?: string
 }
 
+type Period = 'week' | 'month' | 'all'
+
 export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<'points' | 'messages' | 'helpful'>('points')
+  const [period, setPeriod] = useState<Period>('week')
   if (users.length === 0) return null
 
-  const sorted = [...users].sort((a, b) => {
+  const sorted = useMemo(() => [...users].sort((a, b) => {
     if (sortBy === 'messages') return (b.messages_count || 0) - (a.messages_count || 0)
     if (sortBy === 'helpful') return (b.helpful_count || 0) - (a.helpful_count || 0)
-    return (b.points || 0) - (a.points || 0)
-  }).filter(u => !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    // For week: use weekly_points; for month/all: use points
+    const aScore = period === 'week' ? (a.weekly_points || 0) : (a.points || 0)
+    const bScore = period === 'week' ? (b.weekly_points || 0) : (b.points || 0)
+    return bScore - aScore
+  }).filter(u => !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase())), [users, sortBy, period, searchQuery])
+
+  // Simulate trend by comparing weekly vs overall rank
+  const getTrend = (user: ChatUser, rank: number): 'up' | 'down' | 'same' => {
+    const overallRank = [...users].sort((a,b) => (b.points||0)-(a.points||0)).findIndex(u=>u.id===user.id) + 1
+    if (overallRank - rank > 1) return 'up'
+    if (rank - overallRank > 1) return 'down'
+    return 'same'
+  }
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -59,7 +73,17 @@ export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
           </div>
           <div>
             <h3 className="font-bold text-foreground">לוח המובילים</h3>
-            <p className="text-xs text-muted-foreground">השבוע</p>
+            <div className="flex gap-1 mt-0.5">
+              {(['week', 'month', 'all'] as Period[]).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={cn("text-[9px] px-1.5 py-0.5 rounded-full transition", period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/60")}
+                >
+                  {p === 'week' ? 'שבוע' : p === 'month' ? 'חודש' : 'כל הזמן'}
+                </button>
+              ))}
+            </div>
           </div>
           <Sparkles className="h-4 w-4 text-purple-400 mr-auto animate-pulse" />
         </div>
@@ -87,6 +111,7 @@ export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
         {sorted.map((user, index) => {
           const rank = index + 1
           const isCurrentUser = user.id === currentUserId
+          const trend = period === 'week' ? getTrend(user, rank) : 'same'
 
           return (
             <div
@@ -98,9 +123,12 @@ export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
                 rank <= 3 && "hover:scale-[1.02]"
               )}
             >
-              {/* Rank */}
-              <div className="flex items-center justify-center w-8 h-8">
+              {/* Rank + Trend */}
+              <div className="flex flex-col items-center justify-center w-8">
                 {getRankIcon(rank)}
+                {trend === 'up' && <ArrowUp className="w-3 h-3 text-emerald-500 mt-0.5" />}
+                {trend === 'down' && <ArrowDown className="w-3 h-3 text-red-400 mt-0.5" />}
+                {trend === 'same' && rank > 3 && <Minus className="w-3 h-3 text-muted-foreground/30 mt-0.5" />}
               </div>
 
               {/* Avatar */}
