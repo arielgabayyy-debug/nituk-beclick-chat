@@ -32,6 +32,7 @@ import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messag
 import { ActivityFeed } from './activity-feed'
 import { UserOfWeekWidget } from './user-of-week'
 import { DirectMessages } from './direct-messages'
+import { Pinboard } from './pinboard'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
@@ -126,6 +127,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showPointsShop, setShowPointsShop] = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [dmTarget, setDmTarget] = useState<ChatUser | null>(null)
+  const [showPinboard, setShowPinboard] = useState(false)
   const [showScheduled, setShowScheduled] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
@@ -498,7 +500,20 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         {/* Chat area */}
         <div className="flex-1 flex flex-col glass rounded-2xl overflow-hidden border border-border/30 shadow-2xl min-w-0">
           {/* Pinned messages */}
-          <PinnedMessages messages={pinnedMessages} onJumpToMessage={jumpToMessage} />
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <PinnedMessages messages={pinnedMessages} onJumpToMessage={jumpToMessage} />
+            </div>
+            {pinnedMessages.length > 1 && (
+              <button
+                onClick={() => setShowPinboard(true)}
+                className="shrink-0 text-[10px] text-amber-600 dark:text-amber-400 hover:underline px-2 py-1"
+                title="כל ההודעות הנעוצות"
+              >
+                הכל ({pinnedMessages.length})
+              </button>
+            )}
+          </div>
 
           {/* Search bar */}
           {showSearch && (
@@ -1074,6 +1089,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           onClearAll={clearNotifications}
           onJumpToMessage={jumpToMessage}
           onClose={() => setShowNotificationCenter(false)}
+        />
+      )}
+
+      {/* Pinboard */}
+      {showPinboard && (
+        <Pinboard
+          messages={messages}
+          onJumpToMessage={jumpToMessage}
+          onUnpin={currentUser.user_type === 'admin' ? (id) => togglePinMessage(id, true) : undefined}
+          isAdmin={currentUser.user_type === 'admin'}
+          onClose={() => setShowPinboard(false)}
         />
       )}
 

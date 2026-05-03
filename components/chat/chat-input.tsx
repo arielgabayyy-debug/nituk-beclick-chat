@@ -9,6 +9,7 @@ import type { ChatMessage } from '@/lib/chat-types'
 import { VoiceRecorder } from './voice-recorder'
 import { SavedRepliesPanel } from './saved-replies'
 import { useSpeedDials, SpeedDialEditor } from './speed-dial-editor'
+import { FullEmojiPicker } from './full-emoji-picker'
 
 // Smart emoji suggestions based on message keywords
 const SMART_EMOJI_TRIGGERS: { keywords: string[]; emoji: string }[] = [
@@ -504,28 +505,12 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Emoji picker */}
+      {/* Full Emoji picker */}
       {showEmojis && (
-        <div className="absolute bottom-full mb-2 right-0 bg-white border border-border/60 rounded-2xl p-3 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground font-medium">אימוג׳ים מהירים</span>
-            <button onClick={() => setShowEmojis(false)} className="hover:bg-muted rounded-full p-0.5 transition-colors">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="flex gap-1 flex-wrap max-w-[240px]">
-            {QUICK_EMOJIS.map(emoji => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => addEmoji(emoji)}
-                className="w-9 h-9 flex items-center justify-center hover:bg-muted rounded-xl transition-all text-xl hover:scale-125"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </div>
+        <FullEmojiPicker
+          onSelect={(emoji) => { addEmoji(emoji); setShowEmojis(false) }}
+          onClose={() => setShowEmojis(false)}
+        />
       )}
 
       {/* Mention autocomplete dropdown */}

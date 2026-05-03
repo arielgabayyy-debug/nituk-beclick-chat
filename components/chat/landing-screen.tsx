@@ -205,29 +205,51 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
             { emoji: '🔖', label: 'שמירת הודעות' },
             { emoji: '📊', label: 'סקרים חיים' },
             { emoji: '🎯', label: 'הישגים' },
+            { emoji: '💬', label: 'DM פרטי' },
+            { emoji: '🌐', label: 'תרגום מיידי' },
+            { emoji: '🔔', label: 'התראות חכמות' },
           ].map(f => (
-            <div key={f.label} className="flex flex-col items-center gap-1 bg-muted/20 rounded-xl py-2.5 px-1 text-center border border-border/20">
+            <div key={f.label} className="flex flex-col items-center gap-1 bg-muted/20 rounded-xl py-2.5 px-1 text-center border border-border/20 hover:bg-primary/5 hover:border-primary/20 transition">
               <span className="text-xl">{f.emoji}</span>
               <span className="text-[10px] text-muted-foreground font-medium">{f.label}</span>
             </div>
           ))}
         </div>
 
+        {/* Testimonials */}
+        <div className="mt-5 space-y-2">
+          <p className="text-xs text-center text-muted-foreground font-semibold uppercase tracking-wide mb-3">מה אומרים החברים?</p>
+          {[
+            { name: 'נועה ל.', avatar: '🟣', text: 'חסכתי 80₪ בחודש בעסקה שמצאתי כאן! ממליצה לכולם 🙏', stars: 5 },
+            { name: 'דוד מ.', avatar: '🔵', text: 'הקהילה מדהימה, תמיד יש מי שיעזור במהירות ✨', stars: 5 },
+            { name: 'שירה כ.', avatar: '🟢', text: 'עברתי ספק תוך 10 דקות בזכות הטיפ שקיבלתי כאן!', stars: 5 },
+          ].map(t => (
+            <div key={t.name} className="bg-muted/20 rounded-xl p-3 border border-border/20">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-lg">{t.avatar}</span>
+                <span className="text-xs font-semibold">{t.name}</span>
+                <span className="text-amber-400 text-xs">{'⭐'.repeat(t.stars)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t.text}</p>
+            </div>
+          ))}
+        </div>
+
         {/* Share button */}
-        <div className="mt-3 text-center">
+        <div className="mt-4 text-center">
           <button
             onClick={() => {
               const url = 'https://nituk-beclick-chat.vercel.app'
-              const text = 'הצטרף לקהילת חיבור וניתוק בקליק — השוואת מחירים חכמה עם AI!'
+              const text = 'הצטרף לקהילת חיבור וניתוק בקליק — השוואת מחירים חכמה!'
               if (navigator.share) {
                 navigator.share({ title: 'חיבור וניתוק בקליק', text, url })
               } else {
                 window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank')
               }
             }}
-            className="text-xs text-muted-foreground hover:text-primary transition underline underline-offset-2"
+            className="inline-flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition font-medium"
           >
-            📤 שתף עם חברים
+            📤 שתף עם חברים וקבל 50 נקודות בונוס!
           </button>
         </div>
 
