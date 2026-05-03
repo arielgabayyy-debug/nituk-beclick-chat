@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, memo } from 'react'
+import { useState, useRef, memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
 import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag, MessageCircle } from 'lucide-react'
@@ -544,7 +544,8 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
   const isOwn = message.user_id === currentUser?.id
   const isAdmin = currentUser?.user_type === 'admin'
   const user = message.user as ChatUser | undefined
-  const groupedReactions = groupReactions(message.reactions || [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const groupedReactions = useMemo(() => groupReactions(message.reactions || []), [message.reactions])
   const isMentioned = !isOwn && currentUser && message.content.includes(`@${currentUser.name}`)
   const isDeal = !message.content.startsWith('[voice:') && /[₪%]|\d+\s*ש"ח|מבצע|חבילה|הנחה|עסקה|חינם|discount|sale/i.test(message.content)
 

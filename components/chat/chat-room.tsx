@@ -66,6 +66,8 @@ interface ChatRoomProps {
 }
 
 type SidebarTab = 'users' | 'leaderboard' | 'polls' | 'deals'
+const MOBILE_PANELS_ORDER: Array<SidebarTab | null> = [null, 'leaderboard', 'deals', 'users']
+const CHAT_PAGE_SIZE = 80
 
 export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const {
@@ -131,15 +133,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [focusMode, setFocusMode] = useState(false)
   const [mobilePanel, setMobilePanel] = useState<SidebarTab | null>(null)
 
-  const MOBILE_PANELS: Array<SidebarTab | null> = [null, 'leaderboard', 'deals', 'users']
   const mobilePanelSwipe = useSwipe({
     onSwipeLeft: () => setMobilePanel(p => {
-      const idx = MOBILE_PANELS.indexOf(p)
-      return MOBILE_PANELS[(idx + 1) % MOBILE_PANELS.length]
+      const idx = MOBILE_PANELS_ORDER.indexOf(p)
+      return MOBILE_PANELS_ORDER[(idx + 1) % MOBILE_PANELS_ORDER.length]
     }),
     onSwipeRight: () => setMobilePanel(p => {
-      const idx = MOBILE_PANELS.indexOf(p)
-      return MOBILE_PANELS[(idx - 1 + MOBILE_PANELS.length) % MOBILE_PANELS.length]
+      const idx = MOBILE_PANELS_ORDER.indexOf(p)
+      return MOBILE_PANELS_ORDER[(idx - 1 + MOBILE_PANELS_ORDER.length) % MOBILE_PANELS_ORDER.length]
     }),
     threshold: 60,
   })
@@ -152,6 +153,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showPinboard, setShowPinboard] = useState(false)
   const [showPriceAlerts, setShowPriceAlerts] = useState(false)
   const [threadMessage, setThreadMessage] = useState<ChatMessage | null>(null)
+  const [displayedCount, setDisplayedCount] = useState(80)
   const [showScheduled, setShowScheduled] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
@@ -206,8 +208,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         const isMention = lastMessage.content.includes(`@${currentUser.name}`)
         const audio = new Audio('/notification.mp3')
         audio.volume = isMention ? Math.min(soundVolume * 2, 1) : soundVolume
-        // Browser notification + vibration for @mention
-        if (isMention) {
+        // Browser notification + vibration for @mention (only if permission granted)
+        if (isMention && permission === 'granted') {
           sendNotification(
             `${lastMessage.user?.name || 'מישהו'} אזכר אותך`,
             lastMessage.content.slice(0, 100)
@@ -328,13 +330,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
   // Lazy loading: show last PAGE_SIZE items, reveal more on scroll to top
   const PAGE_SIZE = 80
-  const [displayedCount, setDisplayedCount] = useState(PAGE_SIZE)
   const allItems = allItemsFull.slice(-displayedCount)
   const hasMore = allItemsFull.length > displayedCount
 
   const handleLoadMore = useCallback(() => {
     setDisplayedCount(c => Math.min(c + PAGE_SIZE, allItemsFull.length))
   }, [allItemsFull.length])
+
+  // Reset lazy load when filter changes
+  useEffect(() => {
+    setDisplayedCount(80)
+  }, [searchQuery, searchUserFilter, showMentionsOnly])
 
   const handleSendAnnouncement = () => {
     if (announcementText.trim()) {
@@ -1110,7 +1116,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         >
           {/* Swipe indicator */}
           <div className="flex items-center justify-center gap-1.5 mb-2">
-            {MOBILE_PANELS.map((p, i) => (
+            {MOBILE_PANELS_ORDER.map((p, i) => (
               <div
                 key={i}
                 className={`h-1 rounded-full transition-all ${mobilePanel === p ? 'w-6 bg-primary' : 'w-1.5 bg-muted'}`}

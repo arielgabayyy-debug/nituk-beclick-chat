@@ -137,10 +137,35 @@ export function useChat(currentUser: ChatUser | null) {
         ]
         return aiTips[Math.floor(Math.random() * aiTips.length)]
       },
-      '/help':    () => '💡 פקודות: /shrug /flip /lenny /bear /wave /hi /deal /thanks /joke /tip /aitip /poll שאלה|אפשרות1|אפשרות2',
+      '/help':    () => '💡 פקודות: /shrug /flip /lenny /bear /wave /hi /deal /thanks /joke /tip /aitip /ai [שאלה] /poll שאלה|אפשרות1|אפשרות2',
     }
-    const trimmed = content.trim().toLowerCase()
-    return commands[trimmed]?.() || content
+    const trimmed = content.trim()
+
+    // /ai [custom question] — real AI query
+    if (trimmed.toLowerCase().startsWith('/ai ')) {
+      const question = trimmed.slice(4).trim()
+      if (question) {
+        // Send placeholder immediately, then replace with real answer
+        setTimeout(async () => {
+          try {
+            const res = await fetch('/api/ai-tip', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ question }),
+            })
+            const data = await res.json() as { answer: string }
+            if (data.answer) {
+              sendMessage(`🤖 AI: ${data.answer}`)
+            }
+          } catch {
+            sendMessage('🤖 לא הצלחתי להתחבר ל-AI. נסה שוב מאוחר יותר.')
+          }
+        }, 100)
+        return `🤖 שואל את ה-AI: "${question}"... ⏳`
+      }
+    }
+
+    return commands[trimmed.toLowerCase()]?.() || content
   }
 
   // Handle /poll command: /poll שאלה | אפשרות1 | אפשרות2

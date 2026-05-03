@@ -25,6 +25,7 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animFrameRef = useRef<number | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
 
   const startRecording = async () => {
     try {
@@ -33,6 +34,7 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
 
       // Set up AudioContext analyser for real waveform
       const ctx = new AudioContext()
+      audioCtxRef.current = ctx
       const source = ctx.createMediaStreamSource(stream)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 64
@@ -61,6 +63,8 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
         setAudioUrl(URL.createObjectURL(blob))
         stream.getTracks().forEach(t => t.stop())
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+        audioCtxRef.current?.close().catch(() => {})
+        audioCtxRef.current = null
         setBars(Array(BAR_COUNT).fill(4))
       }
       mediaRecorder.start(100)
@@ -82,6 +86,8 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   const cancelRecording = () => {
     mediaRef.current?.stop()
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    audioCtxRef.current?.close().catch(() => {})
+    audioCtxRef.current = null
     streamRef.current?.getTracks().forEach(t => t.stop())
     setRecording(false)
     setAudioBlob(null)
@@ -106,7 +112,12 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     finally { setUploading(false) }
   }
 
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    audioCtxRef.current?.close().catch(() => {})
+    streamRef.current?.getTracks().forEach(t => t.stop())
+  }, [])
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 

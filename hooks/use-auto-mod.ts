@@ -11,7 +11,8 @@ const SPAM_PATTERNS = [
 const CAPS_THRESHOLD = 0.7  // If >70% of letters are uppercase → warn
 const REPEAT_THRESHOLD = 3  // Same message 3 times in 10 min → warn
 
-const recentMessages: { content: string; time: number }[] = []
+// Session-scoped (per browser tab) — acceptable for spam detection
+const _recentMessages: { content: string; time: number }[] = []
 
 export type ModResult = {
   allowed: boolean
@@ -46,7 +47,7 @@ export function checkMessage(content: string): ModResult {
   // Check repeat messages
   const now = Date.now()
   const tenMinAgo = now - 10 * 60 * 1000
-  const recent = recentMessages.filter(m => m.time > tenMinAgo && m.content === content)
+  const recent = _recentMessages.filter(m => m.time > tenMinAgo && m.content === content)
   if (recent.length >= REPEAT_THRESHOLD) {
     return {
       allowed: false,
@@ -56,9 +57,9 @@ export function checkMessage(content: string): ModResult {
   }
 
   // Log this message
-  recentMessages.push({ content, time: now })
+  _recentMessages.push({ content, time: now })
   // Keep array small
-  while (recentMessages.length > 50) recentMessages.shift()
+  while (_recentMessages.length > 50) _recentMessages.shift()
 
   return { allowed: true, severity: 'ok' }
 }

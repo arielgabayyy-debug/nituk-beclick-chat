@@ -26,23 +26,68 @@ interface DirectMessagesProps {
 
 function getInitials(name: string) { return name.charAt(0).toUpperCase() }
 
+const LS_KEY = (a: string, b: string) => `dms_${[a, b].sort().join('_')}`
+
 export function DirectMessages({ currentUser, targetUser, onClose }: DirectMessagesProps) {
   const [messages, setMessages] = useState<DM[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [useDB, setUseDB] = useState(false) // tracks if Supabase DM table exists
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
-  // Fetch DMs from localStorage (fallback if no DB table)
   useEffect(() => {
-    const key = `dms_${[currentUser.id, targetUser.id].sort().join('_')}`
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) || '[]')
-      setMessages(saved)
-    } catch {}
-    setLoading(false)
-  }, [currentUser.id, targetUser.id])
+    const key = LS_KEY(currentUser.id, targetUser.id)
+
+    const loadFromLS = () => {
+      try {
+        setMessages(JSON.parse(localStorage.getItem(key) || '[]'))
+      } catch {}
+      setLoading(false)
+    }
+
+    // Try Supabase first
+    const tryDB = async () => {
+      const { data, error } = await supabase
+        .from('direct_messages')
+        .select('*')
+        .or(`and(from_user_id.eq.${currentUser.id},to_user_id.eq.${targetUser.id}),and(from_user_id.eq.${targetUser.id},to_user_id.eq.${currentUser.id})`)
+        .order('created_at')
+        .limit(100)
+
+      if (!error && data) {
+        setUseDB(true)
+        setMessages(data as DM[])
+        setLoading(false)
+
+        // Subscribe to realtime
+        const ch = supabase
+          .channel(`dms-${key}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'direct_messages',
+            filter: `to_user_id=eq.${currentUser.id}`,
+          }, (payload) => {
+            const newMsg = payload.new as DM
+            if (newMsg.from_user_id === targetUser.id) {
+              setMessages(prev => [...prev, newMsg])
+            }
+          })
+          .subscribe()
+        channelRef.current = ch
+      } else {
+        loadFromLS()
+      }
+    }
+    tryDB()
+
+    return () => {
+      channelRef.current && supabase.removeChannel(channelRef.current)
+    }
+  }, [currentUser.id, targetUser.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -51,21 +96,42 @@ export function DirectMessages({ currentUser, targetUser, onClose }: DirectMessa
   const handleSend = async () => {
     if (!input.trim() || sending) return
     setSending(true)
-    const key = `dms_${[currentUser.id, targetUser.id].sort().join('_')}`
+    const content = input.trim()
+    setInput('')
+
     const newMsg: DM = {
       id: Date.now().toString(),
       from_user_id: currentUser.id,
       to_user_id: targetUser.id,
-      content: input.trim(),
+      content,
       created_at: new Date().toISOString(),
       read: false,
       from_user: currentUser,
       to_user: targetUser,
     }
-    const next = [...messages, newMsg]
-    setMessages(next)
-    localStorage.setItem(key, JSON.stringify(next.slice(-100)))
-    setInput('')
+
+    // Optimistic update
+    setMessages(prev => [...prev, newMsg])
+
+    if (useDB) {
+      // Insert into Supabase
+      const { error } = await supabase.from('direct_messages').insert({
+        from_user_id: currentUser.id,
+        to_user_id: targetUser.id,
+        content,
+        read: false,
+      })
+      if (error) {
+        console.warn('DM insert failed, falling back to localStorage:', error.message)
+        setUseDB(false)
+      }
+    } else {
+      // localStorage fallback
+      const key = LS_KEY(currentUser.id, targetUser.id)
+      const prev = [...messages, newMsg]
+      localStorage.setItem(key, JSON.stringify(prev.slice(-100)))
+    }
+
     setSending(false)
   }
 

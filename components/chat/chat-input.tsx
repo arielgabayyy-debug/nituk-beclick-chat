@@ -67,6 +67,7 @@ const SLASH_COMMANDS = [
   { cmd: '/joke', desc: 'בדיחה אקראית' },
   { cmd: '/tip', desc: 'טיפ חסכון' },
   { cmd: '/aitip', desc: 'טיפ AI חכם לחיסכון' },
+  { cmd: '/ai', desc: '🤖 שאל AI: /ai מה הספק הכי זול?' },
   { cmd: '/poll', desc: 'צור סקר: /poll שאלה | א | ב' },
   { cmd: '/help', desc: 'רשימת פקודות' },
 ]

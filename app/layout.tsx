@@ -29,6 +29,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl" className="dark bg-background">
+      <head>
+        {/* Service Worker registration */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                console.warn('SW registration failed:', err);
+              });
+            });
+          }
+        ` }} />
+      </head>
       <body className={`${heebo.className} font-sans antialiased`}>
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
