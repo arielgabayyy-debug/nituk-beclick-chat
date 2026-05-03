@@ -113,11 +113,7 @@ export function ChatInput({
   }
 
   // ── Image upload ────────────────────────────────────────────────────────
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = '' // reset so same file can be re-selected
-
+  const uploadImageFile = async (file: File) => {
     setIsUploading(true)
     try {
       const fd = new FormData()
@@ -125,7 +121,6 @@ export function ChatInput({
       const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }
-      // Send image URL as message — the auto-preview will render it
       onSend(data.url)
     } catch {
       alert('שגיאה בהעלאת התמונה')
@@ -133,6 +128,24 @@ export function ChatInput({
       setIsUploading(false)
     }
   }
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    await uploadImageFile(file)
+  }
+
+  // Ctrl+V / paste image from clipboard
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items)
+    const imageItem = items.find(i => i.type.startsWith('image/'))
+    if (imageItem) {
+      e.preventDefault()
+      const file = imageItem.getAsFile()
+      if (file) await uploadImageFile(file)
+    }
+  }, [onSend])
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -497,6 +510,7 @@ export function ChatInput({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onBlur={() => onTypingStop?.()}
+            onPaste={handlePaste}
             placeholder={replyTo ? `השב ל-${replyTo.user?.name}...` : placeholder}
             disabled={disabled}
             rows={1}

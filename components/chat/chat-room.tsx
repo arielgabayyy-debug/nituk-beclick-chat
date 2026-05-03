@@ -93,6 +93,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showBookmarks, setShowBookmarks] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [forwardedContent, setForwardedContent] = useState<string | null>(null)
   const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
   const prevMessagesLengthRef = useRef(messages.length)
@@ -245,8 +246,36 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     sendMessage(content)
   }
 
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingFile(false)
+    const file = e.dataTransfer.files[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (res.ok) handleSendMessage(data.url)
+    } catch {}
+  }
+
   return (
-    <div className="min-h-screen flex flex-col chat-bg-animated">
+    <div
+      className="min-h-screen flex flex-col chat-bg-animated relative"
+      onDragOver={e => { e.preventDefault(); setIsDraggingFile(true) }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false) }}
+      onDrop={handleDrop}
+    >
+      {/* Drag & drop overlay */}
+      {isDraggingFile && (
+        <div className="absolute inset-0 z-[90] bg-primary/20 backdrop-blur-sm flex items-center justify-center border-4 border-dashed border-primary/60 pointer-events-none">
+          <div className="text-center">
+            <div className="text-5xl mb-3">📁</div>
+            <p className="text-xl font-bold text-primary">שחרר לשליחת תמונה</p>
+          </div>
+        </div>
+      )}
       <KeyboardShortcuts
         onSearch={() => { setShowSearch(s => !s); setSearchQuery('') }}
         onEscape={() => { setShowSearch(false); setSearchQuery(''); setReplyTo(null); setShowShortcuts(false) }}
