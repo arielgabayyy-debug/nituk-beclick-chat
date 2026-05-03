@@ -44,6 +44,23 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
       return
     }
 
+    // If inside an iframe, try to check if mic permission may be blocked
+    const isInIframe = typeof window !== 'undefined' && window !== window.top
+    if (isInIframe) {
+      try {
+        // Try the permission query first; if denied/blocked in iframe, open in new tab
+        if (navigator.permissions) {
+          const result = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+          if (result.state === 'denied') {
+            if (confirm('ההקלטה מוגבלת בתצוגה הנוכחית. לפתוח את הצ׳אט בחלון חדש?')) {
+              window.open('https://nituk-beclick-chat.vercel.app', '_blank')
+            }
+            return
+          }
+        }
+      } catch { /* permissions API not available — continue anyway */ }
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -197,11 +214,10 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   return (
     <button
       type="button"
-      onMouseDown={startRecording}
-      onTouchStart={e => { e.preventDefault(); startRecording() }}
+      onClick={startRecording}
       disabled={disabled}
       className={cn("p-2.5 rounded-xl transition-all hover:bg-red-50 hover:text-red-500 text-muted-foreground", disabled && "opacity-50")}
-      title="החזק להקלטת הודעה קולית"
+      title="לחץ להקלטת הודעה קולית"
       aria-label="הקלט הודעה קולית"
     >
       <Mic className="w-5 h-5" />

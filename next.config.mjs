@@ -11,7 +11,7 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          // מאפשר הטמעה ב-iframe מאתר nitukbeclick.co.il
+          // Allow iframe embedding from nitukbeclick.co.il
           {
             key: 'X-Frame-Options',
             value: 'ALLOW-FROM https://nitukbeclick.co.il',
@@ -19,6 +19,11 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: "frame-ancestors 'self' https://nitukbeclick.co.il https://*.nitukbeclick.co.il",
+          },
+          // Allow microphone/camera access even when embedded in an iframe
+          {
+            key: 'Permissions-Policy',
+            value: 'microphone=*, camera=*, autoplay=*',
           },
         ],
       },
