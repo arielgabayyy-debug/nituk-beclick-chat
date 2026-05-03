@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+const MAX_ATTEMPTS = 5
+
 export async function POST(request: Request) {
   try {
     const { email, code } = await request.json()
@@ -10,30 +12,52 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
+    const normalizedEmail = email.toLowerCase().trim()
 
-    // Verify the OTP using Supabase Auth built-in verification.
-    // Supabase handles brute-force protection and expiry automatically.
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.toLowerCase().trim(),
-      token: code,
-      type: 'email',
-    })
+    // Find active OTP
+    const { data: otpRecord, error: fetchError } = await supabase
+      .from('otp_codes')
+      .select('*')
+      .eq('email', normalizedEmail)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle()
 
-    if (error) {
-      console.error('OTP verify error:', error.message)
-
-      if (error.message.includes('expired')) {
-        return NextResponse.json({ error: 'הקוד פג תוקף. בקש קוד חדש.' }, { status: 400 })
-      }
-      if (error.message.includes('Invalid') || error.message.includes('invalid')) {
-        return NextResponse.json({ error: 'קוד שגוי. נסה שוב.' }, { status: 400 })
-      }
-      return NextResponse.json({ error: 'קוד שגוי או פג תוקף' }, { status: 400 })
+    if (fetchError || !otpRecord) {
+      return NextResponse.json({ error: 'קוד שגוי או פג תוקף. בקש קוד חדש.' }, { status: 400 })
     }
 
+    const attempts = otpRecord.attempts ?? 0
+
+    // Brute-force protection
+    if (attempts >= MAX_ATTEMPTS) {
+      return NextResponse.json(
+        { error: 'יותר מדי ניסיונות. בקש קוד חדש.' },
+        { status: 429 }
+      )
+    }
+
+    // Wrong code
+    if (otpRecord.code !== code) {
+      const newAttempts = attempts + 1
+      await supabase
+        .from('otp_codes')
+        .update({ attempts: newAttempts })
+        .eq('email', normalizedEmail)
+
+      const remaining = MAX_ATTEMPTS - newAttempts
+      return NextResponse.json(
+        { error: remaining > 0 ? `קוד שגוי. נותרו ${remaining} ניסיונות.` : 'יותר מדי ניסיונות. בקש קוד חדש.' },
+        { status: 400 }
+      )
+    }
+
+    // ✅ Correct — delete so it can't be reused
+    await supabase.from('otp_codes').delete().eq('email', normalizedEmail)
+
     return NextResponse.json({ success: true, verified: true })
-  } catch (error) {
-    console.error('Error in verify-otp:', error)
+
+  } catch (err) {
+    console.error('verify-otp error:', err)
     return NextResponse.json({ error: 'שגיאה בשרת' }, { status: 500 })
   }
 }

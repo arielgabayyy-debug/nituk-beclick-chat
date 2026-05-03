@@ -18,7 +18,13 @@
       "Bash(npm list *)",
       "Bash(npm install *)",
       "Bash(node scripts/generate-logo.mjs)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(npx tsc *)",
+      "mcp__Claude_in_Chrome__read_page",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "Bash(curl -s https://ltwyduffgrbenghdzbji.supabase.co/auth/v1/settings -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NTMxODQsImV4cCI6MjA5MzMyOTE4NH0.1ITr4gIrO5WeuT0swJB28fKQq_2wnwFn-GYiWIWF2Kg')",
+      "Bash(npx vercel *)",
+      "mcp__Claude_in_Chrome__form_input"
     ]
   }
 }
