@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useRef } from 'react'
+import { useState, useRef, memo } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -35,6 +35,8 @@ interface ChatMessageProps {
   isMuted?: boolean
   onToggleMute?: (userId: string) => void
   onDM?: (user: ChatUser) => void
+  onViewThread?: (message: ChatMessageType) => void
+  threadCount?: number
 }
 
 function getInitials(name: string): string {
@@ -435,7 +437,7 @@ function highlightSearch(text: string, searchQuery: string | undefined, key: str
   )
 }
 
-export function ChatMessageComponent({
+export const ChatMessageComponent = memo(function ChatMessageComponent({
   message,
   currentUser,
   onDelete,
@@ -456,6 +458,8 @@ export function ChatMessageComponent({
   isMuted,
   onToggleMute,
   onDM,
+  onViewThread,
+  threadCount = 0,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -908,6 +912,18 @@ export function ChatMessageComponent({
             <Reply className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
 
+          {/* Thread view */}
+          {onViewThread && (
+            <button
+              className={`flex items-center gap-0.5 px-1.5 h-7 hover:bg-muted rounded-full transition-all text-[10px] font-medium ${threadCount > 0 ? 'text-primary' : 'text-muted-foreground'}`}
+              onClick={() => onViewThread(message)}
+              title="הצג תשובות"
+            >
+              <MessageCircle className="w-3 h-3" />
+              {threadCount > 0 && <span>{threadCount}</span>}
+            </button>
+          )}
+
           {/* Bookmark */}
           <button
             className={cn(
@@ -1127,4 +1143,6 @@ export function ChatMessageComponent({
     )}
   </>
   )
-}
+})
+
+ChatMessageComponent.displayName = 'ChatMessageComponent'

@@ -37,6 +37,8 @@ import { SavingsCalculator } from './savings-calculator'
 import { PriceAlertsPanel } from './price-alerts'
 import { OnboardingChecklist } from './onboarding-checklist'
 import { PWAInstallBanner } from './pwa-install'
+import { MessageThread } from './message-thread'
+import { AdminTemplates } from './admin-templates'
 import { DirectMessages } from './direct-messages'
 import { Pinboard } from './pinboard'
 import { ChatRulesCard } from './chat-rules'
@@ -149,6 +151,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [dmTarget, setDmTarget] = useState<ChatUser | null>(null)
   const [showPinboard, setShowPinboard] = useState(false)
   const [showPriceAlerts, setShowPriceAlerts] = useState(false)
+  const [threadMessage, setThreadMessage] = useState<ChatMessage | null>(null)
   const [showScheduled, setShowScheduled] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
@@ -805,6 +808,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           isMuted={item.data.user_id !== currentUser.id && isMuted(item.data.user_id)}
                           onToggleMute={item.data.user_id !== currentUser.id ? toggleMute : undefined}
                           onDM={item.data.user_id !== currentUser.id ? setDmTarget : undefined}
+                          onViewThread={(msg) => setThreadMessage(msg)}
+                          threadCount={messages.filter(m => {
+                            if (m.id === item.data.id) return false
+                            const rootTime = new Date(item.data.created_at).getTime()
+                            const msgTime = new Date(m.created_at).getTime()
+                            if (msgTime < rootTime || msgTime - rootTime > 4 * 60 * 60 * 1000) return false
+                            return m.content.startsWith('↩️ בתגובה ל') && item.data.user?.name ? m.content.includes(item.data.user.name) : false
+                          }).length}
                         />
                       </div>
                     )
@@ -1067,6 +1078,11 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {sidebarTab === 'deals' && (
             <HotDeals deals={hotDeals} currentUser={currentUser} onVote={voteDeal} onShare={shareDeal} />
           )}
+
+          {/* Admin templates (admins only) */}
+          {currentUser.user_type === 'admin' && (
+            <AdminTemplates onSend={handleSendMessage} />
+          )}
         </div>
       </div>
 
@@ -1185,6 +1201,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           onClearAll={clearNotifications}
           onJumpToMessage={jumpToMessage}
           onClose={() => setShowNotificationCenter(false)}
+        />
+      )}
+
+      {/* Message thread panel */}
+      {threadMessage && (
+        <MessageThread
+          rootMessage={threadMessage}
+          allMessages={messages}
+          currentUser={currentUser}
+          onClose={() => setThreadMessage(null)}
+          onReply={(msg) => { setReplyTo(msg); setThreadMessage(null) }}
         />
       )}
 
