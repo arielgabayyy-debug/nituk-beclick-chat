@@ -102,7 +102,7 @@ const userTypeLabel: Record<string, string> = {
 }
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'registrations' | 'users' | 'messages' | 'newsletter' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'registrations' | 'users' | 'messages' | 'newsletter' | 'settings' | 'reports'>('overview')
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [messages, setMessages] = useState<MessageRow[]>([])
@@ -531,6 +531,7 @@ export default function AdminDashboard() {
             { id: 'users', label: 'משתמשים', icon: Users },
             { id: 'messages', label: 'הודעות', icon: MessageCircle },
             { id: 'newsletter', label: 'ניוזלטר', icon: Mail },
+            { id: 'reports', label: 'דיווחים', icon: Ban },
             { id: 'settings', label: 'הגדרות', icon: Shield },
           ].map(tab => (
             <button
@@ -989,6 +990,29 @@ export default function AdminDashboard() {
             )}
 
             {/* ── NEWSLETTER TAB ───────────────────────────────────────── */}
+            {/* ── REPORTS TAB ─────────────────────────────────────────────── */}
+            {activeTab === 'reports' && (
+              <div className="space-y-4 max-w-2xl">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border">
+                  <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Ban className="w-5 h-5 text-red-500" />
+                    הודעות מדווחות
+                  </h2>
+                  {(() => {
+                    // Reports are stored in users' localStorage — in production this would be a DB table
+                    // For demo, show placeholder
+                    return (
+                      <div className="text-center py-8 text-gray-400">
+                        <Ban className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">דיווחים יופיעו כאן בגרסה עם מסד נתונים</p>
+                        <p className="text-xs mt-1">כרגע הדיווחים נשמרים ב-localStorage של המשתמשים</p>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'newsletter' && (
               <div className="space-y-6 max-w-2xl">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
