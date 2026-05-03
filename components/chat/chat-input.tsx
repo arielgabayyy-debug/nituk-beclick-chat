@@ -8,6 +8,7 @@ import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
 import { VoiceRecorder } from './voice-recorder'
 import { SavedRepliesPanel } from './saved-replies'
+import { useSpeedDials, SpeedDialEditor } from './speed-dial-editor'
 
 // Smart emoji suggestions based on message keywords
 const SMART_EMOJI_TRIGGERS: { keywords: string[]; emoji: string }[] = [
@@ -111,6 +112,8 @@ export function ChatInput({
   const [slashHints, setSlashHints] = useState<typeof SLASH_COMMANDS>([])
   const [showTemplates, setShowTemplates] = useState(false)
   const [showSavedReplies, setShowSavedReplies] = useState(false)
+  const [showSpeedDialEditor, setShowSpeedDialEditor] = useState(false)
+  const { dials: customDials } = useSpeedDials()
   const [smartEmojis, setSmartEmojis] = useState<string[]>([])
   const [templates, setTemplates] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null') || DEFAULT_TEMPLATES } catch { return DEFAULT_TEMPLATES }
@@ -463,9 +466,9 @@ export function ChatInput({
       {/* Speed dial - quick messages when input is empty */}
       {!message && !replyTo && (
         <div className="flex items-center gap-1 mb-1.5 overflow-x-auto">
-          {SPEED_DIAL_MESSAGES.map(({ label, text }) => (
+          {customDials.slice(0, 5).map((text, i) => (
             <button
-              key={label}
+              key={i}
               type="button"
               onClick={() => setMessage(text)}
               className="shrink-0 text-xs bg-muted/40 hover:bg-muted border border-border/20 rounded-full px-2.5 py-1 transition whitespace-nowrap"
@@ -473,6 +476,14 @@ export function ChatInput({
               {text}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setShowSpeedDialEditor(true)}
+            className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground transition px-1.5"
+            title="ערוך חיוג מהיר"
+          >
+            ✏️
+          </button>
         </div>
       )}
 
@@ -752,6 +763,9 @@ export function ChatInput({
           onClose={() => setShowSavedReplies(false)}
           currentDraft={message}
         />
+      )}
+      {showSpeedDialEditor && (
+        <SpeedDialEditor onClose={() => setShowSpeedDialEditor(false)} />
       )}
     </div>
   )

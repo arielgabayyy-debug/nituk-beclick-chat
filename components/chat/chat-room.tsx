@@ -29,6 +29,7 @@ import { useNotificationCenter, NotificationCenter } from './notification-center
 import { PointsShop } from './points-shop'
 import { AdvancedSearch } from './advanced-search'
 import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messages'
+import { ActivityFeed } from './activity-feed'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
@@ -468,6 +469,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Icebreaker question */}
           <Icebreaker onAsk={(q) => sendMessage(q)} />
+
+          {/* Activity feed */}
+          <ActivityFeed messages={messages} onlineUsers={onlineUsers} />
         </div>
 
         {/* Collapse toggle */}
