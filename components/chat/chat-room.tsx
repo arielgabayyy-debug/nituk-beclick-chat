@@ -23,6 +23,7 @@ import { ChatStats } from './chat-stats'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { CommunityFAQ } from './community-faq'
+import { TrendingKeywords } from './trending-keywords'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
@@ -405,6 +406,12 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Upcoming events */}
           <UpcomingEventsCard events={upcomingEvents} />
+
+          {/* Trending keywords */}
+          <TrendingKeywords
+            messages={messages}
+            onSearch={(kw) => { setSearchQuery(kw); setShowSearch(true) }}
+          />
 
           {/* Hot messages */}
           <HotMessages messages={messages} onJumpToMessage={jumpToMessage} />

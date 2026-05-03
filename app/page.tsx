@@ -6,6 +6,7 @@ import { LoginForm } from '@/components/chat/login-form'
 import { ChatRoom } from '@/components/chat/chat-room'
 import { LoadingScreen } from '@/components/chat/loading-screen'
 import { AccessibilityPanel } from '@/components/chat/accessibility-panel'
+import { ChatErrorBoundary } from '@/components/chat/error-boundary'
 import { useChatUser } from '@/hooks/use-chat'
 import { createClient } from '@/lib/supabase/client'
 import type { UserType, ChatUser } from '@/lib/chat-types'
@@ -167,7 +168,7 @@ export default function ChatApp() {
   if (screen === 'loading') return <LoadingScreen message={loadingMessage} />
   if (screen === 'landing') return <><LandingScreen onSelectMode={handleSelectMode} onlineCount={onlineCount} /><AccessibilityPanel /></>
   if (screen === 'login') return <><LoginForm mode={loginMode} onSubmit={handleLogin} onBack={() => setScreen('landing')} isLoading={isLoading} /><AccessibilityPanel /></>
-  if (screen === 'chat' && activeUser) return <><ChatRoom currentUser={activeUser} onLogout={handleLogout} /><AccessibilityPanel /></>
+  if (screen === 'chat' && activeUser) return <><ChatErrorBoundary><ChatRoom currentUser={activeUser} onLogout={handleLogout} /></ChatErrorBoundary><AccessibilityPanel /></>
 
   return <LoadingScreen />
 }
