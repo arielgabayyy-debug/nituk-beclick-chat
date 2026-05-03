@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Users, MessageCircle, TrendingUp, Mail, Send, Trash2,
   Crown, Shield, Ban, RefreshCw, BarChart3, Bell,
-  CheckCircle, XCircle, Star, Award, LogOut, Eye
+  CheckCircle, XCircle, Star, Award, LogOut, Eye,
+  UserPlus, Pin, Download, Sparkles
 } from 'lucide-react'
 import { formatTimeAgo } from '@/lib/chat-types'
 
@@ -21,6 +22,7 @@ interface Stats {
   todayMessages: number
   totalPolls: number
   totalDeals: number
+  todayRegistrations: number
 }
 
 interface UserRow {
@@ -34,6 +36,7 @@ interface UserRow {
   messages_count: number
   created_at: string
   email_consent: boolean
+  avatar_color: string
 }
 
 interface MessageRow {
@@ -44,8 +47,18 @@ interface MessageRow {
   user: { name: string; user_type: string }
 }
 
+const userTypeColor: Record<string, string> = {
+  admin: 'bg-purple-100 text-purple-700',
+  subscriber: 'bg-blue-100 text-blue-700',
+  newsletter: 'bg-amber-100 text-amber-700',
+  guest: 'bg-gray-100 text-gray-600',
+}
+const userTypeLabel: Record<string, string> = {
+  admin: 'מנהל', subscriber: 'מנוי', newsletter: 'ניוזלטר', guest: 'אורח'
+}
+
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'messages' | 'newsletter' | 'polls'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'registrations' | 'users' | 'messages' | 'newsletter'>('overview')
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [messages, setMessages] = useState<MessageRow[]>([])
@@ -58,8 +71,14 @@ export default function AdminDashboard() {
   const [adminPassword, setAdminPassword] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [newRegCount, setNewRegCount] = useState(0)
+  const [toast, setToast] = useState<{ name: string; type: string } | null>(null)
+  const lastSeenRef = useRef<string>(new Date().toISOString())
 
   const fetchStats = useCallback(async () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
     const [
       { count: totalUsers },
       { count: onlineUsers },
@@ -69,6 +88,8 @@ export default function AdminDashboard() {
       { count: guests },
       { count: totalPolls },
       { count: totalDeals },
+      { count: todayMessages },
+      { count: todayRegistrations },
     ] = await Promise.all([
       supabase.from('chat_users').select('*', { count: 'exact', head: true }),
       supabase.from('chat_users').select('*', { count: 'exact', head: true }).eq('is_online', true),
@@ -78,14 +99,9 @@ export default function AdminDashboard() {
       supabase.from('chat_users').select('*', { count: 'exact', head: true }).eq('user_type', 'guest'),
       supabase.from('polls').select('*', { count: 'exact', head: true }),
       supabase.from('hot_deals').select('*', { count: 'exact', head: true }),
+      supabase.from('chat_messages').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+      supabase.from('chat_users').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
     ])
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const { count: todayMessages } = await supabase
-      .from('chat_messages')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', today.toISOString())
 
     setStats({
       totalUsers: totalUsers || 0,
@@ -97,6 +113,7 @@ export default function AdminDashboard() {
       todayMessages: todayMessages || 0,
       totalPolls: totalPolls || 0,
       totalDeals: totalDeals || 0,
+      todayRegistrations: todayRegistrations || 0,
     })
   }, [])
 
@@ -105,7 +122,7 @@ export default function AdminDashboard() {
       .from('chat_users')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(100)
+      .limit(200)
     setUsers(data || [])
   }, [])
 
@@ -117,6 +134,36 @@ export default function AdminDashboard() {
       .limit(50)
     setMessages(data || [])
   }, [])
+
+  // ── Real-time: new user registrations ───────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const channel = supabase
+      .channel('admin-registrations')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_users',
+      }, (payload) => {
+        const newUser = payload.new as UserRow
+        // Add to users list
+        setUsers(prev => [newUser, ...prev])
+        // Update stats
+        setStats(prev => prev ? { ...prev, totalUsers: prev.totalUsers + 1 } : prev)
+        // Show badge on registrations tab
+        if (newUser.user_type !== 'guest') {
+          setNewRegCount(c => c + 1)
+          // Show toast
+          setToast({ name: newUser.name, type: newUser.user_type })
+          setTimeout(() => setToast(null), 5000)
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [isAuthenticated])
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -178,20 +225,34 @@ export default function AdminDashboard() {
     }
   }
 
+  // Export registrations as CSV
+  const exportCSV = () => {
+    const rows = users.filter(u => u.email)
+    const csv = [
+      ['שם', 'אימייל', 'סוג', 'תאריך הרשמה'].join(','),
+      ...rows.map(u => [
+        `"${u.name}"`,
+        u.email || '',
+        userTypeLabel[u.user_type] || u.user_type,
+        new Date(u.created_at).toLocaleString('he-IL')
+      ].join(','))
+    ].join('\n')
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `registrations-${new Date().toLocaleDateString('he-IL').replace(/\//g, '-')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const filteredUsers = users.filter(u =>
     u.name.includes(searchUser) || u.email?.includes(searchUser) || u.user_type.includes(searchUser)
   )
 
-  const userTypeColor: Record<string, string> = {
-    admin: 'bg-purple-100 text-purple-700',
-    subscriber: 'bg-blue-100 text-blue-700',
-    newsletter: 'bg-amber-100 text-amber-700',
-    guest: 'bg-gray-100 text-gray-600',
-  }
-
-  const userTypeLabel: Record<string, string> = {
-    admin: 'מנהל', subscriber: 'מנוי', newsletter: 'ניוזלטר', guest: 'אורח'
-  }
+  // All non-guest registered users sorted by date
+  const registrations = users.filter(u => u.user_type !== 'guest' && u.user_type !== 'admin')
 
   if (!isAuthenticated) {
     return (
@@ -224,6 +285,22 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
+      {/* ── Real-time toast notification ─────────────────────────────── */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3 bg-white border border-emerald-200 shadow-xl rounded-2xl px-5 py-3">
+            <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center">
+              <UserPlus className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">{toast.name} נרשם!</p>
+              <p className="text-xs text-gray-500">{userTypeLabel[toast.type] || toast.type}</p>
+            </div>
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-3">
@@ -238,11 +315,11 @@ export default function AdminDashboard() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => Promise.all([fetchStats(), fetchUsers(), fetchMessages()])}
-            className="p-2 hover:bg-gray-100 rounded-lg transition">
+            className="p-2 hover:bg-gray-100 rounded-lg transition" title="רענן">
             <RefreshCw className="w-5 h-5 text-gray-600" />
           </button>
           <button onClick={() => setIsAuthenticated(false)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition">
+            className="p-2 hover:bg-gray-100 rounded-lg transition" title="יציאה">
             <LogOut className="w-5 h-5 text-gray-600" />
           </button>
         </div>
@@ -253,14 +330,18 @@ export default function AdminDashboard() {
         <div className="flex gap-1">
           {[
             { id: 'overview', label: 'סקירה', icon: BarChart3 },
+            { id: 'registrations', label: 'הרשמות', icon: UserPlus, badge: newRegCount },
             { id: 'users', label: 'משתמשים', icon: Users },
             { id: 'messages', label: 'הודעות', icon: MessageCircle },
             { id: 'newsletter', label: 'ניוזלטר', icon: Mail },
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition ${
+              onClick={() => {
+                setActiveTab(tab.id as typeof activeTab)
+                if (tab.id === 'registrations') setNewRegCount(0)
+              }}
+              className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition ${
                 activeTab === tab.id
                   ? 'border-purple-600 text-purple-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -268,6 +349,11 @@ export default function AdminDashboard() {
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
+              {tab.badge ? (
+                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-bounce">
+                  {tab.badge}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -280,16 +366,16 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
-            {/* OVERVIEW TAB */}
+            {/* ── OVERVIEW TAB ─────────────────────────────────────────── */}
             {activeTab === 'overview' && stats && (
               <div className="space-y-6">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
                     { label: 'סה״כ משתמשים', value: stats.totalUsers, icon: Users, color: 'blue', sub: `${stats.onlineUsers} מחוברים` },
+                    { label: 'הרשמות היום', value: stats.todayRegistrations, icon: UserPlus, color: 'emerald', sub: 'מנויים + ניוזלטר' },
                     { label: 'הודעות היום', value: stats.todayMessages, icon: MessageCircle, color: 'green', sub: `${stats.totalMessages} סה״כ` },
                     { label: 'מנויים', value: stats.subscribers, icon: Crown, color: 'purple', sub: `${stats.newsletterUsers} ניוזלטר` },
-                    { label: 'סקרים ועסקאות', value: stats.totalPolls + stats.totalDeals, icon: TrendingUp, color: 'amber', sub: `${stats.totalPolls} סקרים, ${stats.totalDeals} עסקאות` },
                   ].map((stat, i) => (
                     <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border">
                       <div className={`w-10 h-10 rounded-xl bg-${stat.color}-100 flex items-center justify-center mb-3`}>
@@ -305,7 +391,7 @@ export default function AdminDashboard() {
                 {/* User Breakdown */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
                   <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-purple-600" />
+                    <BarChart3 className="w-5 h-5 text-purple-600" />
                     פילוח משתמשים
                   </h2>
                   <div className="space-y-3">
@@ -320,43 +406,166 @@ export default function AdminDashboard() {
                           <span className="font-medium">{item.count} ({item.total > 0 ? Math.round(item.count / item.total * 100) : 0}%)</span>
                         </div>
                         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${item.color} rounded-full transition-all`}
-                            style={{ width: `${item.total > 0 ? (item.count / item.total) * 100 : 0}%` }}
-                          />
+                          <div className={`h-full ${item.color} rounded-full transition-all`}
+                            style={{ width: `${item.total > 0 ? (item.count / item.total) * 100 : 0}%` }} />
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Recent Users */}
+                {/* Latest 5 registrations preview */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
-                  <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Star className="w-5 h-5 text-amber-500" />
-                    משתמשים אחרונים
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                      <Star className="w-5 h-5 text-amber-500" />
+                      הרשמות אחרונות
+                    </h2>
+                    <button onClick={() => setActiveTab('registrations')}
+                      className="text-xs text-purple-600 hover:underline">
+                      הצג הכל →
+                    </button>
+                  </div>
                   <div className="space-y-2">
-                    {users.slice(0, 5).map(user => (
+                    {registrations.slice(0, 5).map(user => (
                       <div key={user.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                        <div>
-                          <span className="font-medium text-sm">{user.name}</span>
-                          <span className={`mr-2 text-xs px-2 py-0.5 rounded-full ${userTypeColor[user.user_type] || 'bg-gray-100'}`}>
-                            {userTypeLabel[user.user_type] || user.user_type}
-                          </span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                            style={{ backgroundColor: user.avatar_color || '#06b6d4' }}>
+                            {user.name.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="font-medium text-sm">{user.name}</span>
+                            {user.email && <p className="text-xs text-gray-400" dir="ltr">{user.email}</p>}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {user.is_online && <span className="w-2 h-2 bg-emerald-500 rounded-full" />}
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${userTypeColor[user.user_type] || 'bg-gray-100'}`}>
+                            {userTypeLabel[user.user_type] || user.user_type}
+                          </span>
                           <span className="text-xs text-gray-400">{formatTimeAgo(user.created_at)}</span>
                         </div>
                       </div>
                     ))}
+                    {registrations.length === 0 && (
+                      <p className="text-sm text-gray-400 text-center py-4">אין הרשמות עדיין</p>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* USERS TAB */}
+            {/* ── REGISTRATIONS TAB ────────────────────────────────────── */}
+            {activeTab === 'registrations' && (
+              <div className="space-y-4">
+                {/* Header row */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                      <UserPlus className="w-5 h-5 text-purple-600" />
+                      הרשמות ({registrations.length})
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      מנויים ומנויי ניוזלטר בלבד • מסודר מהחדש לישן
+                    </p>
+                  </div>
+                  <button
+                    onClick={exportCSV}
+                    className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-purple-700 transition"
+                  >
+                    <Download className="w-4 h-4" />
+                    ייצוא CSV
+                  </button>
+                </div>
+
+                {/* Cards grid */}
+                <div className="grid gap-3">
+                  {registrations.length === 0 ? (
+                    <div className="bg-white rounded-2xl p-12 text-center shadow-sm border">
+                      <UserPlus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500">אין הרשמות עדיין</p>
+                    </div>
+                  ) : (
+                    registrations.map((user, idx) => {
+                      const isNew = idx === 0
+                      const regDate = new Date(user.created_at)
+                      const isToday = new Date().toDateString() === regDate.toDateString()
+
+                      return (
+                        <div key={user.id} className={`bg-white rounded-2xl p-4 shadow-sm border flex items-center gap-4 ${isNew && newRegCount > 0 ? 'border-emerald-300 bg-emerald-50/30' : ''}`}>
+                          {/* Avatar */}
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
+                            style={{ backgroundColor: user.avatar_color || '#06b6d4' }}>
+                            {user.name.charAt(0)}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-gray-900">{user.name}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${userTypeColor[user.user_type] || 'bg-gray-100'}`}>
+                                {userTypeLabel[user.user_type] || user.user_type}
+                              </span>
+                              {isToday && (
+                                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3" /> היום
+                                </span>
+                              )}
+                              {user.is_online && (
+                                <span className="flex items-center gap-1 text-xs text-emerald-600">
+                                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> מחובר
+                                </span>
+                              )}
+                            </div>
+                            {user.email && (
+                              <p className="text-sm text-blue-600 mt-0.5" dir="ltr">{user.email}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {regDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              {' · '}
+                              {regDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                              {' · '}
+                              {user.points} נקודות
+                            </p>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {user.user_type === 'newsletter' && (
+                              <button
+                                onClick={() => promoteUser(user.id, 'subscriber')}
+                                title="הפוך למנוי פרימיום"
+                                className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg transition font-medium"
+                              >
+                                <Crown className="w-3 h-3" /> שדרג
+                              </button>
+                            )}
+                            {user.email && (
+                              <a
+                                href={`mailto:${user.email}`}
+                                title="שלח מייל"
+                                className="p-2 hover:bg-gray-100 rounded-lg transition text-gray-500"
+                              >
+                                <Mail className="w-4 h-4" />
+                              </a>
+                            )}
+                            <button
+                              onClick={() => deleteUser(user.id)}
+                              title="מחק"
+                              className="p-2 hover:bg-red-50 rounded-lg transition text-red-400"
+                            >
+                              <Ban className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── USERS TAB ────────────────────────────────────────────── */}
             {activeTab === 'users' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
@@ -378,6 +587,7 @@ export default function AdminDashboard() {
                         <th className="text-right px-4 py-3 font-medium text-gray-600">סוג</th>
                         <th className="text-right px-4 py-3 font-medium text-gray-600">נקודות</th>
                         <th className="text-right px-4 py-3 font-medium text-gray-600">סטטוס</th>
+                        <th className="text-right px-4 py-3 font-medium text-gray-600">נרשם</th>
                         <th className="text-right px-4 py-3 font-medium text-gray-600">פעולות</th>
                       </tr>
                     </thead>
@@ -385,7 +595,7 @@ export default function AdminDashboard() {
                       {filteredUsers.map(user => (
                         <tr key={user.id} className="border-b last:border-0 hover:bg-gray-50 transition">
                           <td className="px-4 py-3 font-medium">{user.name}</td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{user.email || '-'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">{user.email || '-'}</td>
                           <td className="px-4 py-3">
                             <span className={`text-xs px-2 py-1 rounded-full ${userTypeColor[user.user_type] || 'bg-gray-100'}`}>
                               {userTypeLabel[user.user_type] || user.user_type}
@@ -399,21 +609,28 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-4 py-3">
                             {user.is_online
-                              ? <span className="flex items-center gap-1 text-emerald-600"><CheckCircle className="w-4 h-4" />מחובר</span>
-                              : <span className="flex items-center gap-1 text-gray-400"><XCircle className="w-4 h-4" />לא מחובר</span>
+                              ? <span className="flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle className="w-4 h-4" />מחובר</span>
+                              : <span className="flex items-center gap-1 text-gray-400 text-xs"><XCircle className="w-4 h-4" />לא מחובר</span>
                             }
                           </td>
+                          <td className="px-4 py-3 text-xs text-gray-400">{formatTimeAgo(user.created_at)}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              {user.user_type !== 'admin' && (
+                              {user.user_type !== 'admin' && user.user_type !== 'subscriber' && (
                                 <button onClick={() => promoteUser(user.id, 'subscriber')}
                                   title="הפוך למנוי"
                                   className="p-1.5 hover:bg-blue-50 rounded-lg transition text-blue-600">
                                   <Crown className="w-4 h-4" />
                                 </button>
                               )}
+                              {user.email && (
+                                <a href={`mailto:${user.email}`}
+                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition text-gray-500">
+                                  <Mail className="w-4 h-4" />
+                                </a>
+                              )}
                               <button onClick={() => deleteUser(user.id)}
-                                title="מחק משתמש"
+                                title="מחק"
                                 className="p-1.5 hover:bg-red-50 rounded-lg transition text-red-500">
                                 <Ban className="w-4 h-4" />
                               </button>
@@ -427,7 +644,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* MESSAGES TAB */}
+            {/* ── MESSAGES TAB ─────────────────────────────────────────── */}
             {activeTab === 'messages' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -440,7 +657,7 @@ export default function AdminDashboard() {
                   {messages.map(msg => (
                     <div key={msg.id} className="flex items-start gap-3 px-4 py-3 border-b last:border-0 hover:bg-gray-50">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="font-medium text-sm">{msg.user?.name || 'לא ידוע'}</span>
                           <span className={`text-xs px-1.5 py-0.5 rounded-full ${userTypeColor[msg.user?.user_type] || 'bg-gray-100'}`}>
                             {userTypeLabel[msg.user?.user_type] || ''}
@@ -448,16 +665,16 @@ export default function AdminDashboard() {
                           {msg.is_pinned && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📌 נעוץ</span>}
                           <span className="text-xs text-gray-400">{formatTimeAgo(msg.created_at)}</span>
                         </div>
-                        <p className="text-sm text-gray-700 truncate">{msg.content}</p>
+                        <p className="text-sm text-gray-700 line-clamp-2">{msg.content}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => pinMessage(msg.id, msg.is_pinned)}
                           title={msg.is_pinned ? 'בטל נעיצה' : 'נעץ'}
-                          className="p-1.5 hover:bg-amber-50 rounded-lg transition text-amber-600">
-                          <Eye className="w-4 h-4" />
+                          className={`p-1.5 rounded-lg transition ${msg.is_pinned ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-100 text-gray-400'}`}>
+                          <Pin className="w-4 h-4" />
                         </button>
                         <button onClick={() => deleteMessage(msg.id)}
-                          title="מחק הודעה"
+                          title="מחק"
                           className="p-1.5 hover:bg-red-50 rounded-lg transition text-red-500">
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -468,7 +685,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* NEWSLETTER TAB */}
+            {/* ── NEWSLETTER TAB ───────────────────────────────────────── */}
             {activeTab === 'newsletter' && (
               <div className="space-y-6 max-w-2xl">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
@@ -477,9 +694,8 @@ export default function AdminDashboard() {
                     שליחת ניוזלטר
                   </h2>
                   <p className="text-sm text-gray-500 mb-5">
-                    יישלח לכל המנויים והמשתמשים שאישרו קבלת מיילים
+                    יישלח לכל המנויים שאישרו קבלת מיילים
                   </p>
-
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">נושא המייל</label>
@@ -500,47 +716,44 @@ export default function AdminDashboard() {
                         className="w-full border rounded-xl px-4 py-2.5 text-right focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
                       />
                     </div>
-
                     {sendResult && (
                       <div className={`p-3 rounded-xl text-sm text-center ${sendResult.includes('שגיאה') ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}`}>
                         {sendResult}
                       </div>
                     )}
-
                     <button
                       onClick={sendNewsletter}
                       disabled={isSending || !newsletterSubject || !newsletterContent}
                       className="w-full bg-purple-600 text-white rounded-xl py-3 font-semibold hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      {isSending ? (
-                        <><RefreshCw className="w-4 h-4 animate-spin" /> שולח...</>
-                      ) : (
-                        <><Send className="w-4 h-4" /> שלח ניוזלטר</>
-                      )}
+                      {isSending ? <><RefreshCw className="w-4 h-4 animate-spin" /> שולח...</> : <><Send className="w-4 h-4" /> שלח ניוזלטר</>}
                     </button>
                   </div>
                 </div>
 
-                {/* Newsletter subscribers list */}
+                {/* Subscribers list */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
-                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-blue-600" />
-                    רשימת מנויים לניוזלטר ({users.filter(u => u.user_type === 'newsletter' || u.user_type === 'subscriber').length})
-                  </h3>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {users
-                      .filter(u => (u.user_type === 'newsletter' || u.user_type === 'subscriber') && u.email)
-                      .map(user => (
-                        <div key={user.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                          <span className="text-sm font-medium">{user.name}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">{user.email}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${userTypeColor[user.user_type]}`}>
-                              {userTypeLabel[user.user_type]}
-                            </span>
-                          </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      רשימת נמענים ({users.filter(u => (u.user_type === 'newsletter' || u.user_type === 'subscriber') && u.email).length})
+                    </h3>
+                    <button onClick={exportCSV} className="text-xs text-purple-600 hover:underline flex items-center gap-1">
+                      <Download className="w-3 h-3" /> CSV
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {users.filter(u => (u.user_type === 'newsletter' || u.user_type === 'subscriber') && u.email).map(user => (
+                      <div key={user.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <span className="text-sm font-medium">{user.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500" dir="ltr">{user.email}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${userTypeColor[user.user_type]}`}>
+                            {userTypeLabel[user.user_type]}
+                          </span>
                         </div>
-                      ))}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

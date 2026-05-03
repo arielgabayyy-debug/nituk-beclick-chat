@@ -546,6 +546,16 @@ export function useChatUser() {
       if (data) {
         localStorage.setItem('chat_user_id', data.id)
         setCurrentUser(data)
+
+        // Notify admin of new registration (fire-and-forget)
+        if (userType !== 'guest') {
+          fetch('/api/admin/notify-registration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, userType }),
+          }).catch(() => {})
+        }
+
         return data
       }
       return null
