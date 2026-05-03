@@ -100,6 +100,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<SidebarTab | null>(null)
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null)
   const [showNotifBanner, setShowNotifBanner] = useState(false)
   const { permission, sendNotification } = useNotificationPermission()
@@ -775,11 +776,28 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-border/30 safe-area-inset-bottom z-40 flex" aria-label="ניווט תחתון">
-        <button onClick={() => {}} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-primary"><MessageCircle className="w-5 h-5" /><span>צ׳אט</span></button>
-        <button onClick={() => setSidebarTab('leaderboard')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><Trophy className="w-5 h-5" /><span>מובילים</span></button>
-        <button onClick={() => setSidebarTab('deals')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><Flame className="w-5 h-5" /><span>עסקאות</span></button>
-        <button onClick={() => setSidebarTab('polls')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><BarChart3 className="w-5 h-5" /><span>סקרים</span></button>
+        <button onClick={() => setMobilePanel(null)} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", !mobilePanel ? "text-primary" : "text-muted-foreground")}>
+          <MessageCircle className="w-5 h-5" /><span>צ׳אט</span>
+        </button>
+        <button onClick={() => setMobilePanel(p => p === 'leaderboard' ? null : 'leaderboard')} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", mobilePanel === 'leaderboard' ? "text-primary" : "text-muted-foreground")}>
+          <Trophy className="w-5 h-5" /><span>מובילים</span>
+        </button>
+        <button onClick={() => setMobilePanel(p => p === 'deals' ? null : 'deals')} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", mobilePanel === 'deals' ? "text-primary" : "text-muted-foreground")}>
+          <Flame className="w-5 h-5" /><span>עסקאות</span>
+        </button>
+        <button onClick={() => setMobilePanel(p => p === 'users' ? null : 'users')} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", mobilePanel === 'users' ? "text-primary" : "text-muted-foreground")}>
+          <BarChart3 className="w-5 h-5" /><span>מחוברים</span>
+        </button>
       </nav>
+
+      {/* Mobile panel sheet */}
+      {mobilePanel && (
+        <div className="lg:hidden fixed inset-x-0 bottom-16 z-30 bg-white dark:bg-gray-900 border-t border-border/30 shadow-2xl rounded-t-2xl max-h-[60vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300">
+          {mobilePanel === 'leaderboard' && <Leaderboard users={leaderboard} currentUserId={currentUser.id} />}
+          {mobilePanel === 'deals' && <HotDeals deals={hotDeals} currentUser={currentUser} onVote={voteDeal} onShare={shareDeal} />}
+          {mobilePanel === 'users' && <OnlineUsers users={onlineUsers} currentUserId={currentUser.id} onUserClick={u => { handleUserClick(u); setMobilePanel(null) }} />}
+        </div>
+      )}
 
       {/* Shortcuts modal */}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
