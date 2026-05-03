@@ -27,7 +27,7 @@ const MODE_CONFIG = {
   },
   subscriber: {
     title: 'כניסת מנויים',
-    subtitle: 'הזינו את פרטי המנוי שלכם',
+    subtitle: 'הזינו את האימייל של המנוי שלכם',
     requireEmail: true,
     requireVerification: true,
     userType: 'subscriber' as UserType,
@@ -85,7 +85,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
 
   const handleSendOtp = async () => {
     setError('')
-    if (!name.trim()) { setError('נא להזין שם'); return }
+    if (mode !== 'subscriber' && !name.trim()) { setError('נא להזין שם'); return }
     if (!email.trim() || !email.includes('@')) { setError('נא להזין אימייל תקין'); return }
 
     setIsSendingOtp(true)
@@ -135,7 +135,9 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
       }
 
       const isAdmin = ADMIN_EMAILS.includes(email.trim().toLowerCase())
-      await onSubmit(name.trim(), email.trim(), isAdmin ? 'admin' : config.userType, selectedColor)
+      // For subscriber mode without a name field, derive name from email prefix
+      const resolvedName = name.trim() || email.trim().split('@')[0]
+      await onSubmit(resolvedName, email.trim(), isAdmin ? 'admin' : config.userType, selectedColor)
     } catch {
       setError('שגיאה באימות הקוד')
     } finally {
@@ -171,7 +173,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
   const handleSubmitDetails = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!name.trim()) { setError('נא להזין שם'); return }
+    if (mode !== 'subscriber' && !name.trim()) { setError('נא להזין שם'); return }
     if (config.requireEmail && !email.trim()) { setError('נא להזין אימייל'); return }
     if (config.requireEmail && !email.includes('@')) { setError('נא להזין אימייל תקין'); return }
 
@@ -213,15 +215,17 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
               </div>
 
               <form onSubmit={handleSubmitDetails} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">שם תצוגה</label>
-                  <div className="relative">
-                    <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input value={name} onChange={e => setName(e.target.value)}
-                      placeholder="הזינו את שמכם" className="pr-10"
-                      disabled={isLoading || isSendingOtp} />
+                {mode !== 'subscriber' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">שם תצוגה</label>
+                    <div className="relative">
+                      <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input value={name} onChange={e => setName(e.target.value)}
+                        placeholder="הזינו את שמכם" className="pr-10"
+                        disabled={isLoading || isSendingOtp} />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {config.requireEmail && (
                   <div className="space-y-2">
@@ -248,17 +252,19 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
                   </label>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">צבע אווטאר</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {AVATAR_COLORS.map(color => (
-                      <button key={color} type="button" onClick={() => setSelectedColor(color)}
-                        className={cn("w-8 h-8 rounded-full transition-all",
-                          selectedColor === color && "ring-2 ring-offset-2 ring-offset-card ring-primary scale-110")}
-                        style={{ backgroundColor: color }} />
-                    ))}
+                {mode !== 'subscriber' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">צבע אווטאר</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {AVATAR_COLORS.map(color => (
+                        <button key={color} type="button" onClick={() => setSelectedColor(color)}
+                          className={cn("w-8 h-8 rounded-full transition-all",
+                            selectedColor === color && "ring-2 ring-offset-2 ring-offset-card ring-primary scale-110")}
+                          style={{ backgroundColor: color }} />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
