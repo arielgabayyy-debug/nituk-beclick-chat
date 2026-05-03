@@ -13,47 +13,35 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false)
   const [isLoadingFacebook, setIsLoadingFacebook] = useState(false)
 
-  const handleGoogleLogin = async () => {
-    setIsLoadingGoogle(true)
-    const supabase = createClient()
-    const { data } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `https://nituk-beclick-chat.vercel.app/auth/callback`,
-        skipBrowserRedirect: true,
+  const getReturnUrl = () => {
+    try {
+      if (window !== window.top) {
+        return window.top!.location.href
       }
-    })
-    if (data?.url) {
-      const isInIframe = window !== window.top
-      if (isInIframe) {
-        // בתוך iframe - נווט את הדף הראשי (top)
-        window.top!.location.href = data.url
-      } else {
-        window.location.href = data.url
-      }
-    }
-    setIsLoadingGoogle(false)
+    } catch { }
+    return window.location.href
   }
 
-  const handleFacebookLogin = async () => {
-    setIsLoadingFacebook(true)
-    const supabase = createClient()
-    const { data } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: {
-        redirectTo: `https://nituk-beclick-chat.vercel.app/auth/callback`,
-        skipBrowserRedirect: true,
-      }
-    })
-    if (data?.url) {
-      const isInIframe = window !== window.top
-      if (isInIframe) {
-        window.top!.location.href = data.url
-      } else {
-        window.location.href = data.url
-      }
+  const handleGoogleLogin = () => {
+    setIsLoadingGoogle(true)
+    const returnUrl = getReturnUrl()
+    const loginUrl = `https://nituk-beclick-chat.vercel.app/login?provider=google&return=${encodeURIComponent(returnUrl)}`
+    if (window !== window.top) {
+      window.top!.location.href = loginUrl
+    } else {
+      window.location.href = loginUrl
     }
-    setIsLoadingFacebook(false)
+  }
+
+  const handleFacebookLogin = () => {
+    setIsLoadingFacebook(true)
+    const returnUrl = getReturnUrl()
+    const loginUrl = `https://nituk-beclick-chat.vercel.app/login?provider=facebook&return=${encodeURIComponent(returnUrl)}`
+    if (window !== window.top) {
+      window.top!.location.href = loginUrl
+    } else {
+      window.location.href = loginUrl
+    }
   }
 
   return (
