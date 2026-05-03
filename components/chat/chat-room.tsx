@@ -25,6 +25,7 @@ import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
 import { ShortcutsModal } from './shortcuts-modal'
+import { useNotificationPermission, NotificationBanner } from './notification-permission'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
@@ -98,6 +99,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null)
+  const [showNotifBanner, setShowNotifBanner] = useState(false)
+  const { permission, sendNotification } = useNotificationPermission()
   const [forwardedContent, setForwardedContent] = useState<string | null>(null)
   const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
   const prevMessagesLengthRef = useRef(messages.length)
@@ -144,6 +147,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         const isMention = lastMessage.content.includes(`@${currentUser.name}`)
         const audio = new Audio('/notification.mp3')
         audio.volume = isMention ? Math.min(soundVolume * 2, 1) : soundVolume
+        // Browser notification for @mention
+        if (isMention) {
+          sendNotification(
+            `${lastMessage.user?.name || 'מישהו'} אזכר אותך`,
+            lastMessage.content.slice(0, 100)
+          )
+        }
         // Speed up for mention (higher pitch feel)
         if (isMention && 'playbackRate' in audio) audio.playbackRate = 1.5
         audio.play().catch(() => {})
@@ -151,6 +161,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     }
     prevMessagesLengthRef.current = messages.length
   }, [messages, currentUser.id, currentUser.name, soundEnabled])
+
+  // Show notification permission banner after 30s if not granted
+  useEffect(() => {
+    if (permission === 'default' && !localStorage.getItem('notif_banner_dismissed')) {
+      const t = setTimeout(() => setShowNotifBanner(true), 30000)
+      return () => clearTimeout(t)
+    }
+  }, [permission])
 
   // Milestone celebrations
   useEffect(() => {
@@ -728,6 +746,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
       {/* Shortcuts modal */}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+      {/* Notification permission banner */}
+      {showNotifBanner && (
+        <NotificationBanner onDismiss={() => {
+          setShowNotifBanner(false)
+          localStorage.setItem('notif_banner_dismissed', '1')
+        }} />
+      )}
 
       {/* Image Gallery Panel */}
       {showGallery && (

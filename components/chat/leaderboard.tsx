@@ -1,6 +1,7 @@
 "use client"
 
-import { Crown, Medal, TrendingUp, Star, Sparkles } from 'lucide-react'
+import { Crown, Medal, TrendingUp, Star, Sparkles, Search } from 'lucide-react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { ChatUser } from '@/lib/chat-types'
 import { LEVEL_NAMES, formatNumber } from '@/lib/chat-types'
@@ -12,7 +13,15 @@ interface LeaderboardProps {
 }
 
 export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'points' | 'messages' | 'helpful'>('points')
   if (users.length === 0) return null
+
+  const sorted = [...users].sort((a, b) => {
+    if (sortBy === 'messages') return (b.messages_count || 0) - (a.messages_count || 0)
+    if (sortBy === 'helpful') return (b.helpful_count || 0) - (a.helpful_count || 0)
+    return (b.points || 0) - (a.points || 0)
+  }).filter(u => !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -56,9 +65,26 @@ export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
         </div>
       </div>
 
+      {/* Sort tabs + search */}
+      <div className="px-3 pt-2 pb-1 space-y-2">
+        <div className="flex gap-1">
+          {(['points', 'messages', 'helpful'] as const).map(s => (
+            <button key={s} onClick={() => setSortBy(s)} className={cn("flex-1 text-[10px] py-1 rounded-lg transition font-medium", sortBy === s ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
+              {s === 'points' ? 'נקודות' : s === 'messages' ? 'הודעות' : 'עזרה'}
+            </button>
+          ))}
+        </div>
+        {users.length > 6 && (
+          <div className="flex items-center gap-2 bg-muted/40 rounded-lg px-2.5 py-1">
+            <Search className="w-3 h-3 text-muted-foreground" />
+            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="חפש..." className="flex-1 bg-transparent text-xs focus:outline-none placeholder:text-muted-foreground" />
+          </div>
+        )}
+      </div>
+
       {/* Leaderboard List */}
       <div className="p-2 space-y-2 max-h-80 overflow-y-auto">
-        {users.map((user, index) => {
+        {sorted.map((user, index) => {
           const rank = index + 1
           const isCurrentUser = user.id === currentUserId
 
@@ -115,7 +141,7 @@ export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
                 </div>
               </div>
 
-              {/* Points */}
+              {/* Points / stat */}
               <div className="text-left">
                 <div className={cn(
                   "font-bold text-lg",
@@ -123,9 +149,13 @@ export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
                   rank === 2 && "text-gray-300",
                   rank === 3 && "text-amber-600"
                 )}>
-                  {formatNumber(user.weekly_points)}
+                  {sortBy === 'messages' ? formatNumber(user.messages_count || 0)
+                  : sortBy === 'helpful' ? formatNumber(user.helpful_count || 0)
+                  : formatNumber(user.weekly_points)}
                 </div>
-                <div className="text-xs text-muted-foreground">נקודות</div>
+                <div className="text-xs text-muted-foreground">
+                  {sortBy === 'messages' ? 'הודעות' : sortBy === 'helpful' ? 'עזרה' : 'נקודות'}
+                </div>
               </div>
             </div>
           )
