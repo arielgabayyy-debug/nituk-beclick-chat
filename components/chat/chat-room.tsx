@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star } from 'lucide-react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -27,6 +27,8 @@ import { ChatExport } from './chat-export'
 import { CelebrationButton } from './celebration-button'
 import { useNotificationCenter, NotificationCenter } from './notification-center'
 import { PointsShop } from './points-shop'
+import { AdvancedSearch } from './advanced-search'
+import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messages'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
@@ -119,7 +121,11 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showExport, setShowExport] = useState(false)
   const [showNotificationCenter, setShowNotificationCenter] = useState(false)
   const [showPointsShop, setShowPointsShop] = useState(false)
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+  const [showScheduled, setShowScheduled] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
+  const sendMessageRef = useRef<(content: string) => void>(() => {})
+  const { scheduled, schedule: scheduleMessage, cancel: cancelScheduled, pendingCount: scheduledCount } = useScheduledMessages(useCallback((content: string) => sendMessageRef.current(content), []))
   const [milestoneToast, setMilestoneToast] = useState<string | null>(null)
   const [showNotifBanner, setShowNotifBanner] = useState(false)
   const { permission, sendNotification } = useNotificationPermission()
@@ -305,7 +311,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const handleExportChat = () => setShowExport(true)
 
   // Confetti on first-ever message
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = useCallback((content: string) => {
     const key = `first_msg_${currentUser.id}`
     if (!localStorage.getItem(key)) {
       localStorage.setItem(key, '1')
@@ -313,7 +319,10 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     }
     trackMessageActivity(currentUser.id)
     sendMessage(content)
-  }
+  }, [currentUser.id, sendMessage])
+
+  // Keep ref in sync for scheduled messages
+  useEffect(() => { sendMessageRef.current = handleSendMessage }, [handleSendMessage])
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
@@ -513,6 +522,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                   placeholder="@משתמש..."
                   className="w-20 bg-muted/40 rounded-lg px-2 py-0.5 text-xs focus:outline-none placeholder:text-muted-foreground"
                 />
+                <button
+                  onClick={() => setShowAdvancedSearch(true)}
+                  className="text-[10px] text-primary hover:underline shrink-0 whitespace-nowrap"
+                  title="חיפוש מתקדם"
+                >
+                  חיפוש מתקדם
+                </button>
                 {searchQuery && (() => {
                   const results = allItems.filter(i => i.type === 'message')
                   const count = results.length
@@ -847,6 +863,20 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 <Star className="w-4 h-4" />
               </Button>
 
+              {/* Scheduled messages */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 relative text-muted-foreground hover:text-primary"
+                onClick={() => setShowScheduled(v => !v)}
+                title="הודעות מתוזמנות"
+              >
+                <Clock className="w-4 h-4" />
+                {scheduledCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary text-primary-foreground text-[8px] font-bold rounded-full flex items-center justify-center">{scheduledCount}</span>
+                )}
+              </Button>
+
               {/* Export chat */}
               <Button
                 variant="ghost"
@@ -1026,6 +1056,26 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           onClearAll={clearNotifications}
           onJumpToMessage={jumpToMessage}
           onClose={() => setShowNotificationCenter(false)}
+        />
+      )}
+
+      {/* Advanced Search */}
+      {showAdvancedSearch && (
+        <AdvancedSearch
+          messages={messages}
+          onlineUsers={onlineUsers}
+          onJumpToMessage={(id) => { jumpToMessage(id); setShowAdvancedSearch(false) }}
+          onClose={() => setShowAdvancedSearch(false)}
+        />
+      )}
+
+      {/* Scheduled Messages Panel */}
+      {showScheduled && (
+        <ScheduledMessagesPanel
+          scheduled={scheduled}
+          onCancel={cancelScheduled}
+          onSchedule={scheduleMessage}
+          onClose={() => setShowScheduled(false)}
         />
       )}
 
