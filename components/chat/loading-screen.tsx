@@ -1,6 +1,22 @@
 "use client"
 
+import { useState, useEffect } from 'react'
+
+const LOADING_TIPS = [
+  '💡 טיפ: בדוק תמיד 3 מחירים לפני שאתה עובר חברה',
+  '🔥 מחכים לך בקהילה! שתף את העסקה הבאה שלך',
+  '⭐ כל הודעה שאתה שולח שווה לך נקודות',
+  '📊 הצביעו בסקרים ועצבו את הקהילה שלנו יחד',
+  '🤝 בקהילה שלנו כולם מתחברים ומנתקים חכם יותר',
+  '🏆 השתתפות פעילה = עלייה בדירוג המובילים',
+]
+
 export function LoadingScreen({ message = "הצ׳אט הקהילתי טוען..." }: { message?: string }) {
+  const [tipIndex, setTipIndex] = useState(Math.floor(Math.random() * LOADING_TIPS.length))
+  useEffect(() => {
+    const t = setInterval(() => setTipIndex(i => (i + 1) % LOADING_TIPS.length), 2500)
+    return () => clearInterval(t)
+  }, [])
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
       style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 50%, #fdf4ff 100%)' }}>
@@ -49,6 +65,11 @@ export function LoadingScreen({ message = "הצ׳אט הקהילתי טוען...
             animation: 'progress-bar 1.8s ease-in-out infinite'
           }} />
         </div>
+
+        {/* Rotating tip */}
+        <p className="text-xs text-muted-foreground max-w-xs text-center animate-in fade-in duration-500" key={tipIndex}>
+          {LOADING_TIPS[tipIndex]}
+        </p>
 
         {/* Dots */}
         <div className="flex gap-2">

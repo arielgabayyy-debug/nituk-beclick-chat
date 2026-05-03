@@ -126,10 +126,22 @@ export function useChat(currentUser: ChatUser | null) {
       '/thanks':  () => '🙏 תודה רבה לכולם!',
       '/joke':    () => jokes[Math.floor(Math.random() * jokes.length)],
       '/tip':     () => tips[Math.floor(Math.random() * tips.length)],
-      '/help':    () => '💡 פקודות: /shrug /flip /lenny /bear /wave /hi /deal /thanks /joke /tip',
+      '/help':    () => '💡 פקודות: /shrug /flip /lenny /bear /wave /hi /deal /thanks /joke /tip /poll שאלה|אפשרות1|אפשרות2',
     }
     const trimmed = content.trim().toLowerCase()
     return commands[trimmed]?.() || content
+  }
+
+  // Handle /poll command: /poll שאלה | אפשרות1 | אפשרות2
+  const processPollCommand = (content: string): string | null => {
+    const trimmed = content.trim()
+    if (!trimmed.toLowerCase().startsWith('/poll ')) return null
+    const rest = trimmed.slice(6).trim()
+    const parts = rest.split('|').map(p => p.trim()).filter(Boolean)
+    if (parts.length < 2) return null
+    const [question, ...options] = parts
+    // Return as a formatted poll creation string
+    return `[poll:${question}::${options.join('::')}]`
   }
 
   // Send message
@@ -137,6 +149,29 @@ export function useChat(currentUser: ChatUser | null) {
     if (!currentUser || !content.trim()) return
     if (currentUser.user_type === 'blocked') {
       setError('החשבון שלך חסום. צור קשר עם המנהל.')
+      return
+    }
+
+    // Handle /poll command
+    const pollResult = processPollCommand(content.trim())
+    if (pollResult !== null) {
+      // Create a quick poll via community hook — not accessible here, so just send as announcement
+      const supabase = createClient()
+      const pollParts = pollResult.slice(6, -1).split('::')
+      const question = pollParts[0]
+      const options = pollParts.slice(1)
+      if (question && options.length >= 2) {
+        // Create a poll in the polls table
+        const { data: poll } = await supabase.from('polls').insert({
+          question, created_by: currentUser.id, is_active: true
+        }).select().single()
+        if (poll) {
+          await Promise.all(options.map(opt => supabase.from('poll_options').insert({ poll_id: poll.id, option_text: opt, votes_count: 0 })))
+          // Announce in chat
+          await supabase.from('chat_messages').insert({ user_id: currentUser.id, content: `📊 סקר חדש: "${question}" — הצביעו בסרגל הצדדי!` })
+        }
+      }
+      stopTyping()
       return
     }
 

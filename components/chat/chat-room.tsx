@@ -153,12 +153,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         const isMention = lastMessage.content.includes(`@${currentUser.name}`)
         const audio = new Audio('/notification.mp3')
         audio.volume = isMention ? Math.min(soundVolume * 2, 1) : soundVolume
-        // Browser notification for @mention
+        // Browser notification + vibration for @mention
         if (isMention) {
           sendNotification(
             `${lastMessage.user?.name || 'מישהו'} אזכר אותך`,
             lastMessage.content.slice(0, 100)
           )
+          if ('vibrate' in navigator) navigator.vibrate([100, 50, 100])
         }
         // Speed up for mention (higher pitch feel)
         if (isMention && 'playbackRate' in audio) audio.playbackRate = 1.5
