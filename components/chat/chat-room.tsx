@@ -631,15 +631,26 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
             )}
             <div ref={messagesEndRef} />
           </div>
-          {/* Scroll to bottom button */}
+          {/* Scroll buttons */}
           {!isAtBottom && (
-            <button
-              onClick={scrollToBottom}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-full shadow-lg hover:opacity-90 transition animate-in fade-in slide-in-from-bottom-2 duration-200"
-            >
-              <ChevronDown className="w-3.5 h-3.5" />
-              {unreadSinceScroll > 0 ? `${unreadSinceScroll} הודעות חדשות` : 'גלול למטה'}
-            </button>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5">
+              {/* Scroll to top */}
+              <button
+                onClick={() => { messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                className="flex items-center gap-1 bg-muted/80 text-muted-foreground text-[10px] font-medium px-2.5 py-1 rounded-full shadow hover:opacity-90 transition animate-in fade-in duration-200"
+                title="גלול לתחילת הצ'אט"
+              >
+                ⬆ לתחילה
+              </button>
+              {/* Scroll to bottom */}
+              <button
+                onClick={scrollToBottom}
+                className="flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-full shadow-lg hover:opacity-90 transition animate-in fade-in slide-in-from-bottom-2 duration-200"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+                {unreadSinceScroll > 0 ? `${unreadSinceScroll} הודעות חדשות` : 'גלול למטה'}
+              </button>
+            </div>
           )}
           </div>
 

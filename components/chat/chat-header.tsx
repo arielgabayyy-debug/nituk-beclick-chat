@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard } from 'lucide-react'
+import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
 import { StreakBadge, useStreak } from './streak-badge'
 import { UserStatusEditor, useUserStatus } from './user-status'
 import { AvatarPicker } from './avatar-picker'
+import { InviteModal } from './invite-modal'
 import type { ChatUser } from '@/lib/chat-types'
 
 interface ChatHeaderProps {
@@ -21,6 +22,7 @@ interface ChatHeaderProps {
 export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
   const [showStatusEditor, setShowStatusEditor] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
   const [streakToast, setStreakToast] = useState<string | null>(null)
   const { streak, isNewDay } = useStreak()
   const { status } = useUserStatus(currentUser?.id || '')
@@ -136,6 +138,11 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
+            {/* Invite friends */}
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setShowInvite(true)} title="הזמן חברים">
+              <UserPlus className="w-4 h-4" />
+            </Button>
+
             {/* Admin dashboard link */}
             {currentUser?.user_type === 'admin' && (
               <a href="/admin" className="h-9 w-9 flex items-center justify-center hover:bg-muted rounded-lg transition text-muted-foreground hover:text-primary" title="פתח דשבורד ניהול">
@@ -167,6 +174,8 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
         </div>
       </header>
 
+      {/* Invite modal */}
+      {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
       {/* Status editor modal */}
       {showStatusEditor && currentUser && (
         <UserStatusEditor userId={currentUser.id} onClose={() => setShowStatusEditor(false)} />
