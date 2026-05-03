@@ -127,7 +127,7 @@ export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, 
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-xl font-bold text-foreground">{user.name}</h3>
-            <UserBadge userType={user.user_type} />
+            <UserBadge userType={user.user_type} joinedAt={user.created_at} />
           </div>
           <p className="text-sm text-muted-foreground">{USER_TYPE_LABELS[user.user_type]}</p>
         </div>

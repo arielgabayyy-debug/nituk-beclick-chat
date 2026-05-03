@@ -61,13 +61,24 @@ function UserHoverCard({ user, onOpenProfile, onClose }: HoverCardProps) {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold truncate">{user.name}</p>
-          <UserBadge userType={user.user_type} />
+          <UserBadge userType={user.user_type} joinedAt={user.created_at} />
         </div>
       </div>
-      <div className="flex gap-3 text-xs text-muted-foreground mb-3">
+      <div className="flex gap-3 text-xs text-muted-foreground mb-2">
         <span>⭐ {(user as ChatUser & { points?: number }).points ?? 0} נקודות</span>
         <span>🏅 רמה {(user as ChatUser & { level?: number }).level ?? 1}</span>
+        {(user as ChatUser & { messages_count?: number }).messages_count ? (
+          <span>💬 {(user as ChatUser & { messages_count?: number }).messages_count}</span>
+        ) : null}
       </div>
+      {/* Status from localStorage */}
+      {(() => {
+        try {
+          const s = JSON.parse(localStorage.getItem(`user_status_${user.id}`) || 'null')
+          if (s) return <p className="text-xs text-muted-foreground mb-2">{s.emoji} {s.text}</p>
+        } catch {}
+        return null
+      })()}
       <button
         onClick={() => { onOpenProfile(); onClose() }}
         className="w-full text-xs bg-primary text-primary-foreground rounded-lg py-1.5 hover:opacity-90 transition"
@@ -297,15 +308,16 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
 }
 
 function renderInlineText(content: string, searchQuery: string | undefined, keyPrefix: string): React.ReactNode {
-  // Split content into tokens: bold, mention, url, plain text
-  const tokenRegex = /(\*\*(.+?)\*\*)|(@\S+)|(https?:\/\/[^\s]+)/g
+  // Split content into tokens: bold, mention, url, phone, plain text
+  // Israeli phone: 05X-XXXXXXX, 0X-XXXXXXX, +972-XX-XXXXXXX
+  const tokenRegex = /(\*\*(.+?)\*\*)|(@\S+)|(https?:\/\/[^\s]+)|((?:\+972|0)[-\s]?(?:5[0-9]|[2-9])[-\s]?\d{7})/g
 
   const nodes: React.ReactNode[] = []
   let lastIndex = 0
   let match: RegExpExecArray | null
 
   while ((match = tokenRegex.exec(content)) !== null) {
-    const [full, boldFull, boldInner, mention, url] = match
+    const [full, boldFull, boldInner, mention, url, phone] = match
     const start = match.index
 
     if (start > lastIndex) {
@@ -334,6 +346,18 @@ function renderInlineText(content: string, searchQuery: string | undefined, keyP
         </a>
       )
       if (isImage) { /* image shown in preview block */ }
+    } else if (phone) {
+      const tel = phone.replace(/[-\s]/g, '')
+      nodes.push(
+        <a
+          key={`${keyPrefix}-phone-${start}`}
+          href={`tel:${tel}`}
+          className="underline text-emerald-600 hover:text-emerald-700 font-medium"
+          dir="ltr"
+        >
+          📞 {phone}
+        </a>
+      )
     }
 
     lastIndex = start + full.length
@@ -510,7 +534,7 @@ export function ChatMessageComponent({
           >
             {user?.name || 'משתמש'}
           </button>
-          {user && <UserBadge userType={user.user_type} />}
+          {user && <UserBadge userType={user.user_type} joinedAt={user.created_at} />}
           {user && user.level > 1 && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gradient-to-r from-amber-400/20 to-orange-400/20 text-amber-600 dark:text-amber-400 rounded-full border border-amber-400/20">
               Lv.{user.level}

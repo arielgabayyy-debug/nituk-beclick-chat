@@ -186,7 +186,7 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <UserBadge userType={user.user_type} />
+                    <UserBadge userType={user.user_type} joinedAt={user.created_at} />
                   </div>
                 </div>
 

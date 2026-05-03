@@ -1,6 +1,6 @@
 "use client"
 
-import { Crown, Mail, User, Shield } from 'lucide-react'
+import { Crown, Mail, User, Shield, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserType } from '@/lib/chat-types'
 import { USER_TYPE_LABELS, USER_TYPE_COLORS } from '@/lib/chat-types'
@@ -9,6 +9,7 @@ interface UserBadgeProps {
   userType: UserType
   size?: 'sm' | 'md'
   showIcon?: boolean
+  joinedAt?: string
 }
 
 const USER_TYPE_ICONS: Record<UserType, React.ReactNode> = {
@@ -19,17 +20,32 @@ const USER_TYPE_ICONS: Record<UserType, React.ReactNode> = {
   blocked: <Shield className="w-3 h-3" />
 }
 
-export function UserBadge({ userType, size = 'sm', showIcon = true }: UserBadgeProps) {
+function isNewUser(joinedAt?: string): boolean {
+  if (!joinedAt) return false
+  const days = (Date.now() - new Date(joinedAt).getTime()) / (1000 * 60 * 60 * 24)
+  return days <= 7
+}
+
+export function UserBadge({ userType, size = 'sm', showIcon = true, joinedAt }: UserBadgeProps) {
+  const isNew = isNewUser(joinedAt)
   return (
-    <span 
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full font-medium",
-        USER_TYPE_COLORS[userType],
-        size === 'sm' ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
+    <span className="inline-flex items-center gap-1">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full font-medium",
+          USER_TYPE_COLORS[userType],
+          size === 'sm' ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
+        )}
+      >
+        {showIcon && USER_TYPE_ICONS[userType]}
+        {USER_TYPE_LABELS[userType]}
+      </span>
+      {isNew && (
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 text-white">
+          <Sparkles className="w-2 h-2" />
+          חדש
+        </span>
       )}
-    >
-      {showIcon && USER_TYPE_ICONS[userType]}
-      {USER_TYPE_LABELS[userType]}
     </span>
   )
 }
