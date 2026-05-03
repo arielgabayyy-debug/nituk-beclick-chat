@@ -999,13 +999,46 @@ export default function AdminDashboard() {
                     הודעות מדווחות
                   </h2>
                   {(() => {
-                    // Reports are stored in users' localStorage — in production this would be a DB table
-                    // For demo, show placeholder
+                    let reports: Array<{ messageId: string; reason: string; time: string }> = []
+                    try {
+                      reports = JSON.parse(localStorage.getItem('reported_messages') || '[]')
+                    } catch {}
+                    if (reports.length === 0) {
+                      return (
+                        <div className="text-center py-8 text-gray-400">
+                          <CheckCircle className="w-10 h-10 mx-auto mb-3 opacity-30 text-green-400" />
+                          <p className="text-sm">אין דיווחים פתוחים 🎉</p>
+                          <p className="text-xs mt-1">הקהילה שלנו מתנהגת יפה!</p>
+                        </div>
+                      )
+                    }
                     return (
-                      <div className="text-center py-8 text-gray-400">
-                        <Ban className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                        <p className="text-sm">דיווחים יופיעו כאן בגרסה עם מסד נתונים</p>
-                        <p className="text-xs mt-1">כרגע הדיווחים נשמרים ב-localStorage של המשתמשים</p>
+                      <div className="space-y-3">
+                        {reports.reverse().map((r, i) => (
+                          <div key={i} className="flex items-start gap-3 p-3 bg-red-50 rounded-xl border border-red-100">
+                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                              <Ban className="w-4 h-4 text-red-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{r.reason}</span>
+                                <span className="text-[10px] text-gray-400">{formatTimeAgo(r.time)}</span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5 font-mono">ID: {r.messageId}</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const saved = JSON.parse(localStorage.getItem('reported_messages') || '[]')
+                                const updated = saved.filter((_: typeof r, idx: number) => idx !== (saved.length - 1 - i))
+                                localStorage.setItem('reported_messages', JSON.stringify(updated))
+                                window.location.reload()
+                              }}
+                              className="text-[10px] text-red-500 hover:underline shrink-0"
+                            >
+                              סגור
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )
                   })()}

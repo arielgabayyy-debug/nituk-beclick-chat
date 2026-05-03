@@ -30,6 +30,7 @@ import { PointsShop } from './points-shop'
 import { AdvancedSearch } from './advanced-search'
 import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messages'
 import { ActivityFeed } from './activity-feed'
+import { UserOfWeekWidget } from './user-of-week'
 import { ChatRulesCard } from './chat-rules'
 import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
@@ -472,6 +473,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Activity feed */}
           <ActivityFeed messages={messages} onlineUsers={onlineUsers} />
+
+          {/* User of the week voting */}
+          <UserOfWeekWidget
+            messages={messages}
+            onlineUsers={onlineUsers}
+            currentUser={currentUser}
+            onViewProfile={handleUserClick}
+          />
         </div>
 
         {/* Collapse toggle */}

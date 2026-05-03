@@ -12,6 +12,7 @@ import { LinkPreview } from './link-preview'
 import { ImageLightbox } from './image-lightbox'
 import { YoutubeEmbed, isYoutubeUrl } from './youtube-embed'
 import { ReportDialog } from './report-dialog'
+import { MessageTranslator } from './message-translator'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -459,6 +460,7 @@ export function ChatMessageComponent({
   const lastTapRef = useRef<number>(0)
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [showContextMenu, setShowContextMenu] = useState(false)
+  const [showTranslator, setShowTranslator] = useState(false)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX
@@ -730,12 +732,36 @@ export function ChatMessageComponent({
             <>
               {renderMessageContent(displayContent, searchQuery, isOwn, setLightboxSrc)}
               {isLong && (
+                <div className="flex items-center gap-2 mt-1">
+                  <button
+                    onClick={() => setExpanded(e => !e)}
+                    className={`text-[11px] font-semibold underline underline-offset-2 opacity-80 hover:opacity-100 transition ${isOwn ? 'text-white' : 'text-primary'}`}
+                  >
+                    {expanded ? 'הצג פחות ▲' : 'קרא עוד ▼'}
+                  </button>
+                  {expanded && (() => {
+                    const words = message.content.split(/\s+/).length
+                    const mins = Math.max(1, Math.round(words / 200))
+                    return (
+                      <span className={`text-[10px] opacity-60 ${isOwn ? 'text-white' : 'text-muted-foreground'}`}>
+                        {words} מילים · ~{mins} דק׳ קריאה
+                      </span>
+                    )
+                  })()}
+                </div>
+              )}
+              {/* Translate button for long or non-Hebrew text */}
+              {!message.content.startsWith('[voice:') && !message.has_gif && (
                 <button
-                  onClick={() => setExpanded(e => !e)}
-                  className={`text-[11px] font-semibold mt-1 underline underline-offset-2 opacity-80 hover:opacity-100 transition ${isOwn ? 'text-white' : 'text-primary'}`}
+                  onClick={() => setShowTranslator(v => !v)}
+                  className={`text-[10px] opacity-0 group-hover/bubble:opacity-60 hover:!opacity-100 transition mt-0.5 ${isOwn ? 'text-white' : 'text-muted-foreground'}`}
+                  title="תרגם הודעה"
                 >
-                  {expanded ? 'הצג פחות ▲' : 'קרא עוד ▼'}
+                  🌐 תרגם
                 </button>
+              )}
+              {showTranslator && (
+                <MessageTranslator content={message.content} onClose={() => setShowTranslator(false)} />
               )}
             </>
           )}
