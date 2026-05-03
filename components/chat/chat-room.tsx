@@ -392,7 +392,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
   return (
     <div
-      className="min-h-screen flex flex-col chat-bg-animated relative"
+      className="h-screen flex flex-col chat-bg-animated relative overflow-hidden"
       onDragOver={e => { e.preventDefault(); setIsDraggingFile(true) }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false) }}
       onDrop={handleDrop}
