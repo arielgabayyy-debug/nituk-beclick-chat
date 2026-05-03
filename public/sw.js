@@ -1,32 +1,34 @@
 // Service Worker for חיבור וניתוק בקליק
 // Handles push notifications and offline caching
 
-const CACHE_NAME = 'nituk-v1'
+const CACHE_NAME = 'nituk-v4'   // bump this to clear old caches on all devices
+const STATIC_CACHE = 'nituk-static-v4'
 const OFFLINE_URL = '/'
 
-// Files to cache for offline use
+// Only pre-cache the bare minimum
 const PRECACHE_ASSETS = [
-  '/',
   '/manifest.json',
 ]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_ASSETS))
+    caches.open(STATIC_CACHE).then(cache => cache.addAll(PRECACHE_ASSETS))
   )
-  self.skipWaiting()
+  self.skipWaiting()  // activate immediately, don't wait for old SW to die
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+      Promise.all(
+        keys
+          .filter(k => k !== CACHE_NAME && k !== STATIC_CACHE)
+          .map(k => caches.delete(k))
+      )
+    ).then(() => self.clients.claim())   // take control of all open tabs
   )
-  self.clients.claim()
 })
 
-// Network-first strategy for API, cache-first for static assets
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
@@ -34,21 +36,36 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET and cross-origin
   if (request.method !== 'GET' || url.origin !== self.location.origin) return
 
-  // API calls: network only
+  // API calls → always network, never cache
   if (url.pathname.startsWith('/api/')) return
 
-  // Static assets: stale-while-revalidate
+  // Next.js immutable static assets (_next/static/) → cache-first
+  // These have content-hashed names so caching is safe
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(async cache => {
+        const cached = await cache.match(request)
+        if (cached) return cached
+        const res = await fetch(request)
+        if (res.ok) cache.put(request, res.clone())
+        return res
+      })
+    )
+    return
+  }
+
+  // HTML pages (/, /admin, etc.) → network-first so users always get fresh code
+  // Fall back to cache only when offline
   event.respondWith(
-    caches.match(request).then(cached => {
-      const network = fetch(request).then(res => {
+    fetch(request)
+      .then(res => {
         if (res.ok) {
           const clone = res.clone()
           caches.open(CACHE_NAME).then(c => c.put(request, clone))
         }
         return res
       })
-      return cached || network
-    }).catch(() => caches.match(OFFLINE_URL))
+      .catch(() => caches.match(request).then(cached => cached || caches.match(OFFLINE_URL)))
   )
 })
 
@@ -90,13 +107,11 @@ self.addEventListener('notificationclick', (event) => {
   const url = event.notification.data?.url || '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      // Focus existing window if open
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus()
         }
       }
-      // Open new window
       return self.clients.openWindow(url)
     })
   )
@@ -110,8 +125,6 @@ self.addEventListener('sync', (event) => {
 })
 
 async function sendPendingMessages() {
-  // In a real implementation, read from IndexedDB and send pending messages
-  // For now, just notify the user
   const clients = await self.clients.matchAll()
   clients.forEach(client => {
     client.postMessage({ type: 'SYNC_COMPLETE' })

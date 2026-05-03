@@ -23,7 +23,20 @@ export function VideoRecorder({ onSend, disabled }: VideoRecorderProps) {
   const streamRef = useRef<MediaStream | null>(null)
   const blobRef = useRef<Blob | null>(null)
 
+  const getSupportedVideoMime = (): string => {
+    const candidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4', '']
+    for (const type of candidates) {
+      if (!type) return ''
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) return type
+    }
+    return ''
+  }
+
   const startCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert('הדפדפן שלך אינו תומך בהקלטת וידאו.')
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 }, audio: true })
       streamRef.current = stream
@@ -32,19 +45,26 @@ export function VideoRecorder({ onSend, disabled }: VideoRecorderProps) {
         previewRef.current.play()
       }
       setPhase('preview')
-    } catch {
-      alert('לא ניתן לגשת למצלמה')
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        alert('אנא אשר גישה למצלמה ומיקרופון בהגדרות הדפדפן.')
+      } else {
+        alert('לא ניתן לגשת למצלמה. ודא שהמכשיר שלך מחובר ומאושר.')
+      }
     }
   }
 
   const startRecording = () => {
     if (!streamRef.current) return
-    const mr = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' })
+    const mimeType = getSupportedVideoMime()
+    const mr = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : {})
     mediaRef.current = mr
     chunksRef.current = []
+    const actualMime = mr.mimeType || 'video/webm'
     mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     mr.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' })
+      const blob = new Blob(chunksRef.current, { type: actualMime })
       blobRef.current = blob
       const url = URL.createObjectURL(blob)
       if (videoRef.current) {
