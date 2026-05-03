@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
@@ -15,18 +17,19 @@ export async function GET(request: Request) {
       const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'משתמש'
       const email = user.email
       const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+      const isAdmin = email ? ADMIN_EMAILS.includes(email.toLowerCase()) : false
 
       if (email) {
         const { data: existingUser } = await supabase
           .from('chat_users')
-          .select('id')
+          .select('id, user_type')
           .eq('email', email)
           .maybeSingle()
 
         if (!existingUser) {
           await supabase.from('chat_users').insert({
             name, email,
-            user_type: 'subscriber',
+            user_type: isAdmin ? 'admin' : 'subscriber',
             avatar_color: '#06b6d4',
             avatar_url: avatarUrl,
             is_online: true,
@@ -35,6 +38,7 @@ export async function GET(request: Request) {
           await supabase.from('chat_users').update({
             is_online: true,
             avatar_url: avatarUrl,
+            user_type: isAdmin ? 'admin' : (existingUser.user_type ?? 'subscriber'),
             last_seen: new Date().toISOString(),
           }).eq('id', existingUser.id)
         }

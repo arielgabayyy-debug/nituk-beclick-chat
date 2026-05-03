@@ -145,12 +145,10 @@ export default function AdminDashboard() {
   }, [])
   // ─────────────────────────────────────────────────────────────────────────
 
-  const handleGoogleLogin = async () => {
-    setAuthLoading(true)
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.href }
-    })
+  const handleGoogleLogin = () => {
+    // Use the same /login bridge that's already authorized in Google Console
+    const returnUrl = 'https://nituk-beclick-chat.vercel.app/admin'
+    window.location.href = `https://nituk-beclick-chat.vercel.app/login?provider=google&return=${encodeURIComponent(returnUrl)}`
   }
 
   const fetchChartData = useCallback(async () => {
