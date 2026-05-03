@@ -68,12 +68,21 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
           </p>
         </div>
 
-        {/* Online counter */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full pulse-online" />
-          <span className="text-sm text-muted-foreground">
-            <span className="font-bold text-foreground">{onlineCount}</span> משתמשים מחוברים עכשיו
-          </span>
+        {/* Stats bar */}
+        <div className="flex items-center justify-center gap-4 mb-6">
+          <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1.5">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full pulse-online" />
+            <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{onlineCount}</span>
+            <span className="text-xs text-muted-foreground">מחוברים</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-3 py-1.5">
+            <span className="text-xs">💬</span>
+            <span className="text-xs text-muted-foreground">קהילה פעילה 24/7</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 rounded-full px-3 py-1.5">
+            <span className="text-xs">🔒</span>
+            <span className="text-xs text-muted-foreground">מוגן ובטוח</span>
+          </div>
         </div>
 
         {/* Social Login Buttons */}

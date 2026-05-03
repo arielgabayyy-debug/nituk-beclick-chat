@@ -417,11 +417,22 @@ export function ChatMessageComponent({
   const [expanded, setExpanded] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const [swipeOffset, setSwipeOffset] = useState(0)
+  const [heartBurst, setHeartBurst] = useState(false)
   const hoverCardTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const touchStartXRef = useRef<number | null>(null)
+  const lastTapRef = useRef<number>(0)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX
+    // Double-tap detection
+    const now = Date.now()
+    if (now - lastTapRef.current < 300) {
+      // Double tap → ❤️ react
+      onReact?.(message.id, '❤️')
+      setHeartBurst(true)
+      setTimeout(() => setHeartBurst(false), 600)
+    }
+    lastTapRef.current = now
   }
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartXRef.current === null) return
@@ -500,6 +511,13 @@ export function ChatMessageComponent({
       onTouchEnd={handleTouchEnd}
       style={swipeOffset > 0 ? { transform: `translateX(${isOwn ? -swipeOffset : swipeOffset}px)`, transition: swipeOffset === 0 ? 'transform 0.2s' : 'none' } : undefined}
     >
+      {/* Heart burst on double-tap */}
+      {heartBurst && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <span className="text-5xl reaction-burst">❤️</span>
+        </div>
+      )}
+
       {/* Pinned indicator */}
       {message.is_pinned && (
         <div className="absolute -top-1 right-2 bg-amber-500 text-amber-950 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">

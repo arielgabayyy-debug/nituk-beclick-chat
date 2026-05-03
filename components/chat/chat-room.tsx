@@ -510,6 +510,18 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Community rules card */}
           <ChatRulesCard />
 
+          {/* Slow mode banner */}
+          {(() => {
+            const slowSecs = parseInt(typeof window !== 'undefined' ? localStorage.getItem('slow_mode_seconds') || '0' : '0', 10)
+            if (!slowSecs) return null
+            return (
+              <div className="mx-3 mt-2 flex items-center gap-2 bg-orange-500/10 border border-orange-400/20 rounded-xl px-3 py-1.5 text-xs text-orange-600 dark:text-orange-400">
+                <span>🐢</span>
+                <span>מצב איטי פעיל — {slowSecs} שניות בין הודעות</span>
+              </div>
+            )
+          })()}
+
           {/* Messages */}
           <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 chat-scrollbar">
