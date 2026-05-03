@@ -44,6 +44,13 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
     })
     const topProvider = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0]
 
+    // Next milestone
+    const totalMsgs = messages.length
+    const MILESTONES = [100, 500, 1000, 2500, 5000, 10000, 25000]
+    const nextMilestone = MILESTONES.find(m => m > totalMsgs) || null
+    const prevMilestone = nextMilestone ? (MILESTONES[MILESTONES.indexOf(nextMilestone) - 1] || 0) : MILESTONES[MILESTONES.length - 1]
+    const milestoneProgress = nextMilestone ? ((totalMsgs - prevMilestone) / (nextMilestone - prevMilestone)) * 100 : 100
+
     return {
       todayCount: todayMsgs.length,
       weekCount: weekMsgs.length,
@@ -51,6 +58,9 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
       topUser,
       uniqueUsersToday: new Set(todayMsgs.map(m => m.user_id)).size,
       topProvider: topProvider ? { name: topProvider[0], count: topProvider[1] } : null,
+      nextMilestone,
+      milestoneProgress,
+      totalMsgs,
     }
   }, [messages])
 
@@ -140,6 +150,20 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
             <p className="text-sm font-semibold truncate">{stats.topProvider.name}</p>
           </div>
           <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400">{stats.topProvider.count}×</span>
+        </div>
+      )}
+
+      {/* Milestone progress */}
+      {stats.nextMilestone && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-muted-foreground">עד {stats.nextMilestone.toLocaleString()} הודעות</span>
+            <span className="text-[10px] font-medium text-primary">{stats.totalMsgs.toLocaleString()} / {stats.nextMilestone.toLocaleString()}</span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all duration-500" style={{ width: `${stats.milestoneProgress}%` }} />
+          </div>
+          <p className="text-[9px] text-muted-foreground mt-0.5 text-left">עוד {(stats.nextMilestone - stats.totalMsgs).toLocaleString()} הודעות למיילסטון 🎉</p>
         </div>
       )}
 

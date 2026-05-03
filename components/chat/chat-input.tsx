@@ -38,6 +38,7 @@ const SLASH_COMMANDS = [
   { cmd: '/thanks', desc: 'תודה לכולם' },
   { cmd: '/joke', desc: 'בדיחה אקראית' },
   { cmd: '/tip', desc: 'טיפ חסכון' },
+  { cmd: '/aitip', desc: 'טיפ AI חכם לחיסכון' },
   { cmd: '/poll', desc: 'צור סקר: /poll שאלה | א | ב' },
   { cmd: '/help', desc: 'רשימת פקודות' },
 ]

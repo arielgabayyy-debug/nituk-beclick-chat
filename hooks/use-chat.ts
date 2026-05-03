@@ -126,7 +126,18 @@ export function useChat(currentUser: ChatUser | null) {
       '/thanks':  () => '🙏 תודה רבה לכולם!',
       '/joke':    () => jokes[Math.floor(Math.random() * jokes.length)],
       '/tip':     () => tips[Math.floor(Math.random() * tips.length)],
-      '/help':    () => '💡 פקודות: /shrug /flip /lenny /bear /wave /hi /deal /thanks /joke /tip /poll שאלה|אפשרות1|אפשרות2',
+      '/aitip':   () => {
+        const aiTips = [
+          '🤖 AI טיפ: בחן מחיר "לחודש" ולא מחיר "לשנה" — חברות רבות מציגות מחיר שנתי מחולק שנראה נמוך יותר!',
+          '🤖 AI טיפ: שאל תמיד על "חבילת נאמנות" — מנויים ותיקים מקבלים לעיתים הנחות שלא מפורסמות',
+          '🤖 AI טיפ: בדוק כיסוי רשת בעיר שלך BEFORE שעוברים — לא כל הספקים שווים בכל מקום!',
+          '🤖 AI טיפ: העברת מספר (number portability) חינמית ולוקחת עד יום עסקים אחד — אל תפחד לנייד!',
+          '🤖 AI טיפ: הצטרפות לאינטרנט ביתי + מובייל מאותה חברה = הנחת "חבילה" של 10-30% בדרך כלל',
+          '🤖 AI טיפ: בחן תמיד: כמה GB בחו"ל? חברות רבות חוסכות בחבילה הזו בחינם!',
+        ]
+        return aiTips[Math.floor(Math.random() * aiTips.length)]
+      },
+      '/help':    () => '💡 פקודות: /shrug /flip /lenny /bear /wave /hi /deal /thanks /joke /tip /aitip /poll שאלה|אפשרות1|אפשרות2',
     }
     const trimmed = content.trim().toLowerCase()
     return commands[trimmed]?.() || content
