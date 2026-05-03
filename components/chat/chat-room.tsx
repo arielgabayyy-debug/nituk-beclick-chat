@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -72,6 +72,8 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
   const [showUserProfile, setShowUserProfile] = useState<ChatUser | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const prevMessagesLengthRef = useRef(messages.length)
 
   // Auto-scroll to bottom on new messages
@@ -108,7 +110,15 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
     ...systemMessages
       .filter(s => s.message_type === 'announcement')
       .map(s => ({ type: 'system' as const, data: s, time: new Date(s.created_at).getTime() }))
-  ].sort((a, b) => a.time - b.time)
+  ]
+    .sort((a, b) => a.time - b.time)
+    .filter(item => {
+      if (!searchQuery.trim()) return true
+      if (item.type === 'message') {
+        return item.data.content.toLowerCase().includes(searchQuery.toLowerCase())
+      }
+      return true
+    })
 
   const handleSendAnnouncement = () => {
     if (announcementText.trim()) {
@@ -131,6 +141,7 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
         onLogout={onLogout}
         onAdminClick={onAdminClick}
         adminClickCount={adminClickCount}
+        onToggleSearch={() => { setShowSearch(prev => !prev); setSearchQuery('') }}
       />
 
       {/* Main content */}
@@ -201,6 +212,31 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
           {/* Pinned messages */}
           <PinnedMessages messages={pinnedMessages} onJumpToMessage={jumpToMessage} />
 
+          {/* Search bar */}
+          {showSearch && (
+            <div className="px-4 py-2 border-b border-border/30 bg-card/20 animate-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="חיפוש בהודעות..."
+                  autoFocus
+                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Admin announcement input */}
           {currentUser.user_type === 'admin' && showAnnouncement && (
             <div className="p-4 bg-amber-500/10 border-b border-amber-500/20">
@@ -261,6 +297,7 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
                         onReact={addReaction}
                         onUserClick={handleUserClick}
                         onReply={(msg) => setReplyTo(msg)}
+                        searchQuery={searchQuery || undefined}
                       />
                     </div>
                   ) : (
@@ -306,6 +343,7 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
               onTypingStop={stopTyping}
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
+              onlineUsers={onlineUsers.map(u => ({ id: u.id, name: u.name, avatar_color: u.avatar_color }))}
             />
           </div>
         </div>

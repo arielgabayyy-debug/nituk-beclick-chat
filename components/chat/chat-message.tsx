@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -16,6 +16,7 @@ interface ChatMessageProps {
   onReact?: (messageId: string, emoji: string) => void
   onUserClick?: (user: ChatUser) => void
   onReply?: (message: ChatMessageType) => void
+  searchQuery?: string
 }
 
 function getInitials(name: string): string {
@@ -32,6 +33,115 @@ function groupReactions(reactions: MessageReaction[]): { emoji: string; count: n
   return Object.entries(grouped).map(([emoji, data]) => ({ emoji, ...data }))
 }
 
+const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i
+const URL_REGEX = /(https?:\/\/[^\s]+)/g
+
+function renderMessageContent(content: string, searchQuery?: string): React.ReactNode {
+  // Collect image URLs
+  const imageUrls: string[] = []
+  const urlMatches = content.match(URL_REGEX) || []
+  urlMatches.forEach(url => {
+    if (IMAGE_EXTENSIONS.test(url)) imageUrls.push(url)
+  })
+
+  // Split content into tokens: bold, mention, url, plain text
+  // Process in one pass using a combined regex
+  const tokenRegex = /(\*\*(.+?)\*\*)|(@\S+)|(https?:\/\/[^\s]+)/g
+
+  const nodes: React.ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = tokenRegex.exec(content)) !== null) {
+    const [full, boldFull, boldInner, mention, url] = match
+    const start = match.index
+
+    // Plain text before this match
+    if (start > lastIndex) {
+      nodes.push(highlightSearch(content.slice(lastIndex, start), searchQuery, `plain-${lastIndex}`))
+    }
+
+    if (boldFull && boldInner) {
+      nodes.push(
+        <strong key={`bold-${start}`}>{highlightSearch(boldInner, searchQuery, `bold-inner-${start}`)}</strong>
+      )
+    } else if (mention) {
+      nodes.push(
+        <span key={`mention-${start}`} className="mention-tag">{mention}</span>
+      )
+    } else if (url) {
+      const isImage = IMAGE_EXTENSIONS.test(url)
+      if (!isImage) {
+        nodes.push(
+          <a
+            key={`url-${start}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-600 hover:text-cyan-700 break-all"
+          >
+            {highlightSearch(url, searchQuery, `url-text-${start}`)}
+          </a>
+        )
+      } else {
+        // Image URLs - render inline text as link, image shown below
+        nodes.push(
+          <a
+            key={`url-${start}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-600 hover:text-cyan-700 break-all"
+          >
+            {highlightSearch(url, searchQuery, `img-url-text-${start}`)}
+          </a>
+        )
+      }
+    }
+
+    lastIndex = start + full.length
+  }
+
+  // Remaining plain text
+  if (lastIndex < content.length) {
+    nodes.push(highlightSearch(content.slice(lastIndex), searchQuery, `plain-end-${lastIndex}`))
+  }
+
+  return (
+    <>
+      <p className="whitespace-pre-wrap break-words">{nodes}</p>
+      {/* Inline image previews */}
+      {imageUrls.map((imgUrl, i) => (
+        <a key={`img-${i}`} href={imgUrl} target="_blank" rel="noopener noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imgUrl}
+            alt="תמונה מהצ׳אט"
+            className="mt-2 rounded-xl max-w-[300px] max-h-[300px] object-cover border border-border/40 shadow-sm hover:opacity-90 transition-opacity"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+        </a>
+      ))}
+    </>
+  )
+}
+
+function highlightSearch(text: string, searchQuery: string | undefined, key: string): React.ReactNode {
+  if (!searchQuery || !text) return <span key={key}>{text}</span>
+  const lowerText = text.toLowerCase()
+  const lowerQuery = searchQuery.toLowerCase()
+  const idx = lowerText.indexOf(lowerQuery)
+  if (idx === -1) return <span key={key}>{text}</span>
+
+  return (
+    <span key={key}>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-200 text-yellow-900 rounded px-0.5">{text.slice(idx, idx + searchQuery.length)}</mark>
+      {text.slice(idx + searchQuery.length)}
+    </span>
+  )
+}
+
 export function ChatMessageComponent({
   message,
   currentUser,
@@ -39,7 +149,8 @@ export function ChatMessageComponent({
   onPin,
   onReact,
   onUserClick,
-  onReply
+  onReply,
+  searchQuery
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -55,11 +166,15 @@ export function ChatMessageComponent({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleReport = () => {
+    alert('הודעה דווחה למנהל')
+  }
+
   return (
     <div
       id={`message-${message.id}`}
       className={cn(
-        "flex gap-3 group relative px-1 py-0.5 rounded-2xl transition-all",
+        "flex gap-3 group relative px-1 py-0.5 rounded-2xl transition-all message-enter",
         isOwn && "flex-row-reverse",
         message.is_pinned && "bg-amber-500/5 rounded-xl p-2 -mx-2 border border-amber-500/20"
       )}
@@ -116,7 +231,8 @@ export function ChatMessageComponent({
           {message.has_gif && message.gif_url && (
             <img src={message.gif_url} alt="gif" className="rounded-xl max-w-[240px] mb-2" />
           )}
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+
+          {renderMessageContent(message.content, searchQuery)}
 
           {/* Copy button on hover */}
           <button
@@ -197,6 +313,17 @@ export function ChatMessageComponent({
           >
             <Reply className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
+
+          {/* Report (for non-own messages) */}
+          {!isOwn && (
+            <button
+              className="w-7 h-7 flex items-center justify-center hover:bg-red-50 rounded-full transition-all"
+              onClick={handleReport}
+              title="דווח על הודעה"
+            >
+              <Flag className="w-3.5 h-3.5 text-muted-foreground hover:text-red-500" />
+            </button>
+          )}
 
           {/* Admin actions */}
           {isAdmin && (

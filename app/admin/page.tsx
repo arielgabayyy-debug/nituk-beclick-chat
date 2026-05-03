@@ -9,9 +9,49 @@ import {
   UserPlus, Pin, Download, Sparkles, ShieldOff, Search, Loader2
 } from 'lucide-react'
 
+import { formatTimeAgo } from '@/lib/chat-types'
+
 // All admin emails — auto-authenticated without password
 const ADMIN_EMAILS = ['arielgabayyy@gmail.com', 'nitukbeclick@gmail.com']
-import { formatTimeAgo } from '@/lib/chat-types'
+
+// ── SVG Analytics Chart ───────────────────────────────────────────────────
+function AnalyticsChart({ data, color = '#8b5cf6', label }: {
+  data: { date: string; count: number }[]
+  color?: string
+  label: string
+}) {
+  if (!data.length) return <p className="text-sm text-gray-400 text-center py-8">אין נתונים</p>
+  const max = Math.max(...data.map(d => d.count), 1)
+  const W = 560, H = 120, PAD = 8
+  const barW = Math.floor((W - PAD * 2) / data.length) - 4
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${W} ${H + 32}`} className="w-full" style={{ minWidth: 320 }}>
+        {data.map((d, i) => {
+          const x = PAD + i * ((W - PAD * 2) / data.length) + 2
+          const barH = Math.max(4, (d.count / max) * H)
+          const y = H - barH + PAD
+          return (
+            <g key={d.date}>
+              <rect x={x} y={y} width={barW} height={barH} rx={4}
+                fill={color} opacity={0.85} className="hover:opacity-100 transition-opacity" />
+              {d.count > 0 && (
+                <text x={x + barW / 2} y={y - 4} textAnchor="middle"
+                  fontSize={10} fill="#6b7280">{d.count}</text>
+              )}
+              <text x={x + barW / 2} y={H + PAD + 18} textAnchor="middle"
+                fontSize={9} fill="#9ca3af">
+                {new Date(d.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+              </text>
+            </g>
+          )
+        })}
+        <text x={W / 2} y={H + PAD + 30} textAnchor="middle" fontSize={10} fill="#9ca3af">{label}</text>
+      </svg>
+    </div>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────
 
 const supabase = createClient()
 
@@ -79,6 +119,7 @@ export default function AdminDashboard() {
   const [authLoading, setAuthLoading] = useState(true)
   const [authedEmail, setAuthedEmail] = useState<string | null>(null)
   const [newRegCount, setNewRegCount] = useState(0)
+  const [chartData, setChartData] = useState<{ date: string; count: number }[]>([])
   const [toast, setToast] = useState<{ name: string; type: string } | null>(null)
   const lastSeenRef = useRef<string>(new Date().toISOString())
 
@@ -111,6 +152,25 @@ export default function AdminDashboard() {
       options: { redirectTo: window.location.href }
     })
   }
+
+  const fetchChartData = useCallback(async () => {
+    // Build last 14 days array
+    const days: { date: string; count: number }[] = []
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      d.setHours(0, 0, 0, 0)
+      const next = new Date(d)
+      next.setDate(next.getDate() + 1)
+      const { count } = await supabase
+        .from('chat_users')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', d.toISOString())
+        .lt('created_at', next.toISOString())
+      days.push({ date: d.toISOString(), count: count || 0 })
+    }
+    setChartData(days)
+  }, [])
 
   const fetchStats = useCallback(async () => {
     const today = new Date()
@@ -205,7 +265,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAuthenticated) {
       setIsLoading(true)
-      Promise.all([fetchStats(), fetchUsers(), fetchMessages()])
+      Promise.all([fetchStats(), fetchUsers(), fetchMessages(), fetchChartData()])
         .finally(() => setIsLoading(false))
     }
   }, [isAuthenticated, fetchStats, fetchUsers, fetchMessages])
@@ -506,6 +566,15 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Analytics chart */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border">
+                  <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-purple-600" />
+                    הרשמות — 14 ימים אחרונים
+                  </h2>
+                  <AnalyticsChart data={chartData} color="#8b5cf6" label="הרשמות יומיות" />
                 </div>
 
                 {/* Latest 5 registrations preview */}

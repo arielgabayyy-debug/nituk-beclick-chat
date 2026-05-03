@@ -7,6 +7,12 @@ import { cn } from '@/lib/utils'
 import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
 
+interface MentionUser {
+  id: string
+  name: string
+  avatar_color: string
+}
+
 interface ChatInputProps {
   onSend: (message: string) => void
   onTypingStart?: () => void
@@ -15,6 +21,7 @@ interface ChatInputProps {
   placeholder?: string
   replyTo?: ChatMessage | null
   onCancelReply?: () => void
+  onlineUsers?: MentionUser[]
 }
 
 export function ChatInput({
@@ -24,12 +31,22 @@ export function ChatInput({
   disabled,
   placeholder = "כתבו הודעה...",
   replyTo,
-  onCancelReply
+  onCancelReply,
+  onlineUsers = []
 }: ChatInputProps) {
   const [message, setMessage] = useState('')
   const [showEmojis, setShowEmojis] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionResults, setMentionResults] = useState<MentionUser[]>([])
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const getMentionQuery = (text: string, cursorPos: number): string | null => {
+    const before = text.slice(0, cursorPos)
+    const match = before.match(/@(\w*)$/)
+    return match ? match[1] : null
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,11 +57,54 @@ export function ChatInput({
     onSend(finalMessage)
     setMessage('')
     setShowEmojis(false)
+    setMentionQuery(null)
+    setMentionResults([])
     onTypingStop?.()
     onCancelReply?.()
   }
 
+  const selectMention = (user: MentionUser) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const cursorPos = textarea.selectionStart
+    const before = message.slice(0, cursorPos)
+    const after = message.slice(cursorPos)
+    // Replace @query with @name + space
+    const newBefore = before.replace(/@\w*$/, `@${user.name} `)
+    setMessage(newBefore + after)
+    setMentionQuery(null)
+    setMentionResults([])
+    setTimeout(() => {
+      textarea.focus()
+      const newPos = newBefore.length
+      textarea.setSelectionRange(newPos, newPos)
+    }, 0)
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (mentionResults.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedMentionIndex(i => Math.min(i + 1, mentionResults.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedMentionIndex(i => Math.max(i - 1, 0))
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        selectMention(mentionResults[selectedMentionIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null)
+        setMentionResults([])
+        return
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit(e)
@@ -55,11 +115,26 @@ export function ChatInput({
   }
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value)
+    const val = e.target.value
+    setMessage(val)
     onTypingStart?.()
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     typingTimeoutRef.current = setTimeout(() => onTypingStop?.(), 2000)
-  }, [onTypingStart, onTypingStop])
+
+    const cursorPos = e.target.selectionStart
+    const query = getMentionQuery(val, cursorPos)
+    if (query !== null) {
+      setMentionQuery(query)
+      const filtered = onlineUsers
+        .filter(u => u.name.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 5)
+      setMentionResults(filtered)
+      setSelectedMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+      setMentionResults([])
+    }
+  }, [onTypingStart, onTypingStop, onlineUsers])
 
   const addEmoji = (emoji: string) => {
     setMessage(prev => prev + emoji)
@@ -121,6 +196,45 @@ export function ChatInput({
                 className="w-9 h-9 flex items-center justify-center hover:bg-muted rounded-xl transition-all text-xl hover:scale-125"
               >
                 {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mention autocomplete dropdown */}
+      {mentionResults.length > 0 && mentionQuery !== null && (
+        <div className="absolute bottom-full mb-2 right-0 left-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div
+            className="rounded-2xl border border-border/60 shadow-2xl overflow-hidden"
+            style={{
+              background: 'oklch(1 0 0 / 0.85)',
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <div className="px-3 pt-2 pb-1">
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">אזכור משתמש</span>
+            </div>
+            {mentionResults.map((user, idx) => (
+              <button
+                key={user.id}
+                type="button"
+                onClick={() => selectMention(user)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors text-right",
+                  idx === selectedMentionIndex
+                    ? "bg-primary/10 text-primary"
+                    : "hover:bg-muted/60 text-foreground"
+                )}
+              >
+                {/* Avatar circle */}
+                <div
+                  className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold shadow"
+                  style={{ backgroundColor: user.avatar_color }}
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="font-medium">@{user.name}</span>
               </button>
             ))}
           </div>

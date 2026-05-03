@@ -397,3 +397,128 @@ body {
   background: oklch(0.9 0.01 270);
   color: oklch(0.45 0.02 270);
 }
+
+/* Dark mode variables */
+.dark {
+  --background: oklch(0.08 0.01 270);
+  --foreground: oklch(0.92 0.01 270);
+  --card: oklch(0.12 0.01 270);
+  --card-foreground: oklch(0.92 0.01 270);
+  --muted: oklch(0.18 0.01 270);
+  --muted-foreground: oklch(0.6 0.02 270);
+  --border: oklch(0.22 0.01 270);
+  --input: oklch(0.18 0.01 270);
+  --chat-bg: oklch(0.07 0.01 270);
+}
+
+.dark .glass {
+  background: oklch(0.14 0.01 270 / 0.85);
+  border-color: oklch(0.25 0.01 270);
+}
+
+.dark .chat-bg-animated {
+  background:
+    radial-gradient(ellipse at 20% 50%, oklch(0.6 0.18 195 / 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, oklch(0.55 0.2 290 / 0.06) 0%, transparent 60%),
+    oklch(0.08 0.01 270);
+}
+
+/* Message entrance animation */
+@keyframes message-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.message-enter {
+  animation: message-enter 0.2s ease-out;
+}
+
+/* Mention tag style */
+.mention-tag {
+  background: oklch(0.6 0.18 195 / 0.15);
+  color: oklch(0.5 0.18 195);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+
+.dark .mention-tag {
+  background: oklch(0.6 0.18 195 / 0.25);
+  color: oklch(0.7 0.18 195);
+}
+
+/* ── Premium message bubble styles ────────────────────────────────────── */
+.bubble-own {
+  background: linear-gradient(135deg, oklch(0.55 0.18 195), oklch(0.5 0.2 290));
+  color: white;
+  border-radius: 20px 20px 4px 20px;
+  box-shadow: 0 4px 16px oklch(0.55 0.18 195 / 0.3);
+}
+
+.bubble-other {
+  background: white;
+  border: 1px solid oklch(0.92 0.01 270);
+  border-radius: 20px 20px 20px 4px;
+  box-shadow: 0 2px 8px oklch(0 0 0 / 0.06);
+}
+
+.dark .bubble-other {
+  background: oklch(0.16 0.01 270);
+  border-color: oklch(0.24 0.01 270);
+}
+
+/* Reaction pill */
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: white;
+  border: 1px solid oklch(0.9 0.01 270);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.08);
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.reaction-pill:hover { transform: scale(1.1); box-shadow: 0 3px 8px oklch(0 0 0 / 0.12); }
+.dark .reaction-pill { background: oklch(0.18 0.01 270); border-color: oklch(0.26 0.01 270); }
+.reaction-pill.mine { border-color: oklch(0.6 0.18 195 / 0.5); background: oklch(0.6 0.18 195 / 0.08); }
+
+/* Search bar slide */
+@keyframes search-slide {
+  from { opacity: 0; transform: translateY(-8px); max-height: 0; }
+  to   { opacity: 1; transform: translateY(0);    max-height: 80px; }
+}
+.search-bar-enter { animation: search-slide 0.2s ease-out forwards; }
+
+/* Image preview in messages */
+.message-image-preview {
+  max-width: 280px;
+  border-radius: 12px;
+  margin-top: 6px;
+  box-shadow: 0 2px 12px oklch(0 0 0 / 0.12);
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+}
+.message-image-preview:hover { transform: scale(1.02); }
+
+/* Link in message */
+.message-link {
+  color: oklch(0.5 0.18 195);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.bubble-own .message-link { color: oklch(0.9 0.06 195); }
+
+/* Admin dashboard chart bar hover */
+.chart-bar { transition: opacity 0.15s; }
+.chart-bar:hover { opacity: 1 !important; }
+
+/* Smooth scrollbar for messages */
+.chat-scrollbar { scroll-behavior: smooth; }
+
+/* Status indicator */
+.status-dot-online  { background: oklch(0.6 0.2 145); }
+.status-dot-away    { background: oklch(0.7 0.15 85); }
+.status-dot-offline { background: oklch(0.75 0.02 270); }
