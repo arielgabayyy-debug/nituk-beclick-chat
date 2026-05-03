@@ -23,6 +23,8 @@ interface ChatInputProps {
   replyTo?: ChatMessage | null
   onCancelReply?: () => void
   onlineUsers?: MentionUser[]
+  forwardedContent?: string | null
+  onClearForward?: () => void
 }
 
 export function ChatInput({
@@ -33,7 +35,9 @@ export function ChatInput({
   placeholder = "כתבו הודעה...",
   replyTo,
   onCancelReply,
-  onlineUsers = []
+  onlineUsers = [],
+  forwardedContent,
+  onClearForward,
 }: ChatInputProps) {
   const [message, setMessage] = useState('')
   const [showEmojis, setShowEmojis] = useState(false)
@@ -213,6 +217,14 @@ export function ChatInput({
   useEffect(() => {
     if (replyTo) textareaRef.current?.focus()
   }, [replyTo])
+
+  // Pre-fill on forward
+  useEffect(() => {
+    if (forwardedContent) {
+      setMessage(forwardedContent)
+      setTimeout(() => textareaRef.current?.focus(), 50)
+    }
+  }, [forwardedContent])
 
   return (
     <div className="relative">

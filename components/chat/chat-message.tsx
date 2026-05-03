@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -22,6 +22,7 @@ interface ChatMessageProps {
   searchQuery?: string
   isBookmarked?: boolean
   onToggleBookmark?: (messageId: string) => void
+  onForward?: (content: string) => void
 }
 
 function getInitials(name: string): string {
@@ -273,6 +274,7 @@ export function ChatMessageComponent({
   searchQuery,
   isBookmarked,
   onToggleBookmark,
+  onForward,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -550,6 +552,17 @@ export function ChatMessageComponent({
           >
             <Bookmark className={cn("w-3.5 h-3.5 transition-colors", isBookmarked ? "text-amber-500 fill-amber-500" : "text-muted-foreground")} />
           </button>
+
+          {/* Forward */}
+          {onForward && !message.content.startsWith('[voice:') && (
+            <button
+              className="w-7 h-7 flex items-center justify-center hover:bg-muted rounded-full transition-all"
+              onClick={() => onForward(`↪️ ${user?.name || 'משתמש'}: "${message.content.slice(0, 100)}${message.content.length > 100 ? '...' : ''}" `)}
+              title="העבר הודעה"
+            >
+              <Forward className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
 
           {/* Edit (own messages only) */}
           {isOwn && onEdit && (

@@ -81,6 +81,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [unreadSinceScroll, setUnreadSinceScroll] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
   const [showBookmarks, setShowBookmarks] = useState(false)
+  const [forwardedContent, setForwardedContent] = useState<string | null>(null)
   const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
   const prevMessagesLengthRef = useRef(messages.length)
 
@@ -316,12 +317,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
                 />
                 {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {allItems.filter(i => i.type === 'message').length} תוצאות
+                    </span>
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -404,6 +410,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           searchQuery={searchQuery || undefined}
                           isBookmarked={isBookmarked(item.data.id)}
                           onToggleBookmark={toggleBookmark}
+                          onForward={(content) => { setForwardedContent(content); scrollToBottom() }}
                         />
                       </div>
                     )
@@ -479,6 +486,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
               onlineUsers={onlineUsers.map(u => ({ id: u.id, name: u.name, avatar_color: u.avatar_color }))}
+              forwardedContent={forwardedContent}
+              onClearForward={() => setForwardedContent(null)}
             />
           </div>
         </div>

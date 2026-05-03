@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Users, LogOut, Search, Moon, Sun } from 'lucide-react'
+import { Users, LogOut, Search, Moon, Sun, Smile } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
 import { StreakBadge, useStreak } from './streak-badge'
+import { UserStatusEditor, useUserStatus } from './user-status'
 import type { ChatUser } from '@/lib/chat-types'
 
 interface ChatHeaderProps {
@@ -17,7 +18,9 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
+  const [showStatusEditor, setShowStatusEditor] = useState(false)
   const { streak } = useStreak()
+  const { status } = useUserStatus(currentUser?.id || '')
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
@@ -110,6 +113,20 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch 
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
+            {/* Status */}
+            {currentUser && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-9 w-9 ${status ? 'text-primary' : 'text-muted-foreground'}`}
+                onClick={() => setShowStatusEditor(true)}
+                title={status ? `${status.emoji} ${status.text}` : 'הגדר סטטוס'}
+                aria-label="הגדר סטטוס"
+              >
+                {status ? <span className="text-base leading-none">{status.emoji}</span> : <Smile className="w-4 h-4" />}
+              </Button>
+            )}
+
             {/* Logout */}
             {currentUser && (
               <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={onLogout} title="יציאה" aria-label="יציאה מהצ'אט">
@@ -119,6 +136,11 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch 
           </div>
         </div>
       </header>
+
+      {/* Status editor modal */}
+      {showStatusEditor && currentUser && (
+        <UserStatusEditor userId={currentUser.id} onClose={() => setShowStatusEditor(false)} />
+      )}
     </>
   )
 }
