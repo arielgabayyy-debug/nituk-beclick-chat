@@ -59,26 +59,37 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
           </button>
 
           {/* Subscriber */}
-          <button
-            onClick={() => onSelectMode('subscriber')}
-            className="w-full glass rounded-xl p-4 flex items-center gap-4 hover:bg-muted/30 transition-all hover:scale-[1.02] group border border-primary/30"
-          >
-            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Crown className="w-6 h-6 text-primary" />
-            </div>
-            <div className="text-right flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="font-semibold">כניסת מנויים</h3>
-                <span className="text-[10px] px-1.5 py-0.5 bg-primary/20 text-primary rounded-full">פרימיום</span>
+          <div>
+            <button
+              onClick={() => onSelectMode('subscriber')}
+              className="w-full glass rounded-xl p-4 flex items-center gap-4 hover:bg-muted/30 transition-all hover:scale-[1.02] group border border-primary/30"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground">גישה מלאה עם תג מנוי מאומת</p>
-              <p className="text-xs text-primary/80 mt-1 flex items-center gap-1">
-                <Mail className="w-3 h-3" />
-                מקבלים עדכון חודשי על כל החבילות והחברות
-              </p>
-            </div>
-            <Sparkles className="w-5 h-5 text-primary" />
-          </button>
+              <div className="text-right flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h3 className="font-semibold">כניסת מנויים</h3>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-primary/20 text-primary rounded-full">פרימיום</span>
+                </div>
+                <p className="text-sm text-muted-foreground">גישה מלאה עם תג מנוי מאומת</p>
+                <p className="text-xs text-primary/80 mt-1 flex items-center gap-1">
+                  <Mail className="w-3 h-3" />
+                  מקבלים עדכון חודשי על כל החבילות והחברות
+                </p>
+              </div>
+              <Sparkles className="w-5 h-5 text-primary" />
+            </button>
+            <p className="text-center text-xs text-muted-foreground mt-1.5">
+              אין לך מנוי?{' '}
+              <button
+                onClick={() => onSelectMode('newsletter')}
+                className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors font-medium"
+              >
+                לחץ כאן להרשמה בחינם
+              </button>
+            </p>
+          </div>
 
           {/* Newsletter */}
           <button
@@ -101,6 +112,14 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-8">
           בכניסה אתם מסכימים לתנאי השימוש ומדיניות הפרטיות
+        </p>
+        <p className="text-center mt-3">
+          <a
+            href="/admin"
+            className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            כניסת מנהל
+          </a>
         </p>
       </div>
     </div>

@@ -15,28 +15,20 @@ export async function POST(request: Request) {
     const { data: otpRecord, error: fetchError } = await supabase
       .from('otp_codes')
       .select('*')
-      .eq('email', email.toLowerCase())
+      .eq('email', email.toLowerCase().trim())
       .eq('code', code)
-      .eq('verified', false)
       .gt('expires_at', new Date().toISOString())
-      .single()
+      .maybeSingle()
 
     if (fetchError || !otpRecord) {
       return NextResponse.json({ error: 'קוד שגוי או פג תוקף' }, { status: 400 })
     }
 
-    // Mark as verified
-    await supabase
-      .from('otp_codes')
-      .update({ verified: true })
-      .eq('id', otpRecord.id)
-
-    // Clean up old codes for this email
+    // Delete the used OTP
     await supabase
       .from('otp_codes')
       .delete()
-      .eq('email', email.toLowerCase())
-      .neq('id', otpRecord.id)
+      .eq('email', email.toLowerCase().trim())
 
     return NextResponse.json({ success: true, verified: true })
   } catch (error) {
