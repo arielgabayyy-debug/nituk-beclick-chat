@@ -19,7 +19,7 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `https://nituk-beclick-chat.vercel.app/auth/callback`,
         queryParams: { access_type: 'offline', prompt: 'consent' }
       }
     })
@@ -30,7 +30,7 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'facebook',
-      options: { redirectTo: `${window.location.origin}/auth/callback` }
+      options: { redirectTo: `https://nituk-beclick-chat.vercel.app/auth/callback` }
     })
   }
 
