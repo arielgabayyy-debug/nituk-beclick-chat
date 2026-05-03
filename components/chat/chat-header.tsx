@@ -21,8 +21,29 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch 
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
-    if (saved === 'dark') { document.documentElement.classList.add('dark'); setIsDark(true) }
-    else { document.documentElement.classList.remove('dark'); setIsDark(false) }
+
+    // Auto-detect system preference if no saved preference
+    if (!saved) {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      if (prefersDark) {
+        document.documentElement.classList.add('dark')
+        setIsDark(true)
+      }
+    } else if (saved === 'dark') {
+      document.documentElement.classList.add('dark')
+      setIsDark(true)
+    }
+
+    // Listen for system preference changes
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('theme')) {
+        document.documentElement.classList.toggle('dark', e.matches)
+        setIsDark(e.matches)
+      }
+    }
+    mq.addEventListener('change', handleChange)
+    return () => mq.removeEventListener('change', handleChange)
   }, [])
 
   const toggleDarkMode = () => {

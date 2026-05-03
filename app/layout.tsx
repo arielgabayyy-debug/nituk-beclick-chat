@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   title: 'צ׳אט קהילתי | ניתוק בקליק',
   description: 'הצטרפו לקהילה הגדולה בישראל להשוואת מחירי סלולר ואינטרנט',
   generator: 'v0.app',
+  manifest: '/manifest.json',
+  themeColor: '#06b6d4',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'ניתוק בקליק',
+  },
 }
 
 export default function RootLayout({

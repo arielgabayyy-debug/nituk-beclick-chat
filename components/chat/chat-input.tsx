@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Smile, X, Reply, ImagePlus, Loader2 } from 'lucide-react'
+import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
+import { VoiceRecorder } from './voice-recorder'
 
 interface MentionUser {
   id: string
@@ -40,14 +41,42 @@ export function ChatInput({
   const [mentionResults, setMentionResults] = useState<MentionUser[]>([])
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
+  const [slowModeRemaining, setSlowModeRemaining] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const slowModeTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const getMentionQuery = (text: string, cursorPos: number): string | null => {
     const before = text.slice(0, cursorPos)
     const match = before.match(/@(\w*)$/)
     return match ? match[1] : null
+  }
+
+  // Slow mode: check on mount and after sends
+  const checkSlowMode = useCallback(() => {
+    const seconds = parseInt(localStorage.getItem('slow_mode_seconds') || '0', 10)
+    if (!seconds) { setSlowModeRemaining(0); return }
+    const lastSent = parseInt(localStorage.getItem('slow_mode_last_sent') || '0', 10)
+    const elapsed = Math.floor((Date.now() - lastSent) / 1000)
+    const remaining = Math.max(0, seconds - elapsed)
+    setSlowModeRemaining(remaining)
+    if (remaining > 0) {
+      if (slowModeTimerRef.current) clearInterval(slowModeTimerRef.current)
+      slowModeTimerRef.current = setInterval(() => {
+        setSlowModeRemaining(r => {
+          if (r <= 1) { clearInterval(slowModeTimerRef.current!); return 0 }
+          return r - 1
+        })
+      }, 1000)
+    }
+  }, [])
+
+  useEffect(() => { checkSlowMode() }, [checkSlowMode])
+  useEffect(() => () => { if (slowModeTimerRef.current) clearInterval(slowModeTimerRef.current) }, [])
+
+  const handleVoiceSend = (url: string, dur: number) => {
+    onSend(`[voice:${url}:${dur}]`)
   }
 
   // ── Image upload ────────────────────────────────────────────────────────
@@ -75,7 +104,7 @@ export function ChatInput({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!message.trim() || disabled) return
+    if (!message.trim() || disabled || slowModeRemaining > 0) return
     const finalMessage = replyTo
       ? `↩️ בתגובה ל${replyTo.user?.name || 'משתמש'}: "${replyTo.content.slice(0, 50)}${replyTo.content.length > 50 ? '...' : ''}"\n${message}`
       : message
@@ -86,6 +115,9 @@ export function ChatInput({
     setMentionResults([])
     onTypingStop?.()
     onCancelReply?.()
+    // Record send time for slow mode
+    localStorage.setItem('slow_mode_last_sent', Date.now().toString())
+    checkSlowMode()
   }
 
   const selectMention = (user: MentionUser) => {
@@ -304,6 +336,11 @@ export function ChatInput({
           }
         </Button>
 
+        {/* Voice recorder - show only when message is empty */}
+        {!message && (
+          <VoiceRecorder onSend={handleVoiceSend} disabled={disabled} />
+        )}
+
         <div className="flex-1 relative">
           <textarea
             ref={textareaRef}
@@ -324,19 +361,26 @@ export function ChatInput({
           />
         </div>
 
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!message.trim() || disabled}
-          className={cn(
-            "h-11 w-11 shrink-0 rounded-xl transition-all",
-            "bg-gradient-to-br from-cyan-500 to-purple-600",
-            "hover:shadow-lg hover:shadow-cyan-500/25 hover:scale-105",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          )}
-        >
-          <Send className="w-5 h-5" />
-        </Button>
+        {slowModeRemaining > 0 ? (
+          <div className="h-11 w-11 shrink-0 rounded-xl bg-orange-100 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 flex flex-col items-center justify-center" title={`מצב איטי: המתן ${slowModeRemaining} שניות`}>
+            <Timer className="w-3.5 h-3.5 text-orange-500 mb-0.5" />
+            <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 leading-none">{slowModeRemaining}</span>
+          </div>
+        ) : (
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!message.trim() || disabled}
+            className={cn(
+              "h-11 w-11 shrink-0 rounded-xl transition-all",
+              "bg-gradient-to-br from-cyan-500 to-purple-600",
+              "hover:shadow-lg hover:shadow-cyan-500/25 hover:scale-105",
+              "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            )}
+          >
+            <Send className="w-5 h-5" />
+          </Button>
+        )}
       </form>
     </div>
   )

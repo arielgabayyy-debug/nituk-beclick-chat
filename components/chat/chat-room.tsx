@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown } from 'lucide-react'
+import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -14,6 +14,10 @@ import { PollCard, CreatePollForm } from './poll-card'
 import { HotDeals } from './hot-deals'
 import { DailyQuestionCard, DailyTipCard, UpcomingEventsCard } from './daily-widgets'
 import { UserProfile } from './user-profile'
+import { KeyboardShortcuts } from './keyboard-shortcuts'
+import { WelcomeToast } from './welcome-toast'
+import { Confetti } from './confetti'
+import { useBookmarks, BookmarksPanel } from './message-bookmarks'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
@@ -75,6 +79,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [unreadSinceScroll, setUnreadSinceScroll] = useState(0)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [showBookmarks, setShowBookmarks] = useState(false)
+  const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
   const prevMessagesLengthRef = useRef(messages.length)
 
   // Track scroll position
@@ -160,8 +167,30 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     setShowUserProfile(user)
   }
 
+  // Confetti on first-ever message
+  const handleSendMessage = (content: string) => {
+    const key = `first_msg_${currentUser.id}`
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, '1')
+      setShowConfetti(true)
+    }
+    sendMessage(content)
+  }
+
   return (
     <div className="min-h-screen flex flex-col chat-bg-animated">
+      <KeyboardShortcuts
+        onSearch={() => { setShowSearch(s => !s); setSearchQuery('') }}
+        onEscape={() => { setShowSearch(false); setSearchQuery(''); setReplyTo(null) }}
+        onEditLastMessage={() => {
+          const lastOwn = [...messages].reverse().find(m => m.user_id === currentUser.id)
+          if (lastOwn) {
+            document.getElementById(`message-${lastOwn.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }}
+      />
+      <WelcomeToast user={currentUser} />
+      <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
       {/* Header */}
       <ChatHeader
         currentUser={currentUser}
@@ -326,6 +355,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                         onReply={(msg) => setReplyTo(msg)}
                         onEdit={editMessage}
                         searchQuery={searchQuery || undefined}
+                        isBookmarked={isBookmarked(item.data.id)}
+                        onToggleBookmark={toggleBookmark}
                       />
                     </div>
                   ) : (
@@ -364,6 +395,22 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 {soundEnabled ? <Volume2 className="w-4 h-4 text-muted-foreground" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
               </Button>
 
+              {/* Bookmarks */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-8 w-8 shrink-0 relative", showBookmarks && "bg-amber-500/10 text-amber-500")}
+                onClick={() => setShowBookmarks(!showBookmarks)}
+                title="הודעות שמורות"
+              >
+                <Bookmark className={cn("w-4 h-4", showBookmarks ? "text-amber-500 fill-amber-500" : "text-muted-foreground")} />
+                {bookmarkedIds.size > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center leading-none">
+                    {bookmarkedIds.size > 9 ? '9+' : bookmarkedIds.size}
+                  </span>
+                )}
+              </Button>
+
               {currentUser.user_type === 'admin' && (
                 <Button
                   variant="ghost"
@@ -377,7 +424,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               )}
             </div>
             <ChatInput
-              onSend={sendMessage}
+              onSend={handleSendMessage}
               onTypingStart={startTyping}
               onTypingStop={stopTyping}
               replyTo={replyTo}
@@ -446,6 +493,19 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         <button onClick={() => setSidebarTab('deals')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><Flame className="w-5 h-5" /><span>עסקאות</span></button>
         <button onClick={() => setSidebarTab('polls')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><BarChart3 className="w-5 h-5" /><span>סקרים</span></button>
       </nav>
+
+      {/* Bookmarks Panel */}
+      {showBookmarks && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowBookmarks(false)} />
+          <BookmarksPanel
+            messages={messages}
+            bookmarkedIds={bookmarkedIds}
+            onClose={() => setShowBookmarks(false)}
+            onJumpToMessage={jumpToMessage}
+          />
+        </>
+      )}
 
       {/* User Profile Modal */}
       {showUserProfile && (

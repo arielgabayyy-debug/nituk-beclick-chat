@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, X as XIcon } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
+import { VoiceMessage } from './voice-message'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -18,6 +19,8 @@ interface ChatMessageProps {
   onReply?: (message: ChatMessageType) => void
   onEdit?: (messageId: string, newContent: string) => void
   searchQuery?: string
+  isBookmarked?: boolean
+  onToggleBookmark?: (messageId: string) => void
 }
 
 function getInitials(name: string): string {
@@ -102,7 +105,13 @@ function CodeBlock({ code }: { code: string }) {
   )
 }
 
-function renderMessageContent(content: string, searchQuery?: string): React.ReactNode {
+function renderMessageContent(content: string, searchQuery?: string, isOwn?: boolean): React.ReactNode {
+  // Detect voice messages
+  const voiceMatch = content.match(/^\[voice:(https?:\/\/[^\]]+):(\d+)\]$/)
+  if (voiceMatch) {
+    return <VoiceMessage url={voiceMatch[1]} duration={parseInt(voiceMatch[2])} isOwn={!!isOwn} />
+  }
+
   // Handle triple backtick code blocks first
   const codeBlockRegex = /```([\s\S]*?)```/g
   const segments: { type: 'code' | 'inline' | 'text'; value: string }[] = []
@@ -253,7 +262,9 @@ export function ChatMessageComponent({
   onUserClick,
   onReply,
   onEdit,
-  searchQuery
+  searchQuery,
+  isBookmarked,
+  onToggleBookmark,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -267,6 +278,7 @@ export function ChatMessageComponent({
   const isAdmin = currentUser?.user_type === 'admin'
   const user = message.user as ChatUser | undefined
   const groupedReactions = groupReactions(message.reactions || [])
+  const isMentioned = !isOwn && currentUser && message.content.includes(`@${currentUser.name}`)
 
   const isEdited = message.updated_at && message.updated_at !== message.created_at
 
@@ -307,7 +319,8 @@ export function ChatMessageComponent({
       className={cn(
         "flex gap-3 group relative px-1 py-0.5 rounded-2xl transition-all message-enter",
         isOwn && "flex-row-reverse",
-        message.is_pinned && "bg-amber-500/5 rounded-xl p-2 -mx-2 border border-amber-500/20"
+        message.is_pinned && "bg-amber-500/5 rounded-xl p-2 -mx-2 border border-amber-500/20",
+        isMentioned && "bg-cyan-500/5 rounded-xl px-2 py-1 -mx-2 border border-cyan-400/30"
       )}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowReactions(false) }}
@@ -316,6 +329,12 @@ export function ChatMessageComponent({
       {message.is_pinned && (
         <div className="absolute -top-1 right-2 bg-amber-500 text-amber-950 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
           <Pin className="w-3 h-3" /> נעוץ
+        </div>
+      )}
+      {/* Mention indicator */}
+      {isMentioned && (
+        <div className="absolute -top-1 left-2 bg-cyan-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+          @ אוזכרת
         </div>
       )}
 
@@ -413,7 +432,7 @@ export function ChatMessageComponent({
               </div>
             </div>
           ) : (
-            renderMessageContent(message.content, searchQuery)
+            renderMessageContent(message.content, searchQuery, isOwn)
           )}
 
           {/* Copy button on hover */}
@@ -496,6 +515,18 @@ export function ChatMessageComponent({
             title="השב להודעה"
           >
             <Reply className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+
+          {/* Bookmark */}
+          <button
+            className={cn(
+              "w-7 h-7 flex items-center justify-center rounded-full transition-all",
+              isBookmarked ? "bg-amber-100 dark:bg-amber-900/30" : "hover:bg-muted"
+            )}
+            onClick={() => onToggleBookmark?.(message.id)}
+            title={isBookmarked ? "הסר מסימניות" : "שמור הודעה"}
+          >
+            <Bookmark className={cn("w-3.5 h-3.5 transition-colors", isBookmarked ? "text-amber-500 fill-amber-500" : "text-muted-foreground")} />
           </button>
 
           {/* Edit (own messages only) */}
