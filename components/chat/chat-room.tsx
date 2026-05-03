@@ -77,6 +77,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [soundVolume, setSoundVolume] = useState(0.3)
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const [showAnnouncement, setShowAnnouncement] = useState(false)
   const [announcementText, setAnnouncementText] = useState('')
   const [showCreatePoll, setShowCreatePoll] = useState(false)
@@ -95,6 +97,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
+  const [milestoneToast, setMilestoneToast] = useState<string | null>(null)
   const [forwardedContent, setForwardedContent] = useState<string | null>(null)
   const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
   const prevMessagesLengthRef = useRef(messages.length)
@@ -140,7 +143,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       if (lastMessage && lastMessage.user_id !== currentUser.id) {
         const isMention = lastMessage.content.includes(`@${currentUser.name}`)
         const audio = new Audio('/notification.mp3')
-        audio.volume = isMention ? 0.7 : 0.3
+        audio.volume = isMention ? Math.min(soundVolume * 2, 1) : soundVolume
         // Speed up for mention (higher pitch feel)
         if (isMention && 'playbackRate' in audio) audio.playbackRate = 1.5
         audio.play().catch(() => {})
@@ -148,6 +151,26 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     }
     prevMessagesLengthRef.current = messages.length
   }, [messages, currentUser.id, currentUser.name, soundEnabled])
+
+  // Milestone celebrations
+  useEffect(() => {
+    const total = messages.length
+    const milestones: Record<number, string> = {
+      100: '🎉 100 הודעות בקהילה!',
+      500: '🚀 500 הודעות — קהילה פעילה!',
+      1000: '🏆 1,000 הודעות! מדהים!',
+      5000: '🌟 5,000 הודעות — אגדה!',
+    }
+    if (milestones[total]) {
+      const seenKey = `milestone_${total}`
+      if (!localStorage.getItem(seenKey)) {
+        localStorage.setItem(seenKey, '1')
+        setMilestoneToast(milestones[total])
+        setShowConfetti(true)
+        setTimeout(() => setMilestoneToast(null), 6000)
+      }
+    }
+  }, [messages.length])
 
   // Update browser tab title with unread count
   useEffect(() => {
@@ -292,6 +315,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
       <OfflineIndicator />
       <AchievementToast user={currentUser} achievements={userAchievements} />
+      {milestoneToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] animate-in slide-in-from-top-4 duration-500">
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl px-6 py-4 shadow-2xl font-bold text-base">
+            {milestoneToast}
+          </div>
+        </div>
+      )}
       {/* Header */}
       <ChatHeader
         currentUser={currentUser}
@@ -527,15 +557,29 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Input area */}
           <div className="border-t border-border/30 p-4 bg-card/30 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                title={soundEnabled ? "השתק צלילים" : "הפעל צלילים"}
-              >
-                {soundEnabled ? <Volume2 className="w-4 h-4 text-muted-foreground" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
-              </Button>
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => soundEnabled ? setShowVolumeSlider(v => !v) : setSoundEnabled(true)}
+                  onContextMenu={e => { e.preventDefault(); setSoundEnabled(!soundEnabled) }}
+                  title={soundEnabled ? `עוצמת קול: ${Math.round(soundVolume * 100)}% (לחץ ימני להשתקה)` : 'לחץ להפעלת צלילים'}
+                >
+                  {soundEnabled ? <Volume2 className="w-4 h-4 text-muted-foreground" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+                </Button>
+                {showVolumeSlider && soundEnabled && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-muted border border-border/50 rounded-xl p-3 shadow-xl z-20 w-32 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <p className="text-[10px] text-muted-foreground mb-2 text-center">עוצמת קול {Math.round(soundVolume * 100)}%</p>
+                    <input
+                      type="range" min="0" max="1" step="0.05"
+                      value={soundVolume}
+                      onChange={e => setSoundVolume(parseFloat(e.target.value))}
+                      className="w-full accent-primary cursor-pointer"
+                    />
+                  </div>
+                )}
+              </div>
 
               {/* Bookmarks */}
               <Button

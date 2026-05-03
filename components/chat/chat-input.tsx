@@ -511,6 +511,7 @@ export function ChatInput({
             onKeyDown={handleKeyDown}
             onBlur={() => onTypingStop?.()}
             onPaste={handlePaste}
+            dir={/^[֐-׿יִ-ﭏ\s\d!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(message.slice(0, 3)) ? 'rtl' : message.length > 2 ? 'ltr' : 'auto'}
             placeholder={replyTo ? `השב ל-${replyTo.user?.name}...` : placeholder}
             disabled={disabled}
             rows={1}
