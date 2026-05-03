@@ -39,6 +39,15 @@ const DEFAULT_TEMPLATES = [
   'מישהו יכול לעזור? יש לי שאלה על ',
   'שמעתם על המבצע של ? שווה לבדוק!',
   'תודה לכולם על העזרה! 🙏',
+  'מעבר ספק - שמעתם על ?',
+  'חידוש חוזה - קיבלתם הנחה? 📱',
+]
+
+export const SPEED_DIAL_MESSAGES = [
+  { label: '👋', text: '👋 שלום לכולם!' },
+  { label: '🔥', text: '🔥 מצאתי עסקה!' },
+  { label: '❓', text: '❓ מישהו יודע...' },
+  { label: '🙏', text: '🙏 תודה!' },
 ]
 
 const SLASH_COMMANDS = [
@@ -446,6 +455,22 @@ export function ChatInput({
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Speed dial - quick messages when input is empty */}
+      {!message && !replyTo && (
+        <div className="flex items-center gap-1 mb-1.5 overflow-x-auto">
+          {SPEED_DIAL_MESSAGES.map(({ label, text }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setMessage(text)}
+              className="shrink-0 text-xs bg-muted/40 hover:bg-muted border border-border/20 rounded-full px-2.5 py-1 transition whitespace-nowrap"
+            >
+              {text}
+            </button>
+          ))}
         </div>
       )}
 

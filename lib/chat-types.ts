@@ -239,7 +239,7 @@ export const AVATAR_COLORS = [
   '#84cc16', // lime
 ]
 
-export const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉']
+export const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉', '💡', '🙏', '✅', '💰', '⭐', '🤔', '👎', '😍']
 
 export const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 

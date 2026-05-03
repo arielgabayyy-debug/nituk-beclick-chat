@@ -27,6 +27,7 @@ import { CommunityFAQ } from './community-faq'
 import { TrendingKeywords } from './trending-keywords'
 import { CommunityChallenge } from './community-challenge'
 import { trackMessageActivity } from './streak-calendar'
+import { AnnouncementBar } from './announcement-bar'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
@@ -556,6 +557,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               </div>
             </div>
           )}
+
+          {/* Pinned announcement bar */}
+          <AnnouncementBar isAdmin={currentUser.user_type === 'admin'} />
 
           {/* Community rules card */}
           <ChatRulesCard />
