@@ -67,7 +67,7 @@ function UserHoverCard({ user, onOpenProfile, onClose, onDM }: HoverCardProps) {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold truncate">{user.name}</p>
-          <UserBadge userType={user.user_type} joinedAt={user.created_at} />
+          <UserBadge userType={user.user_type} joinedAt={user.created_at} userId={user.id} />
         </div>
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
@@ -684,7 +684,7 @@ export function ChatMessageComponent({
           >
             {user?.name || 'משתמש'}
           </button>
-          {user && <UserBadge userType={user.user_type} joinedAt={user.created_at} />}
+          {user && <UserBadge userType={user.user_type} joinedAt={user.created_at} userId={user.id} />}
           {user && user.level > 1 && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gradient-to-r from-amber-400/20 to-orange-400/20 text-amber-600 dark:text-amber-400 rounded-full border border-amber-400/20">
               Lv.{user.level}

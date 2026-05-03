@@ -10,6 +10,8 @@ import { UserStatusEditor, useUserStatus } from './user-status'
 import { AvatarPicker } from './avatar-picker'
 import { InviteModal } from './invite-modal'
 import { ChatThemePicker, useChatTheme } from './chat-theme'
+import { WhatsNew } from './whats-new'
+import { ConnectionStatus } from './connection-status'
 import type { ChatUser } from '@/lib/chat-types'
 
 interface ChatHeaderProps {
@@ -113,6 +115,9 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
 
           {/* Right controls */}
           <div className="flex items-center gap-1">
+            {/* Connection status */}
+            <ConnectionStatus />
+
             {/* Online count */}
             <div className="hidden sm:flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full ml-2">
               <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full pulse-online" />
@@ -157,6 +162,9 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
                 <LayoutDashboard className="w-4 h-4" />
               </a>
             )}
+
+            {/* What's new */}
+            <WhatsNew />
 
             {/* Status */}
             {currentUser && (

@@ -10,6 +10,7 @@ interface UserBadgeProps {
   size?: 'sm' | 'md'
   showIcon?: boolean
   joinedAt?: string
+  userId?: string
 }
 
 const USER_TYPE_ICONS: Record<UserType, React.ReactNode> = {
@@ -26,8 +27,14 @@ function isNewUser(joinedAt?: string): boolean {
   return days <= 7
 }
 
-export function UserBadge({ userType, size = 'sm', showIcon = true, joinedAt }: UserBadgeProps) {
+function hasGoldenBadge(userId?: string): boolean {
+  if (!userId || typeof window === 'undefined') return false
+  try { return !!localStorage.getItem(`golden_badge_${userId}`) } catch { return false }
+}
+
+export function UserBadge({ userType, size = 'sm', showIcon = true, joinedAt, userId }: UserBadgeProps) {
   const isNew = isNewUser(joinedAt)
+  const golden = hasGoldenBadge(userId)
   return (
     <span className="inline-flex items-center gap-1">
       <span
@@ -40,6 +47,11 @@ export function UserBadge({ userType, size = 'sm', showIcon = true, joinedAt }: 
         {showIcon && USER_TYPE_ICONS[userType]}
         {USER_TYPE_LABELS[userType]}
       </span>
+      {golden && (
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-amber-900" title="תג זהב VIP">
+          👑 VIP
+        </span>
+      )}
       {isNew && (
         <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 text-white">
           <Sparkles className="w-2 h-2" />
