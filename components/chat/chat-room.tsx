@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download } from 'lucide-react'
+import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -20,6 +20,7 @@ import { Confetti } from './confetti'
 import { useBookmarks, BookmarksPanel } from './message-bookmarks'
 import { OfflineIndicator } from './offline-indicator'
 import { ChatStats } from './chat-stats'
+import { ChatRulesCard } from './chat-rules'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
@@ -80,6 +81,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResultIndex, setSearchResultIndex] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [unreadSinceScroll, setUnreadSinceScroll] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
@@ -338,24 +340,31 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={e => { setSearchQuery(e.target.value); setSearchResultIndex(0) }}
                   placeholder="חיפוש בהודעות..."
                   autoFocus
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
                 />
-                {searchQuery && (
-                  <>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {allItems.filter(i => i.type === 'message').length} תוצאות
-                    </span>
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
+                {searchQuery && (() => {
+                  const results = allItems.filter(i => i.type === 'message')
+                  const count = results.length
+                  const navigate = (delta: number) => {
+                    const nextIdx = ((searchResultIndex + delta) % count + count) % count
+                    setSearchResultIndex(nextIdx)
+                    const item = results[nextIdx]
+                    if (item && 'data' in item) jumpToMessage(item.data.id)
+                  }
+                  return (
+                    <>
+                      <span className="text-xs text-muted-foreground shrink-0">{searchResultIndex + 1}/{count}</span>
+                      <button onClick={() => navigate(-1)} className="p-0.5 hover:bg-muted rounded" title="תוצאה קודמת"><ArrowUp className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={() => navigate(1)} className="p-0.5 hover:bg-muted rounded" title="תוצאה הבאה"><ArrowDown className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={() => { setSearchQuery(''); setSearchResultIndex(0) }} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  )
+                })()}
               </div>
             </div>
           )}
@@ -378,6 +387,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               </div>
             </div>
           )}
+
+          {/* Community rules card */}
+          <ChatRulesCard />
 
           {/* Messages */}
           <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">

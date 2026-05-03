@@ -9,6 +9,7 @@ import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
 import { VoiceMessage } from './voice-message'
 import { LinkPreview } from './link-preview'
+import { ImageLightbox } from './image-lightbox'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -110,7 +111,7 @@ function CodeBlock({ code }: { code: string }) {
   )
 }
 
-function renderMessageContent(content: string, searchQuery?: string, isOwn?: boolean): React.ReactNode {
+function renderMessageContent(content: string, searchQuery?: string, isOwn?: boolean, onImageClick?: (src: string) => void): React.ReactNode {
   // Detect voice messages
   const voiceMatch = content.match(/^\[voice:(https?:\/\/[^\]]+):(\d+)\]$/)
   if (voiceMatch) {
@@ -250,15 +251,20 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
       })}
       {/* Inline image previews */}
       {imageUrls.map((imgUrl, i) => (
-        <a key={`img-${i}`} href={imgUrl} target="_blank" rel="noopener noreferrer">
+        <button
+          key={`img-${i}`}
+          type="button"
+          onClick={() => onImageClick ? onImageClick(imgUrl) : window.open(imgUrl, '_blank')}
+          className="block mt-2 rounded-xl overflow-hidden hover:opacity-90 transition-opacity cursor-zoom-in"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imgUrl}
             alt="תמונה מהצ׳אט"
-            className="mt-2 rounded-xl max-w-[300px] max-h-[300px] object-cover border border-border/40 shadow-sm hover:opacity-90 transition-opacity"
+            className="max-w-[300px] max-h-[300px] object-cover border border-border/40 shadow-sm"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
-        </a>
+        </button>
       ))}
       {/* Link preview for first non-image URL */}
       {previewUrl && <LinkPreview url={previewUrl} isOwn={!!isOwn} />}
@@ -356,6 +362,7 @@ export function ChatMessageComponent({
   const [editContent, setEditContent] = useState(message.content)
   const [showHoverCard, setShowHoverCard] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const hoverCardTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const COLLAPSE_THRESHOLD = 300 // chars
   const isLong = !message.content.startsWith('[voice:') && message.content.length > COLLAPSE_THRESHOLD
@@ -401,6 +408,7 @@ export function ChatMessageComponent({
   }
 
   return (
+    <>
     <div
       id={`message-${message.id}`}
       className={cn(
@@ -522,7 +530,7 @@ export function ChatMessageComponent({
             </div>
           ) : (
             <>
-              {renderMessageContent(displayContent, searchQuery, isOwn)}
+              {renderMessageContent(displayContent, searchQuery, isOwn, setLightboxSrc)}
               {isLong && (
                 <button
                   onClick={() => setExpanded(e => !e)}
@@ -698,5 +706,9 @@ export function ChatMessageComponent({
         </div>
       )}
     </div>
+    {lightboxSrc && (
+      <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+    )}
+  </>
   )
 }
