@@ -64,12 +64,15 @@ function UserHoverCard({ user, onOpenProfile, onClose }: HoverCardProps) {
           <UserBadge userType={user.user_type} joinedAt={user.created_at} />
         </div>
       </div>
-      <div className="flex gap-3 text-xs text-muted-foreground mb-2">
-        <span>⭐ {(user as ChatUser & { points?: number }).points ?? 0} נקודות</span>
-        <span>🏅 רמה {(user as ChatUser & { level?: number }).level ?? 1}</span>
+      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
+        <span>⭐ {(user as ChatUser & { points?: number }).points ?? 0}</span>
+        <span>🏅 Lv.{(user as ChatUser & { level?: number }).level ?? 1}</span>
         {(user as ChatUser & { messages_count?: number }).messages_count ? (
           <span>💬 {(user as ChatUser & { messages_count?: number }).messages_count}</span>
         ) : null}
+        {user.created_at && (
+          <span>📅 {Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))} ימים</span>
+        )}
       </div>
       {/* Status from localStorage */}
       {(() => {

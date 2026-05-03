@@ -89,6 +89,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchUserFilter, setSearchUserFilter] = useState('')
   const [searchResultIndex, setSearchResultIndex] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [unreadSinceScroll, setUnreadSinceScroll] = useState(0)
@@ -218,11 +219,10 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   ]
     .sort((a, b) => a.time - b.time)
     .filter(item => {
-      if (!searchQuery.trim()) return true
-      if (item.type === 'message') {
-        return item.data.content.toLowerCase().includes(searchQuery.toLowerCase())
-      }
-      return true
+      if (item.type !== 'message') return !searchQuery.trim()
+      const textMatch = !searchQuery.trim() || item.data.content.toLowerCase().includes(searchQuery.toLowerCase())
+      const userMatch = !searchUserFilter || (item.data.user?.name || '').toLowerCase().includes(searchUserFilter.toLowerCase())
+      return textMatch && userMatch
     })
 
   // Inject date separators between messages from different days
@@ -432,6 +432,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                   placeholder="חיפוש בהודעות..."
                   autoFocus
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+                />
+                {/* User filter */}
+                <input
+                  type="text"
+                  value={searchUserFilter}
+                  onChange={e => { setSearchUserFilter(e.target.value); setSearchResultIndex(0) }}
+                  placeholder="@משתמש..."
+                  className="w-20 bg-muted/40 rounded-lg px-2 py-0.5 text-xs focus:outline-none placeholder:text-muted-foreground"
                 />
                 {searchQuery && (() => {
                   const results = allItems.filter(i => i.type === 'message')

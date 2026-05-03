@@ -504,6 +504,34 @@ export function ChatInput({
         )}
 
         <div className="flex-1 relative">
+          {/* Formatting toolbar - shown when message has content */}
+          {message.length > 0 && (
+            <div className="absolute -top-8 right-0 flex items-center gap-0.5 bg-white dark:bg-muted border border-border/50 rounded-lg px-1 py-0.5 shadow-sm z-10">
+              {[
+                { label: 'B', wrap: '**', title: 'מודגש (Ctrl+B)' },
+                { label: 'I', wrap: '_', title: 'נטוי' },
+                { label: '`', wrap: '`', title: 'קוד' },
+              ].map(({ label, wrap, title }) => (
+                <button
+                  key={label}
+                  type="button"
+                  title={title}
+                  onClick={() => {
+                    const ta = textareaRef.current
+                    if (!ta) return
+                    const start = ta.selectionStart; const end = ta.selectionEnd
+                    const sel = message.slice(start, end)
+                    const newMsg = message.slice(0, start) + wrap + (sel || 'טקסט') + wrap + message.slice(end)
+                    setMessage(newMsg)
+                    setTimeout(() => { ta.focus(); const p = start + wrap.length; ta.setSelectionRange(p, p + (sel || 'טקסט').length) }, 0)
+                  }}
+                  className={`w-6 h-6 text-[11px] font-bold hover:bg-muted rounded flex items-center justify-center transition ${label === 'B' ? 'font-black' : label === 'I' ? 'italic' : 'font-mono'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             value={message}
