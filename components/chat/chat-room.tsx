@@ -55,6 +55,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     stopTyping,
     sendAnnouncement,
     banUser,
+    upvoteMessage,
     onlineCount
   } = useChat(currentUser)
 
@@ -461,6 +462,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           onBanUser={currentUser.user_type === 'admin' ? banUser : undefined}
                           isGrouped={isGrouped}
                           onDoubleClick={() => setReplyTo(item.data)}
+                          onUpvote={upvoteMessage}
+                          currentUserUpvoted={JSON.parse(typeof window !== 'undefined' ? localStorage.getItem(`upvoted_${currentUser.id}`) || '[]' : '[]').includes(item.data.id)}
                         />
                       </div>
                     )

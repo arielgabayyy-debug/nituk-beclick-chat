@@ -544,6 +544,36 @@ export function useChat(currentUser: ChatUser | null) {
   // Get pinned messages
   const pinnedMessages = messages.filter(m => m.is_pinned)
 
+  // Upvote/helpful a message
+  const upvoteMessage = useCallback(async (messageId: string) => {
+    if (!currentUser) return
+    const supabase = createClient()
+    // Check if already upvoted (stored locally)
+    const upvotedKey = `upvoted_${currentUser.id}`
+    const upvoted: string[] = JSON.parse(localStorage.getItem(upvotedKey) || '[]')
+    const already = upvoted.includes(messageId)
+
+    // Optimistically toggle local state
+    if (already) {
+      localStorage.setItem(upvotedKey, JSON.stringify(upvoted.filter(id => id !== messageId)))
+    } else {
+      localStorage.setItem(upvotedKey, JSON.stringify([...upvoted, messageId]))
+    }
+
+    // Update upvotes_count in DB — try RPC first, fallback to raw select+update
+    if (!already) {
+      try {
+        await supabase.rpc('increment_upvotes', { message_id: messageId })
+      } catch {
+        // RPC might not exist — get current count and increment
+        const { data } = await supabase.from('chat_messages').select('upvotes_count').eq('id', messageId).single()
+        if (data) {
+          await supabase.from('chat_messages').update({ upvotes_count: (data.upvotes_count || 0) + 1 }).eq('id', messageId)
+        }
+      }
+    }
+  }, [currentUser])
+
   // Quick ban user (admin only)
   const banUser = useCallback(async (userId: string, userName: string) => {
     if (currentUser?.user_type !== 'admin') return
@@ -579,6 +609,7 @@ export function useChat(currentUser: ChatUser | null) {
     stopTyping,
     sendAnnouncement,
     banUser,
+    upvoteMessage,
     onlineCount: onlineUsers.length
   }
 }
