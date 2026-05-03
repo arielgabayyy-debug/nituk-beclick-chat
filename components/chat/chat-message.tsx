@@ -71,9 +71,11 @@ function UserHoverCard({ user, onOpenProfile, onClose }: HoverCardProps) {
         {(user as ChatUser & { messages_count?: number }).messages_count ? (
           <span>💬 {(user as ChatUser & { messages_count?: number }).messages_count}</span>
         ) : null}
-        {user.created_at && (
-          <span>📅 {Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))} ימים</span>
-        )}
+        {user.created_at && (() => {
+          const days = Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))
+          const label = days >= 365 ? `${Math.floor(days / 365)} שנה` : days >= 30 ? `${Math.floor(days / 30)} חודשים` : `${days} ימים`
+          return <span>📅 {label}</span>
+        })()}
       </div>
       {/* Status from localStorage */}
       {(() => {

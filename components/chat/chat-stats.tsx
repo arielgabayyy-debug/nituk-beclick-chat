@@ -10,6 +10,8 @@ interface ChatStatsProps {
 }
 
 export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
+  const PROVIDERS = ['פרטנר', 'סלקום', 'פלאפון', 'הוט מובייל', 'גולן טלקום', 'רמי לוי', '019']
+
   const stats = useMemo(() => {
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
@@ -35,12 +37,20 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
     })
     const topUser = Object.values(userCounts).sort((a, b) => b.count - a.count)[0]
 
+    // Most mentioned provider this week
+    const providerCounts: Record<string, number> = {}
+    weekMsgs.forEach(m => {
+      PROVIDERS.forEach(p => { if (m.content.includes(p)) providerCounts[p] = (providerCounts[p] || 0) + 1 })
+    })
+    const topProvider = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0]
+
     return {
       todayCount: todayMsgs.length,
       weekCount: weekMsgs.length,
       peakHour: peakHour ? `${peakHour[0]}:00` : null,
       topUser,
       uniqueUsersToday: new Set(todayMsgs.map(m => m.user_id)).size,
+      topProvider: topProvider ? { name: topProvider[0], count: topProvider[1] } : null,
     }
   }, [messages])
 
@@ -121,6 +131,17 @@ export function ChatStats({ messages, onlineUsers }: ChatStatsProps) {
           </div>
         )
       })()}
+
+      {stats.topProvider && (
+        <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-xl px-3 py-2 flex items-center gap-2">
+          <span className="text-base">📡</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-muted-foreground">הספק הנדון השבוע</p>
+            <p className="text-sm font-semibold truncate">{stats.topProvider.name}</p>
+          </div>
+          <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400">{stats.topProvider.count}×</span>
+        </div>
+      )}
 
       {stats.topUser && (
         <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl px-3 py-2 flex items-center gap-2">

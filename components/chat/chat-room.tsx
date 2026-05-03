@@ -462,6 +462,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 >
                   @אני
                 </button>
+                {/* My messages filter */}
+                <button
+                  onClick={() => setSearchUserFilter(f => f === currentUser.name ? '' : currentUser.name)}
+                  className={cn("text-xs px-2 py-0.5 rounded-full transition shrink-0 font-medium", searchUserFilter === currentUser.name ? "bg-primary text-white" : "bg-muted/60 text-muted-foreground hover:bg-muted")}
+                  title="הצג רק ההודעות שלי"
+                >
+                  שלי
+                </button>
                 {/* User filter */}
                 <input
                   type="text"
