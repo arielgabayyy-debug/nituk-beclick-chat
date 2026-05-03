@@ -8,6 +8,7 @@ import { ChatRoom } from '@/components/chat/chat-room'
 import { useChatUser } from '@/hooks/use-chat'
 import { createClient } from '@/lib/supabase/client'
 import type { UserType } from '@/lib/chat-types'
+import type { ChatUser } from '@/lib/chat-types'
 
 type Screen = 'landing' | 'login' | 'admin' | 'chat'
 type LoginMode = 'guest' | 'subscriber' | 'newsletter'
@@ -17,14 +18,84 @@ export default function ChatApp() {
   const [loginMode, setLoginMode] = useState<LoginMode>('guest')
   const [adminClickCount, setAdminClickCount] = useState(0)
   const [onlineCount, setOnlineCount] = useState(0)
+  const [oauthUser, setOauthUser] = useState<ChatUser | null>(null)
   const { currentUser, isLoading, registerUser, loginAdmin, logout } = useChatUser()
 
-  // Check if user is already logged in
+  // Check if user is already logged in (regular)
   useEffect(() => {
     if (currentUser) {
       setScreen('chat')
     }
   }, [currentUser])
+
+  // Handle OAuth callback (?oauth=success)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('oauth') === 'success') {
+      // Remove query param from URL
+      window.history.replaceState({}, '', '/')
+      handleOAuthLogin()
+    }
+  }, [])
+
+  const handleOAuthLogin = async () => {
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session?.user) return
+
+    const authUser = session.user
+    const email = authUser.email
+    const name = authUser.user_metadata?.full_name ||
+                 authUser.user_metadata?.name ||
+                 email?.split('@')[0] || 'משתמש'
+    const avatarUrl = authUser.user_metadata?.avatar_url ||
+                      authUser.user_metadata?.picture || null
+
+    if (!email) return
+
+    // Find or create user in chat_users
+    const { data: existingUser } = await supabase
+      .from('chat_users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (existingUser) {
+      // Update online status and avatar
+      await supabase.from('chat_users')
+        .update({
+          is_online: true,
+          avatar_url: avatarUrl,
+          last_seen: new Date().toISOString()
+        })
+        .eq('id', existingUser.id)
+
+      localStorage.setItem('chat_user_id', existingUser.id)
+      setOauthUser({ ...existingUser, is_online: true, avatar_url: avatarUrl })
+      setScreen('chat')
+    } else {
+      // Create new user from OAuth data
+      const { data: newUser } = await supabase
+        .from('chat_users')
+        .insert({
+          name,
+          email,
+          user_type: 'subscriber',
+          avatar_color: '#06b6d4',
+          avatar_url: avatarUrl,
+          is_online: true,
+        })
+        .select()
+        .single()
+
+      if (newUser) {
+        localStorage.setItem('chat_user_id', newUser.id)
+        setOauthUser(newUser)
+        setScreen('chat')
+      }
+    }
+  }
 
   // Fetch online count for landing page
   useEffect(() => {
@@ -34,7 +105,6 @@ export default function ChatApp() {
         .from('chat_users')
         .select('*', { count: 'exact', head: true })
         .eq('is_online', true)
-      
       setOnlineCount(count || 0)
     }
 
@@ -47,25 +117,22 @@ export default function ChatApp() {
   const handleAdminClick = () => {
     const newCount = adminClickCount + 1
     setAdminClickCount(newCount)
-    
+
     if (newCount >= 5) {
       setScreen('admin')
       setAdminClickCount(0)
     }
 
-    // Reset after 3 seconds of no clicks
     setTimeout(() => {
       setAdminClickCount(prev => prev === newCount ? 0 : prev)
     }, 3000)
   }
 
-  // Handle mode selection from landing
   const handleSelectMode = (mode: LoginMode) => {
     setLoginMode(mode)
     setScreen('login')
   }
 
-  // Handle login form submission
   const handleLogin = async (name: string, email: string | null, userType: UserType, avatarColor: string) => {
     const user = await registerUser(name, email, userType, avatarColor)
     if (user) {
@@ -73,22 +140,24 @@ export default function ChatApp() {
     }
   }
 
-  // Handle admin login (new secure API)
   const handleAdminLoginNew = async (name: string, email: string, color: string, userType: string) => {
-    // Register user as admin directly since API already verified
     const user = await registerUser(name, email, userType as UserType, color)
     if (user) {
       setScreen('chat')
     }
   }
 
-  // Handle logout
   const handleLogout = async () => {
+    // Sign out from Supabase Auth (OAuth)
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setOauthUser(null)
     await logout()
     setScreen('landing')
   }
 
-  // Render based on current screen
+  const activeUser = oauthUser || currentUser
+
   if (screen === 'landing') {
     return (
       <LandingScreen
@@ -118,10 +187,10 @@ export default function ChatApp() {
     )
   }
 
-  if (screen === 'chat' && currentUser) {
+  if (screen === 'chat' && activeUser) {
     return (
       <ChatRoom
-        currentUser={currentUser}
+        currentUser={activeUser}
         onLogout={handleLogout}
         onAdminClick={handleAdminClick}
         adminClickCount={adminClickCount}
@@ -129,7 +198,6 @@ export default function ChatApp() {
     )
   }
 
-  // Loading state
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
