@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown } from 'lucide-react'
+import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -21,6 +21,8 @@ import { useBookmarks, BookmarksPanel } from './message-bookmarks'
 import { OfflineIndicator } from './offline-indicator'
 import { ChatStats } from './chat-stats'
 import { ChatRulesCard } from './chat-rules'
+import { AchievementToast } from './achievement-toast'
+import { MessageSkeleton } from './message-skeleton'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
@@ -253,6 +255,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       <WelcomeToast user={currentUser} />
       <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
       <OfflineIndicator />
+      <AchievementToast user={currentUser} achievements={userAchievements} />
       {/* Header */}
       <ChatHeader
         currentUser={currentUser}
@@ -395,12 +398,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 chat-scrollbar">
             {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="flex flex-col items-center gap-4">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                  <p className="text-muted-foreground">טוען הודעות...</p>
-                </div>
-              </div>
+              <MessageSkeleton />
             ) : error ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">

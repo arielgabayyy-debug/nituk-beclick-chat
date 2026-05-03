@@ -498,14 +498,25 @@ export function ChatInput({
             placeholder={replyTo ? `השב ל-${replyTo.user?.name}...` : placeholder}
             disabled={disabled}
             rows={1}
+            maxLength={1000}
             className={cn(
               "w-full resize-none rounded-2xl px-4 py-3 text-sm",
               "bg-white border-2 border-border/50 shadow-sm",
               "focus:outline-none focus:border-primary/50",
               "placeholder:text-muted-foreground transition-all",
-              disabled && "opacity-50 cursor-not-allowed"
+              disabled && "opacity-50 cursor-not-allowed",
+              message.length > 800 && "border-orange-300 focus:border-orange-400"
             )}
           />
+          {/* Character counter */}
+          {message.length > 200 && (
+            <span className={cn(
+              "absolute bottom-2 left-3 text-[10px] font-mono transition-colors",
+              message.length > 800 ? "text-red-500" : message.length > 500 ? "text-orange-500" : "text-muted-foreground"
+            )}>
+              {message.length}/1000
+            </span>
+          )}
         </div>
 
         {slowModeRemaining > 0 ? (
