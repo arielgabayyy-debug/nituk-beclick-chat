@@ -1,6 +1,6 @@
 "use client"
 
-import { Users, ChevronDown, ChevronUp, Crown, Star, Mail, User } from 'lucide-react'
+import { Users, ChevronDown, ChevronUp, Crown, Star, Mail, User, Search } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
@@ -44,7 +44,10 @@ function sortUsers(users: ChatUser[]): ChatUser[] {
 
 export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersProps) {
   const [isExpanded, setIsExpanded] = useState(true)
-  const sortedUsers = sortUsers(users)
+  const [searchQuery, setSearchQuery] = useState('')
+  const sortedUsers = sortUsers(users).filter(u =>
+    !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   // Count by type
   const counts = {
@@ -114,6 +117,22 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
             </div>
           )}
         </div>
+
+        {/* User search */}
+        {users.length > 5 && (
+          <div className="px-3 pb-2">
+            <div className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-1.5">
+              <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="חפש משתמש..."
+                className="flex-1 bg-transparent text-xs focus:outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+          </div>
+        )}
 
         {/* User list */}
         <div className="px-3 pb-3 space-y-1 chat-scrollbar overflow-y-auto max-h-80">
