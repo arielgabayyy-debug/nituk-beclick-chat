@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Users, LogOut, Search, Moon, Sun, Smile } from 'lucide-react'
+import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
@@ -118,6 +118,13 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleDarkMode} title={isDark ? 'מצב בהיר' : 'מצב כהה'} aria-label={isDark ? 'עבור למצב בהיר' : 'עבור למצב כהה'}>
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
+
+            {/* Admin dashboard link */}
+            {currentUser?.user_type === 'admin' && (
+              <a href="/admin" className="h-9 w-9 flex items-center justify-center hover:bg-muted rounded-lg transition text-muted-foreground hover:text-primary" title="פתח דשבורד ניהול">
+                <LayoutDashboard className="w-4 h-4" />
+              </a>
+            )}
 
             {/* Status */}
             {currentUser && (

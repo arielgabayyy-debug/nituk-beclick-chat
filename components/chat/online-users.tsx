@@ -185,8 +185,11 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <UserBadge userType={user.user_type} joinedAt={user.created_at} />
+                    {user.messages_count > 0 && (
+                      <span className="text-[9px] text-muted-foreground">💬 {user.messages_count}</span>
+                    )}
                   </div>
                 </div>
 
