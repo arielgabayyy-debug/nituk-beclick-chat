@@ -8,6 +8,20 @@ import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
 import { VoiceRecorder } from './voice-recorder'
 
+// Smart emoji suggestions based on message keywords
+const SMART_EMOJI_TRIGGERS: { keywords: string[]; emoji: string }[] = [
+  { keywords: ['תודה', 'תנקיו', 'thank'], emoji: '🙏' },
+  { keywords: ['מבצע', 'עסקה', 'חינם', 'deal', 'sale'], emoji: '🔥' },
+  { keywords: ['שאלה', 'מישהו יודע', 'מישהו יכול', 'עזרה'], emoji: '❓' },
+  { keywords: ['כל הכבוד', 'מדהים', 'נהדר', 'super', 'excellent'], emoji: '⭐' },
+  { keywords: ['צחקתי', 'מצחיק', 'הaha', 'lol', 'funny'], emoji: '😂' },
+  { keywords: ['אהבתי', 'אוהב', 'love', 'heart'], emoji: '❤️' },
+  { keywords: ['כסף', 'מחיר', 'עלות', 'זול', 'price', 'money'], emoji: '💰' },
+  { keywords: ['מזל טוב', 'congratulations', 'ברכות'], emoji: '🎉' },
+  { keywords: ['נרשמתי', 'הצטרפתי', 'חדש', 'new'], emoji: '🆕' },
+  { keywords: ['מחשבה', 'חושב', 'think', 'idea'], emoji: '💡' },
+]
+
 // Emoji shortcode map
 const EMOJI_MAP: Record<string, string> = {
   fire: '🔥', heart: '❤️', thumbsup: '+1', thumbs_up: '👍', laugh: '😂', cry: '😢',
@@ -86,6 +100,7 @@ export function ChatInput({
   const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0)
   const [slashHints, setSlashHints] = useState<typeof SLASH_COMMANDS>([])
   const [showTemplates, setShowTemplates] = useState(false)
+  const [smartEmojis, setSmartEmojis] = useState<string[]>([])
   const [templates, setTemplates] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null') || DEFAULT_TEMPLATES } catch { return DEFAULT_TEMPLATES }
   })
@@ -356,6 +371,18 @@ export function ChatInput({
     } else {
       setSlashHints([])
     }
+
+    // Smart emoji suggestions
+    if (val.length > 3) {
+      const lowerVal = val.toLowerCase()
+      const suggested = SMART_EMOJI_TRIGGERS
+        .filter(({ keywords }) => keywords.some(kw => lowerVal.includes(kw)))
+        .map(({ emoji }) => emoji)
+        .slice(0, 4)
+      setSmartEmojis(suggested)
+    } else {
+      setSmartEmojis([])
+    }
   }, [onTypingStart, onTypingStop, onlineUsers])
 
   const addEmoji = (emoji: string) => {
@@ -419,6 +446,23 @@ export function ChatInput({
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Smart emoji suggestions */}
+      {smartEmojis.length > 0 && !showEmojis && (
+        <div className="flex items-center gap-1 mb-1.5 animate-in fade-in duration-200">
+          <span className="text-[10px] text-muted-foreground">הוסף:</span>
+          {smartEmojis.map(emoji => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => addEmoji(emoji)}
+              className="text-lg hover:scale-125 transition-transform"
+            >
+              {emoji}
+            </button>
+          ))}
         </div>
       )}
 
