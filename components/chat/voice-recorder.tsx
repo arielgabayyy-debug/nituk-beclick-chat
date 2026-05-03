@@ -27,38 +27,61 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   const streamRef = useRef<MediaStream | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
 
+  const getSupportedMimeType = (): string => {
+    // iOS Safari supports audio/mp4, Chrome/Android supports audio/webm
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', '']
+    for (const type of candidates) {
+      if (!type) return '' // empty = browser default
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) return type
+    }
+    return ''
+  }
+
   const startRecording = async () => {
+    // Check API availability
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert('הדפדפן שלך אינו תומך בהקלטה. נסה Chrome או Safari עדכני.')
+      return
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
       // Set up AudioContext analyser for real waveform
-      const ctx = new AudioContext()
-      audioCtxRef.current = ctx
-      const source = ctx.createMediaStreamSource(stream)
-      const analyser = ctx.createAnalyser()
-      analyser.fftSize = 64
-      source.connect(analyser)
-      analyserRef.current = analyser
+      const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (AudioCtx) {
+        const ctx = new AudioCtx()
+        audioCtxRef.current = ctx
+        const source = ctx.createMediaStreamSource(stream)
+        const analyser = ctx.createAnalyser()
+        analyser.fftSize = 64
+        source.connect(analyser)
+        analyserRef.current = analyser
 
-      const drawBars = () => {
-        const data = new Uint8Array(analyser.frequencyBinCount)
-        analyser.getByteFrequencyData(data)
-        const newBars = Array.from({ length: BAR_COUNT }, (_, i) => {
-          const idx = Math.floor(i * data.length / BAR_COUNT)
-          return Math.max(3, Math.round((data[idx] / 255) * 28))
-        })
-        setBars(newBars)
-        animFrameRef.current = requestAnimationFrame(drawBars)
+        const drawBars = () => {
+          const data = new Uint8Array(analyser.frequencyBinCount)
+          analyser.getByteFrequencyData(data)
+          const newBars = Array.from({ length: BAR_COUNT }, (_, i) => {
+            const idx = Math.floor(i * data.length / BAR_COUNT)
+            return Math.max(3, Math.round((data[idx] / 255) * 28))
+          })
+          setBars(newBars)
+          animFrameRef.current = requestAnimationFrame(drawBars)
+        }
+        drawBars()
       }
-      drawBars()
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      const mimeType = getSupportedMimeType()
+      const recorderOptions = mimeType ? { mimeType } : {}
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions)
+      const actualMime = mediaRecorder.mimeType || 'audio/webm'
+
       mediaRef.current = mediaRecorder
       chunksRef.current = []
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const blob = new Blob(chunksRef.current, { type: actualMime })
         setAudioBlob(blob)
         setAudioUrl(URL.createObjectURL(blob))
         stream.getTracks().forEach(t => t.stop())
@@ -72,8 +95,17 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
       setDuration(0)
       startTimeRef.current = Date.now()
       timerRef.current = setInterval(() => setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000)), 200)
-    } catch {
-      alert('לא ניתן לגשת למיקרופון')
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        alert('אנא אשר גישה למיקרופון בהגדרות הדפדפן שלך ונסה שוב.')
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        alert('לא נמצא מיקרופון במכשיר זה.')
+      } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+        alert('המיקרופון תפוס על ידי אפליקציה אחרת. סגור אותה ונסה שוב.')
+      } else {
+        alert('לא ניתן לגשת למיקרופון. ודא שהאתר קיבל הרשאה ונסה שוב.')
+      }
     }
   }
 
