@@ -74,13 +74,23 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
 
   // ── Main entry point (called synchronously from onClick) ────────────────
   const handleMicClick = () => {
-    // iOS or iframe → go DIRECTLY to native file picker (sync, from user gesture)
-    if (isIOS() || isInIframe()) {
+    const ios = isIOS()
+    const iframe = isInIframe()
+
+    if (iframe && !ios) {
+      // Desktop inside iframe → mic blocked by browser policy.
+      // Open the chat standalone in a new tab where mic works freely.
+      window.open('https://nituk-beclick-chat.vercel.app', '_blank', 'noopener')
+      return
+    }
+
+    if (ios) {
+      // iOS (iframe or standalone) → native file picker (sync, user-gesture safe)
       openNativeFilePicker()
       return
     }
 
-    // Desktop / Android → getUserMedia flow
+    // Desktop standalone → getUserMedia flow
     startGetUserMedia()
   }
 
