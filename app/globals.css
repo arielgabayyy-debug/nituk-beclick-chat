@@ -737,3 +737,129 @@ body.bg-theme-israel {
   background: linear-gradient(90deg, oklch(0.18 0.01 270) 25%, oklch(0.22 0.01 270) 50%, oklch(0.18 0.01 270) 75%);
   background-size: 200% 100%;
 }
+
+/* ── Chat bubble tails ─────────────────────────────────────────────────── */
+.bubble-tail-own::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  right: -6px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-top: 7px solid oklch(0.55 0.18 195);
+}
+.bubble-tail-other::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  left: -6px;
+  width: 0;
+  height: 0;
+  border-right: 7px solid transparent;
+  border-top: 7px solid white;
+}
+.dark .bubble-tail-other::after {
+  border-top-color: oklch(0.18 0.01 270);
+}
+
+/* ── Button micro-interactions ─────────────────────────────────────────── */
+.btn-bounce:active { transform: scale(0.94); }
+.btn-press:active { transform: scale(0.96); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+
+/* ── Unread badge pulse ─────────────────────────────────────────────────── */
+@keyframes badge-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+.badge-pulse { animation: badge-pulse 1.5s ease-out infinite; }
+
+/* ── Typing indicator dots ─────────────────────────────────────────────── */
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: oklch(0.6 0.02 270);
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* ── Modal backdrop blur ────────────────────────────────────────────────── */
+.modal-backdrop {
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ── Confetti particle ──────────────────────────────────────────────────── */
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.confetti-particle {
+  position: fixed;
+  pointer-events: none;
+  animation: confetti-fall linear forwards;
+}
+
+/* ── Gradient border card ───────────────────────────────────────────────── */
+.gradient-card {
+  background: white;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+.gradient-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, oklch(0.6 0.18 195 / 0.4), oklch(0.55 0.2 290 / 0.4));
+  z-index: -1;
+}
+.dark .gradient-card { background: oklch(0.12 0.01 270); }
+
+/* ── Smooth toast entrance ──────────────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+}
+.toast-enter { animation: toast-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.toast-exit { animation: toast-out 0.2s ease-in forwards; }
+
+/* ── Ripple effect for buttons ──────────────────────────────────────────── */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.btn-ripple:active::after {
+  opacity: 1;
+  transition: opacity 0s;
+}
+
+/* ── Scrollbar improvements ─────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.8 0.02 270) transparent;
+}
+*::-webkit-scrollbar { width: 5px; height: 5px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: oklch(0.8 0.02 270); border-radius: 99px; }
+*::-webkit-scrollbar-thumb:hover { background: oklch(0.7 0.02 270); }
+.dark * { scrollbar-color: oklch(0.3 0.01 270) transparent; }
+.dark *::-webkit-scrollbar-thumb { background: oklch(0.3 0.01 270); }
+.dark *::-webkit-scrollbar-thumb:hover { background: oklch(0.4 0.01 270); }
