@@ -410,7 +410,7 @@ export function useCommunity(currentUser: ChatUser | null) {
     try {
       const { data: userData } = await supabase
         .from('chat_users')
-        .select('points, level')
+        .select('points, level, weekly_points')
         .eq('id', currentUser.id)
         .single()
 

@@ -26,9 +26,12 @@ export default function ChatApp() {
   useEffect(() => {
     const supabase = createClient()
 
-    // Listen for auth state changes - works for OAuth redirects on mobile
+    // Listen for auth state changes - works for OAuth redirects on mobile.
+    // Skip email/magic-link logins — those are handled by LoginForm directly.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
+        const provider = session.user.app_metadata?.provider
+        if (provider === 'email') return // handled by LoginForm's onAuthStateChange
         setLoadingMessage('מתחבר עם הפרופיל שלך...')
         await syncOAuthUser(session.user)
       }

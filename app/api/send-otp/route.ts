@@ -5,6 +5,8 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://nituk-beclick-chat.vercel.app'
+
 export async function POST(request: Request) {
   try {
     const { email } = await request.json()
@@ -16,22 +18,23 @@ export async function POST(request: Request) {
     const supabase = await createClient()
     const normalizedEmail = email.toLowerCase().trim()
 
-    // Use Supabase Auth built-in OTP — no external email service needed.
-    // Supabase sends a 6-digit code to the user's email automatically.
+    // Send magic link via Supabase Auth (built-in email, no external service needed).
+    // When user clicks the link, they are redirected to our app and the session
+    // is established — detected automatically via onAuthStateChange in the client.
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
       options: {
         shouldCreateUser: true,
+        emailRedirectTo: `${BASE_URL}/?auth_callback=1`,
       },
     })
 
     if (error) {
       console.error('Supabase OTP error:', error.message)
 
-      // Rate-limit message from Supabase
-      if (error.message.includes('rate') || error.status === 429) {
+      if (error.message.toLowerCase().includes('rate')) {
         return NextResponse.json(
-          { error: 'נא להמתין לפני שליחה חוזרת' },
+          { error: 'נשלח לאחרונה. המתן מספר דקות לפני שליחה חוזרת.' },
           { status: 429 }
         )
       }
