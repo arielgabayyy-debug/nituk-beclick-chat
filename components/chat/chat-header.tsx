@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette } from 'lucide-react'
+import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette, ChevronDown, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
@@ -180,11 +180,48 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
               </Button>
             )}
 
-            {/* Logout */}
+            {/* User avatar dropdown */}
             {currentUser && (
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={onLogout} title="יציאה" aria-label="יציאה מהצ'אט">
-                <LogOut className="w-4 h-4" />
-              </Button>
+              <div className="relative group">
+                <button
+                  className="flex items-center gap-2 p-1 rounded-xl hover:bg-muted transition"
+                  title={`${currentUser.name} — לחץ לאפשרויות`}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow ring-2 ring-primary/30"
+                    style={{ backgroundColor: currentUser.avatar_color }}
+                  >
+                    {currentUser.avatar_url
+                      ? <img src={currentUser.avatar_url} alt={currentUser.name} className="w-full h-full rounded-full object-cover" />
+                      : currentUser.name.charAt(0).toUpperCase()
+                    }
+                  </div>
+                  <ChevronDown className="w-3 h-3 text-muted-foreground hidden sm:block" />
+                </button>
+
+                {/* Dropdown */}
+                <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-900 border border-border/60 rounded-xl shadow-xl z-50 overflow-hidden opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 animate-in fade-in zoom-in-95">
+                  <div className="px-3 py-2.5 border-b border-border/30 bg-muted/20">
+                    <p className="text-sm font-semibold truncate">{currentUser.name}</p>
+                    <p className="text-xs text-muted-foreground">{currentUser.points.toLocaleString()} נקודות · רמה {currentUser.level}</p>
+                  </div>
+                  <button onClick={() => setShowStatusEditor(true)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition text-right">
+                    <Smile className="w-4 h-4 text-muted-foreground" /> עדכן סטטוס
+                  </button>
+                  <button onClick={() => setShowThemePicker(true)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition text-right">
+                    <Palette className="w-4 h-4 text-muted-foreground" /> ערכת נושא
+                  </button>
+                  {currentUser.user_type === 'admin' && (
+                    <a href="/admin" className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition">
+                      <LayoutDashboard className="w-4 h-4 text-muted-foreground" /> דשבורד ניהול
+                    </a>
+                  )}
+                  <div className="border-t border-border/30" />
+                  <button onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-950/30 text-destructive transition text-right">
+                    <LogOut className="w-4 h-4" /> יציאה
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

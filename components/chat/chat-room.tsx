@@ -39,6 +39,7 @@ import { OnboardingChecklist } from './onboarding-checklist'
 import { PWAInstallBanner } from './pwa-install'
 import { MessageThread } from './message-thread'
 import { AdminTemplates } from './admin-templates'
+import { SuccessStoriesFeed } from './success-stories-feed'
 import { DirectMessages } from './direct-messages'
 import { Pinboard } from './pinboard'
 import { ChatRulesCard } from './chat-rules'
@@ -524,6 +525,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Activity feed */}
           <ActivityFeed messages={messages} onlineUsers={onlineUsers} />
+
+          {/* Success stories */}
+          <SuccessStoriesFeed messages={messages} onShareStory={handleSendMessage} />
 
           {/* My personal stats */}
           <MyStats messages={messages} currentUser={currentUser} />
