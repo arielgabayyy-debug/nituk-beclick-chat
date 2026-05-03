@@ -701,7 +701,10 @@ export function ChatMessageComponent({
           <button
             onClick={handleAvatarClick}
             onMouseLeave={handleAvatarMouseLeave}
-            className="text-sm font-semibold hover:text-primary transition-colors"
+            className={cn(
+              "text-sm font-semibold hover:text-primary transition-colors",
+              user && typeof window !== 'undefined' && localStorage.getItem(`shop_purchased_${user.id}`)?.includes('rainbow_name') ? 'rainbow-name' : ''
+            )}
           >
             {user?.name || 'משתמש'}
           </button>
@@ -831,7 +834,13 @@ export function ChatMessageComponent({
               return (
                 <button
                   key={emoji}
-                  onClick={() => onReact?.(message.id, emoji)}
+                  onClick={(e) => {
+                    onReact?.(message.id, emoji)
+                    const el = e.currentTarget
+                    el.classList.remove('reaction-pop')
+                    void el.offsetWidth
+                    el.classList.add('reaction-pop')
+                  }}
                   title={reacters}
                   className={cn(
                     "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all",

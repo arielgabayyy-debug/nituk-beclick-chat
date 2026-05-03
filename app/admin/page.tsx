@@ -135,6 +135,7 @@ export default function AdminDashboard() {
   const [isSending, setIsSending] = useState(false)
   const [sendResult, setSendResult] = useState<string | null>(null)
   const [searchUser, setSearchUser] = useState('')
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set())
   const [searchMessage, setSearchMessage] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -812,10 +813,43 @@ export default function AdminDashboard() {
                   <span className="text-sm text-gray-500">{filteredUsers.length} משתמשים</span>
                 </div>
 
+                {/* Bulk action bar */}
+                {selectedUserIds.size > 0 && (
+                  <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 animate-in slide-in-from-top-2 duration-200">
+                    <span className="text-sm font-medium text-purple-700">{selectedUserIds.size} נבחרו</span>
+                    <div className="flex gap-2 mr-auto">
+                      {(['subscriber', 'newsletter', 'guest', 'blocked'] as const).map(type => (
+                        <button
+                          key={type}
+                          onClick={async () => {
+                            for (const uid of selectedUserIds) {
+                              await supabase.from('chat_users').update({ user_type: type }).eq('id', uid)
+                            }
+                            setSelectedUserIds(new Set())
+                            window.location.reload()
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition ${userTypeColor[type]} hover:opacity-80`}
+                        >
+                          {userTypeLabel[type]}
+                        </button>
+                      ))}
+                      <button onClick={() => setSelectedUserIds(new Set())} className="text-xs text-gray-400 hover:text-gray-600 px-2">ביטול</button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr>
+                        <th className="px-4 py-3 w-8">
+                          <input
+                            type="checkbox"
+                            className="accent-purple-600"
+                            checked={selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0}
+                            onChange={e => setSelectedUserIds(e.target.checked ? new Set(filteredUsers.map(u => u.id)) : new Set())}
+                          />
+                        </th>
                         <th className="text-right px-4 py-3 font-medium text-gray-600">שם</th>
                         <th className="text-right px-4 py-3 font-medium text-gray-600">אימייל</th>
                         <th className="text-right px-4 py-3 font-medium text-gray-600">סוג</th>
@@ -827,7 +861,19 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {filteredUsers.map(user => (
-                        <tr key={user.id} className="border-b last:border-0 hover:bg-gray-50 transition">
+                        <tr key={user.id} className={`border-b last:border-0 hover:bg-gray-50 transition ${selectedUserIds.has(user.id) ? 'bg-purple-50' : ''}`}>
+                          <td className="px-4 py-3 w-8">
+                            <input
+                              type="checkbox"
+                              className="accent-purple-600"
+                              checked={selectedUserIds.has(user.id)}
+                              onChange={e => setSelectedUserIds(prev => {
+                                const next = new Set(prev)
+                                e.target.checked ? next.add(user.id) : next.delete(user.id)
+                                return next
+                              })}
+                            />
+                          </td>
                           <td className="px-4 py-3 font-medium">{user.name}</td>
                           <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">{user.email || '-'}</td>
                           <td className="px-4 py-3">

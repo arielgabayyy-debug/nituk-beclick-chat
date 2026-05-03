@@ -32,6 +32,7 @@ import { AdvancedSearch } from './advanced-search'
 import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messages'
 import { ActivityFeed } from './activity-feed'
 import { UserOfWeekWidget } from './user-of-week'
+import { MyStats } from './my-stats'
 import { DirectMessages } from './direct-messages'
 import { Pinboard } from './pinboard'
 import { ChatRulesCard } from './chat-rules'
@@ -509,6 +510,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Activity feed */}
           <ActivityFeed messages={messages} onlineUsers={onlineUsers} />
+
+          {/* My personal stats */}
+          <MyStats messages={messages} currentUser={currentUser} />
 
           {/* User of the week voting */}
           <UserOfWeekWidget
