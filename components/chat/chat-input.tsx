@@ -235,6 +235,20 @@ export function ChatInput({
       }
     }
 
+    // Ctrl+B → bold, Ctrl+I → italic, Ctrl+` → code
+    if ((e.ctrlKey || e.metaKey) && ['b', 'i'].includes(e.key.toLowerCase())) {
+      e.preventDefault()
+      const ta = textareaRef.current
+      if (!ta) return
+      const wrap = e.key.toLowerCase() === 'b' ? '**' : '_'
+      const start = ta.selectionStart; const end = ta.selectionEnd
+      const sel = message.slice(start, end) || 'טקסט'
+      const newMsg = message.slice(0, start) + wrap + sel + wrap + message.slice(end)
+      setMessage(newMsg)
+      setTimeout(() => { ta.focus(); ta.setSelectionRange(start + wrap.length, start + wrap.length + sel.length) }, 0)
+      return
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit(e)

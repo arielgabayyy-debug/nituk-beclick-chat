@@ -11,6 +11,7 @@ import { VoiceMessage } from './voice-message'
 import { LinkPreview } from './link-preview'
 import { ImageLightbox } from './image-lightbox'
 import { YoutubeEmbed, isYoutubeUrl } from './youtube-embed'
+import { ReportDialog } from './report-dialog'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -416,6 +417,7 @@ export function ChatMessageComponent({
   const [showHoverCard, setShowHoverCard] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [showReportDialog, setShowReportDialog] = useState(false)
   const [swipeOffset, setSwipeOffset] = useState(0)
   const [heartBurst, setHeartBurst] = useState(false)
   const hoverCardTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -467,7 +469,7 @@ export function ChatMessageComponent({
   }
 
   const handleReport = () => {
-    alert('הודעה דווחה למנהל')
+    setShowReportDialog(true)
   }
 
   const handleSaveEdit = () => {
@@ -854,6 +856,19 @@ export function ChatMessageComponent({
     </div>
     {lightboxSrc && (
       <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+    )}
+    {showReportDialog && (
+      <ReportDialog
+        messageContent={message.content}
+        userName={user?.name || 'משתמש'}
+        onSubmit={(reason) => {
+          // Store report in localStorage for now; admin can view later
+          const reports = JSON.parse(localStorage.getItem('reported_messages') || '[]')
+          reports.push({ messageId: message.id, reason, time: new Date().toISOString() })
+          localStorage.setItem('reported_messages', JSON.stringify(reports.slice(-50)))
+        }}
+        onClose={() => setShowReportDialog(false)}
+      />
     )}
   </>
   )
