@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Users, MessageCircle, TrendingUp, Mail, Send, Trash2,
-  Crown, Shield, Ban, RefreshCw, BarChart3, Bell,
-  CheckCircle, XCircle, Star, Award, LogOut, Eye,
-  UserPlus, Pin, Download, Sparkles
+  Crown, Shield, Ban, RefreshCw, BarChart3,
+  CheckCircle, XCircle, Star, Award, LogOut,
+  UserPlus, Pin, Download, Sparkles, ShieldOff, Search
 } from 'lucide-react'
 import { formatTimeAgo } from '@/lib/chat-types'
 
@@ -52,9 +52,10 @@ const userTypeColor: Record<string, string> = {
   subscriber: 'bg-blue-100 text-blue-700',
   newsletter: 'bg-amber-100 text-amber-700',
   guest: 'bg-gray-100 text-gray-600',
+  blocked: 'bg-red-100 text-red-700',
 }
 const userTypeLabel: Record<string, string> = {
-  admin: 'מנהל', subscriber: 'מנוי', newsletter: 'ניוזלטר', guest: 'אורח'
+  admin: 'מנהל', subscriber: 'מנוי', newsletter: 'ניוזלטר', guest: 'אורח', blocked: '🚫 חסום'
 }
 
 export default function AdminDashboard() {
@@ -68,6 +69,7 @@ export default function AdminDashboard() {
   const [isSending, setIsSending] = useState(false)
   const [sendResult, setSendResult] = useState<string | null>(null)
   const [searchUser, setSearchUser] = useState('')
+  const [searchMessage, setSearchMessage] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -199,6 +201,18 @@ export default function AdminDashboard() {
     fetchStats()
   }
 
+  const blockUser = async (id: string) => {
+    await supabase.from('chat_users').update({ user_type: 'blocked', is_online: false }).eq('id', id)
+    fetchUsers()
+    fetchStats()
+  }
+
+  const unblockUser = async (id: string) => {
+    await supabase.from('chat_users').update({ user_type: 'guest' }).eq('id', id)
+    fetchUsers()
+    fetchStats()
+  }
+
   const deleteUser = async (id: string) => {
     if (!confirm('למחוק משתמש זה?')) return
     await supabase.from('chat_users').delete().eq('id', id)
@@ -252,7 +266,10 @@ export default function AdminDashboard() {
   )
 
   // All non-guest registered users sorted by date
-  const registrations = users.filter(u => u.user_type !== 'guest' && u.user_type !== 'admin')
+  const registrations = users.filter(u => u.user_type !== 'guest' && u.user_type !== 'admin' && u.user_type !== 'blocked')
+  const filteredMessages = messages.filter(m =>
+    !searchMessage || m.content.includes(searchMessage) || m.user?.name?.includes(searchMessage)
+  )
 
   if (!isAuthenticated) {
     return (
@@ -616,23 +633,32 @@ export default function AdminDashboard() {
                           <td className="px-4 py-3 text-xs text-gray-400">{formatTimeAgo(user.created_at)}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              {user.user_type !== 'admin' && user.user_type !== 'subscriber' && (
+                              {user.user_type !== 'admin' && user.user_type !== 'subscriber' && user.user_type !== 'blocked' && (
                                 <button onClick={() => promoteUser(user.id, 'subscriber')}
-                                  title="הפוך למנוי"
-                                  className="p-1.5 hover:bg-blue-50 rounded-lg transition text-blue-600">
+                                  title="הפוך למנוי" className="p-1.5 hover:bg-blue-50 rounded-lg transition text-blue-600">
                                   <Crown className="w-4 h-4" />
                                 </button>
                               )}
+                              {user.user_type === 'blocked' ? (
+                                <button onClick={() => unblockUser(user.id)}
+                                  title="בטל חסימה" className="p-1.5 hover:bg-emerald-50 rounded-lg transition text-emerald-600">
+                                  <ShieldOff className="w-4 h-4" />
+                                </button>
+                              ) : user.user_type !== 'admin' && (
+                                <button onClick={() => blockUser(user.id)}
+                                  title="חסום משתמש" className="p-1.5 hover:bg-orange-50 rounded-lg transition text-orange-500">
+                                  <Ban className="w-4 h-4" />
+                                </button>
+                              )}
                               {user.email && (
-                                <a href={`mailto:${user.email}`}
+                                <a href={`mailto:${user.email}`} title="שלח מייל"
                                   className="p-1.5 hover:bg-gray-100 rounded-lg transition text-gray-500">
                                   <Mail className="w-4 h-4" />
                                 </a>
                               )}
                               <button onClick={() => deleteUser(user.id)}
-                                title="מחק"
-                                className="p-1.5 hover:bg-red-50 rounded-lg transition text-red-500">
-                                <Ban className="w-4 h-4" />
+                                title="מחק לצמיתות" className="p-1.5 hover:bg-red-50 rounded-lg transition text-red-500">
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -647,14 +673,23 @@ export default function AdminDashboard() {
             {/* ── MESSAGES TAB ─────────────────────────────────────────── */}
             {activeTab === 'messages' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-bold text-gray-900">הודעות אחרונות ({messages.length})</h2>
-                  <button onClick={fetchMessages} className="text-sm text-purple-600 hover:underline flex items-center gap-1">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      value={searchMessage}
+                      onChange={e => setSearchMessage(e.target.value)}
+                      placeholder="חיפוש בהודעות..."
+                      className="w-full border rounded-xl pr-10 pl-4 py-2.5 text-right focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm"
+                    />
+                  </div>
+                  <span className="text-sm text-gray-500 shrink-0">{filteredMessages.length} הודעות</span>
+                  <button onClick={fetchMessages} className="text-sm text-purple-600 hover:underline flex items-center gap-1 shrink-0">
                     <RefreshCw className="w-4 h-4" /> רענן
                   </button>
                 </div>
                 <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                  {messages.map(msg => (
+                  {filteredMessages.map(msg => (
                     <div key={msg.id} className="flex items-start gap-3 px-4 py-3 border-b last:border-0 hover:bg-gray-50">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -665,7 +700,15 @@ export default function AdminDashboard() {
                           {msg.is_pinned && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📌 נעוץ</span>}
                           <span className="text-xs text-gray-400">{formatTimeAgo(msg.created_at)}</span>
                         </div>
-                        <p className="text-sm text-gray-700 line-clamp-2">{msg.content}</p>
+                        <p className="text-sm text-gray-700 line-clamp-2">
+                          {searchMessage
+                            ? msg.content.split(new RegExp(`(${searchMessage})`, 'gi')).map((part, i) =>
+                                part.toLowerCase() === searchMessage.toLowerCase()
+                                  ? <mark key={i} className="bg-yellow-200 rounded px-0.5">{part}</mark>
+                                  : part
+                              )
+                            : msg.content}
+                        </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => pinMessage(msg.id, msg.is_pinned)}

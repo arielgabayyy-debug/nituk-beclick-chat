@@ -95,6 +95,10 @@ export function useChat(currentUser: ChatUser | null) {
   // Send message
   const sendMessage = useCallback(async (content: string) => {
     if (!currentUser || !content.trim()) return
+    if (currentUser.user_type === 'blocked') {
+      setError('החשבון שלך חסום. צור קשר עם המנהל.')
+      return
+    }
 
     try {
       const { error } = await supabase

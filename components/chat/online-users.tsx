@@ -36,7 +36,8 @@ function sortUsers(users: ChatUser[]): ChatUser[] {
     admin: 0,
     subscriber: 1,
     newsletter: 2,
-    guest: 3
+    guest: 3,
+    blocked: 99
   }
   return [...users].sort((a, b) => order[a.user_type] - order[b.user_type])
 }

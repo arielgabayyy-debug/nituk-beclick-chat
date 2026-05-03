@@ -1,4 +1,4 @@
-export type UserType = 'guest' | 'subscriber' | 'newsletter' | 'admin'
+export type UserType = 'guest' | 'subscriber' | 'newsletter' | 'admin' | 'blocked'
 
 export interface ChatUser {
   id: string
@@ -204,14 +204,16 @@ export const USER_TYPE_LABELS: Record<UserType, string> = {
   guest: 'אורח',
   subscriber: 'מנוי',
   newsletter: 'ניוזלטר',
-  admin: 'מנהל'
+  admin: 'מנהל',
+  blocked: 'חסום'
 }
 
 export const USER_TYPE_COLORS: Record<UserType, string> = {
   guest: 'bg-muted text-muted-foreground',
   subscriber: 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white',
   newsletter: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
-  admin: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+  admin: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white',
+  blocked: 'bg-red-100 text-red-600'
 }
 
 export const PROVIDER_LIST = [

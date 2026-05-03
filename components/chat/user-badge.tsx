@@ -15,7 +15,8 @@ const USER_TYPE_ICONS: Record<UserType, React.ReactNode> = {
   guest: <User className="w-3 h-3" />,
   subscriber: <Crown className="w-3 h-3" />,
   newsletter: <Mail className="w-3 h-3" />,
-  admin: <Shield className="w-3 h-3" />
+  admin: <Shield className="w-3 h-3" />,
+  blocked: <Shield className="w-3 h-3" />
 }
 
 export function UserBadge({ userType, size = 'sm', showIcon = true }: UserBadgeProps) {

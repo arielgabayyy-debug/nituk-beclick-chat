@@ -24,7 +24,9 @@
       "mcp__Claude_in_Chrome__javascript_tool",
       "Bash(curl -s https://ltwyduffgrbenghdzbji.supabase.co/auth/v1/settings -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NTMxODQsImV4cCI6MjA5MzMyOTE4NH0.1ITr4gIrO5WeuT0swJB28fKQq_2wnwFn-GYiWIWF2Kg')",
       "Bash(npx vercel *)",
-      "mcp__Claude_in_Chrome__form_input"
+      "mcp__Claude_in_Chrome__form_input",
+      "Bash(curl -s 'https://ltwyduffgrbenghdzbji.supabase.co/rest/v1/chat_users?select=*&limit=1' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0d3lkdWZmZ3JiZW5naGR6YmppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc1MzE4NCwiZXhwIjoyMDkzMzI5MTg0fQ.sjePfOvAGM59bA1kgYrBMpAcGfwG1ADFnzbwDFq4Ibk')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d[0].keys\\(\\)\\) if d else 'empty'\\)\")"
     ]
   }
 }
