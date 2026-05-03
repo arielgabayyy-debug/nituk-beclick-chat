@@ -9,6 +9,7 @@ import {
   formatNumber, USER_TYPE_LABELS 
 } from '@/lib/chat-types'
 import { UserBadge } from './user-badge'
+import { StreakCalendar } from './streak-calendar'
 
 interface UserProfileProps {
   user: ChatUser
@@ -218,6 +219,9 @@ export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, 
           </div>
           <span className="font-bold text-purple-400">{formatNumber(user.weekly_points)}</span>
         </div>
+
+        {/* Streak calendar - only for self */}
+        {isCurrentUser && <StreakCalendar userId={user.id} />}
 
         {/* Recent messages */}
         {recentMessages && recentMessages.length > 0 && (

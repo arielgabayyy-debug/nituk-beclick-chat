@@ -26,6 +26,7 @@ import { QuickDeal } from './quick-deal'
 import { CommunityFAQ } from './community-faq'
 import { TrendingKeywords } from './trending-keywords'
 import { CommunityChallenge } from './community-challenge'
+import { trackMessageActivity } from './streak-calendar'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
 import { ImageGallery } from './image-gallery'
@@ -180,6 +181,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     }
   }, [permission])
 
+  // Achievement confetti
+  useEffect(() => {
+    const handler = () => setShowConfetti(true)
+    window.addEventListener('achievement_unlocked', handler)
+    return () => window.removeEventListener('achievement_unlocked', handler)
+  }, [])
+
   // Milestone celebrations
   useEffect(() => {
     const total = messages.length
@@ -295,6 +303,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       localStorage.setItem(key, '1')
       setShowConfetti(true)
     }
+    trackMessageActivity(currentUser.id)
     sendMessage(content)
   }
 

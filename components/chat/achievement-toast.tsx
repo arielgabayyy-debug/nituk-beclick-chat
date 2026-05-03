@@ -36,6 +36,10 @@ export function AchievementToast({ user, achievements }: AchievementToastProps) 
   useEffect(() => {
     if (current) {
       const t = setTimeout(() => setCurrent(null), 5000)
+      // Trigger confetti via event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('achievement_unlocked'))
+      }
       return () => clearTimeout(t)
     }
   }, [current])
