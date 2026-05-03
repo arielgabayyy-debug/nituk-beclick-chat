@@ -12,7 +12,8 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-    const ext = file.type.includes('webm') ? 'webm' : file.type.includes('ogg') ? 'ogg' : 'mp4'
+    const t = file.type
+    const ext = t.includes('webm') ? 'webm' : t.includes('ogg') ? 'ogg' : t.includes('mp4') || t.includes('m4a') ? 'mp4' : t.includes('video') ? 'webm' : 'mp4'
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const bytes = await file.arrayBuffer()
     const { error } = await supabase.storage.from('chat-audio').upload(path, bytes, {

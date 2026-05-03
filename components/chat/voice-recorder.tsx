@@ -75,25 +75,15 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   // ── Main entry point (called synchronously from onClick) ────────────────
   const handleMicClick = () => {
     const ios = isIOS()
-    const iframe = isInIframe()
-
-    if (iframe && !ios) {
-      // Desktop inside iframe → mic blocked by browser policy.
-      // Open the chat standalone in a new tab where mic works freely.
-      const win = window.open('https://nituk-beclick-chat.vercel.app', '_blank', 'noopener,noreferrer')
-      if (!win) {
-        alert('אנא אפשר חלונות קופצים בדפדפן שלך, ואז לחץ שוב על המיקרופון.')
-      }
-      return
-    }
 
     if (ios) {
-      // iOS (iframe or standalone) → native file picker (sync, user-gesture safe)
+      // iOS → native file picker (sync, user-gesture safe)
       openNativeFilePicker()
       return
     }
 
-    // Desktop standalone → getUserMedia flow
+    // Desktop (iframe or standalone) → getUserMedia flow
+    // iframe has allow="microphone" so getUserMedia works directly
     startGetUserMedia()
   }
 
@@ -261,10 +251,6 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     )
   }
 
-  // Detect iframe at render time (for badge + tooltip)
-  const inIframe = typeof window !== 'undefined' && isInIframe()
-  const desktopIframe = inIframe && !isIOS()
-
   // ── Idle ──────────────────────────────────────────────────────────────
   return (
     <>
@@ -276,29 +262,19 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
         className="hidden"
         onChange={handleNativeFile}
       />
-      <div className="relative group/mic">
-        <button
-          type="button"
-          onClick={handleMicClick}
-          disabled={disabled}
-          className={cn(
-            "p-2.5 rounded-xl transition-all hover:bg-red-50 hover:text-red-500 text-muted-foreground",
-            disabled && "opacity-50"
-          )}
-          title={desktopIframe ? "לחץ לפתיחת הצ'אט בחלון חדש עם מיקרופון" : "הקלט הודעה קולית"}
-          aria-label="הקלט הודעה קולית"
-        >
-          <Mic className="w-5 h-5" />
-          {desktopIframe && (
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-background" />
-          )}
-        </button>
-        {desktopIframe && (
-          <div className="absolute bottom-full mb-2 right-0 w-48 bg-gray-900 text-white text-xs rounded-xl px-3 py-2 opacity-0 group-hover/mic:opacity-100 transition-opacity pointer-events-none z-50 text-right leading-relaxed shadow-xl">
-            🎙️ לחץ לפתיחה בחלון חדש — שם ההקלטה עובדת מלאה
-          </div>
+      <button
+        type="button"
+        onClick={handleMicClick}
+        disabled={disabled}
+        className={cn(
+          "p-2.5 rounded-xl transition-all hover:bg-red-50 hover:text-red-500 text-muted-foreground",
+          disabled && "opacity-50"
         )}
-      </div>
+        title="הקלט הודעה קולית"
+        aria-label="הקלט הודעה קולית"
+      >
+        <Mic className="w-5 h-5" />
+      </button>
     </>
   )
 }
