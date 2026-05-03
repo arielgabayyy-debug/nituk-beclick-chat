@@ -26,47 +26,51 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   const animFrameRef = useRef<number | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const getSupportedMimeType = (): string => {
-    // iOS Safari supports audio/mp4, Chrome/Android supports audio/webm
     const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', '']
     for (const type of candidates) {
-      if (!type) return '' // empty = browser default
+      if (!type) return ''
       if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) return type
     }
     return ''
   }
 
-  const startRecording = async () => {
-    // Check API availability
-    if (!navigator.mediaDevices?.getUserMedia) {
-      alert('הדפדפן שלך אינו תומך בהקלטה. נסה Chrome או Safari עדכני.')
-      return
-    }
+  // ── Native file-input fallback (iOS iframe / permission denied) ──────────
+  const startNativeFallback = () => {
+    if (!fileInputRef.current) return
+    fileInputRef.current.value = ''
+    fileInputRef.current.click()
+  }
 
-    // If inside an iframe, try to check if mic permission may be blocked
-    const isInIframe = typeof window !== 'undefined' && window !== window.top
-    if (isInIframe) {
-      try {
-        // Try the permission query first; if denied/blocked in iframe, open in new tab
-        if (navigator.permissions) {
-          const result = await navigator.permissions.query({ name: 'microphone' as PermissionName })
-          if (result.state === 'denied') {
-            if (confirm('ההקלטה מוגבלת בתצוגה הנוכחית. לפתוח את הצ׳אט בחלון חדש?')) {
-              window.open('https://nituk-beclick-chat.vercel.app', '_blank')
-            }
-            return
-          }
-        }
-      } catch { /* permissions API not available — continue anyway */ }
+  const handleNativeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setAudioUrl(url)
+    setAudioBlob(file)
+    // Estimate duration from audio element
+    const audio = new Audio(url)
+    audio.onloadedmetadata = () => {
+      if (isFinite(audio.duration)) setDuration(Math.round(audio.duration))
+    }
+  }
+
+  // ── getUserMedia flow ───────────────────────────────────────────────────
+  const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      // No getUserMedia → go straight to native fallback (iOS in iframe)
+      startNativeFallback()
+      return
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
-      // Set up AudioContext analyser for real waveform
-      const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      const AudioCtx = window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (AudioCtx) {
         const ctx = new AudioCtx()
         audioCtxRef.current = ctx
@@ -79,19 +83,17 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
         const drawBars = () => {
           const data = new Uint8Array(analyser.frequencyBinCount)
           analyser.getByteFrequencyData(data)
-          const newBars = Array.from({ length: BAR_COUNT }, (_, i) => {
+          setBars(Array.from({ length: BAR_COUNT }, (_, i) => {
             const idx = Math.floor(i * data.length / BAR_COUNT)
             return Math.max(3, Math.round((data[idx] / 255) * 28))
-          })
-          setBars(newBars)
+          }))
           animFrameRef.current = requestAnimationFrame(drawBars)
         }
         drawBars()
       }
 
       const mimeType = getSupportedMimeType()
-      const recorderOptions = mimeType ? { mimeType } : {}
-      const mediaRecorder = new MediaRecorder(stream, recorderOptions)
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {})
       const actualMime = mediaRecorder.mimeType || 'audio/webm'
 
       mediaRef.current = mediaRecorder
@@ -111,17 +113,25 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
       setRecording(true)
       setDuration(0)
       startTimeRef.current = Date.now()
-      timerRef.current = setInterval(() => setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000)), 200)
+      timerRef.current = setInterval(
+        () => setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000)),
+        200
+      )
     } catch (err: unknown) {
       const name = err instanceof Error ? err.name : ''
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        alert('אנא אשר גישה למיקרופון בהגדרות הדפדפן שלך ונסה שוב.')
+      // Permission denied OR iframe restriction → fall back to native file picker
+      if (
+        name === 'NotAllowedError' || name === 'PermissionDeniedError' ||
+        name === 'SecurityError' || name === 'NotSupportedError'
+      ) {
+        startNativeFallback()
       } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
         alert('לא נמצא מיקרופון במכשיר זה.')
       } else if (name === 'NotReadableError' || name === 'TrackStartError') {
         alert('המיקרופון תפוס על ידי אפליקציה אחרת. סגור אותה ונסה שוב.')
       } else {
-        alert('לא ניתן לגשת למיקרופון. ודא שהאתר קיבל הרשאה ונסה שוב.')
+        // Unknown error — also try native fallback
+        startNativeFallback()
       }
     }
   }
@@ -150,15 +160,22 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     if (!audioBlob) return
     setUploading(true)
     try {
+      const ext = audioBlob.type.includes('mp4') ? 'mp4'
+        : audioBlob.type.includes('ogg') ? 'ogg'
+        : audioBlob.type.includes('webm') ? 'webm'
+        : 'm4a'
       const fd = new FormData()
-      fd.append('file', audioBlob, 'voice.webm')
+      fd.append('file', audioBlob, `voice.${ext}`)
       const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
       const data = await res.json()
-      if (!res.ok) { alert(data.error || 'שגיאה'); return }
+      if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }
       onSend(`[voice:${data.url}:${duration}]`, duration)
       setAudioBlob(null); setAudioUrl(null); setDuration(0)
-    } catch { alert('שגיאה בשליחה') }
-    finally { setUploading(false) }
+    } catch {
+      alert('שגיאה בשליחה, נסה שוב.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   useEffect(() => () => {
@@ -170,23 +187,27 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
-  // Preview mode
+  // ── Preview mode ──────────────────────────────────────────────────────
   if (audioUrl && !recording) {
     return (
       <div className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2 border border-border/50">
         <audio src={audioUrl} controls className="h-8 flex-1" style={{ minWidth: 160 }} />
-        <span className="text-xs text-muted-foreground">{fmt(duration)}</span>
-        <button onClick={sendVoice} disabled={uploading} className="p-1.5 bg-primary text-white rounded-full hover:bg-primary/90 transition">
+        {duration > 0 && <span className="text-xs text-muted-foreground shrink-0">{fmt(duration)}</span>}
+        <button
+          onClick={sendVoice}
+          disabled={uploading}
+          className="p-1.5 bg-primary text-white rounded-full hover:bg-primary/90 transition shrink-0"
+        >
           <Send className="w-3.5 h-3.5" />
         </button>
-        <button onClick={cancelRecording} className="p-1.5 hover:bg-muted rounded-full transition">
+        <button onClick={cancelRecording} className="p-1.5 hover:bg-muted rounded-full transition shrink-0">
           <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
     )
   }
 
-  // Recording mode
+  // ── Recording mode ────────────────────────────────────────────────────
   if (recording) {
     return (
       <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 rounded-xl px-3 py-2 border border-red-200 dark:border-red-800">
@@ -194,11 +215,7 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
         <span className="text-sm font-mono text-red-600 dark:text-red-400 min-w-[40px]">{fmt(duration)}</span>
         <div className="flex-1 flex items-end justify-center gap-0.5 h-8">
           {bars.map((h, i) => (
-            <div
-              key={i}
-              className="w-1 bg-red-400 rounded-full transition-all duration-75"
-              style={{ height: `${h}px` }}
-            />
+            <div key={i} className="w-1 bg-red-400 rounded-full transition-all duration-75" style={{ height: `${h}px` }} />
           ))}
         </div>
         <button onClick={stopRecording} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition">
@@ -211,16 +228,31 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     )
   }
 
+  // ── Idle — mic button ─────────────────────────────────────────────────
   return (
-    <button
-      type="button"
-      onClick={startRecording}
-      disabled={disabled}
-      className={cn("p-2.5 rounded-xl transition-all hover:bg-red-50 hover:text-red-500 text-muted-foreground", disabled && "opacity-50")}
-      title="לחץ להקלטת הודעה קולית"
-      aria-label="הקלט הודעה קולית"
-    >
-      <Mic className="w-5 h-5" />
-    </button>
+    <>
+      {/* Hidden native file input — fallback for iOS/iframe */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,audio/mp4,audio/m4a,video/mp4"
+        capture="user"
+        className="hidden"
+        onChange={handleNativeFile}
+      />
+      <button
+        type="button"
+        onClick={startRecording}
+        disabled={disabled}
+        className={cn(
+          "p-2.5 rounded-xl transition-all hover:bg-red-50 hover:text-red-500 text-muted-foreground",
+          disabled && "opacity-50"
+        )}
+        title="הקלט הודעה קולית"
+        aria-label="הקלט הודעה קולית"
+      >
+        <Mic className="w-5 h-5" />
+      </button>
+    </>
   )
 }
