@@ -19,6 +19,7 @@ import { WelcomeToast } from './welcome-toast'
 import { Confetti } from './confetti'
 import { useBookmarks, BookmarksPanel } from './message-bookmarks'
 import { OfflineIndicator } from './offline-indicator'
+import { ChatStats } from './chat-stats'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     startTyping,
     stopTyping,
     sendAnnouncement,
+    banUser,
     onlineCount
   } = useChat(currentUser)
 
@@ -305,6 +307,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Upcoming events */}
           <UpcomingEventsCard events={upcomingEvents} />
+
+          {/* Chat statistics */}
+          <ChatStats messages={messages} onlineUsers={onlineUsers} />
         </div>
 
         {/* Collapse toggle */}
@@ -430,6 +435,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           isBookmarked={isBookmarked(item.data.id)}
                           onToggleBookmark={toggleBookmark}
                           onForward={(content) => { setForwardedContent(content); scrollToBottom() }}
+                          onBanUser={currentUser.user_type === 'admin' ? banUser : undefined}
                         />
                       </div>
                     )

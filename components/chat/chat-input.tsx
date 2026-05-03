@@ -8,6 +8,29 @@ import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
 import { VoiceRecorder } from './voice-recorder'
 
+// Emoji shortcode map
+const EMOJI_MAP: Record<string, string> = {
+  fire: '🔥', heart: '❤️', thumbsup: '+1', thumbs_up: '👍', laugh: '😂', cry: '😢',
+  wow: '😮', party: '🎉', clap: '👏', star: '⭐', check: '✅', x: '❌',
+  rocket: '🚀', money: '💰', deal: '🛒', phone: '📱', sun: '☀️', moon: '🌙',
+  eyes: '👀', think: '🤔', idea: '💡', warning: '⚠️', lock: '🔒', key: '🔑',
+  crown: '👑', trophy: '🏆', muscle: '💪', ok: '👌', wave: '👋', pray: '🙏',
+  smile: '😊', joy: '😂', wink: '😉', cool: '😎', angel: '😇', devil: '😈',
+  shrug: '🤷', facepalm: '🤦', exploding_head: '🤯', zzz: '😴', sparkles: '✨',
+}
+
+const SLASH_COMMANDS = [
+  { cmd: '/shrug', desc: '¯\\_(ツ)_/¯' },
+  { cmd: '/flip', desc: 'הפוך שולחן' },
+  { cmd: '/unflip', desc: 'החזר שולחן' },
+  { cmd: '/lenny', desc: '( ͡° ͜ʖ ͡°)' },
+  { cmd: '/bear', desc: 'ʕ•ᴥ•ʔ' },
+  { cmd: '/hi', desc: 'ברכה לכולם' },
+  { cmd: '/deal', desc: 'הודעת עסקה' },
+  { cmd: '/thanks', desc: 'תודה לכולם' },
+  { cmd: '/help', desc: 'רשימת פקודות' },
+]
+
 interface MentionUser {
   id: string
   name: string
@@ -46,6 +69,10 @@ export function ChatInput({
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [slowModeRemaining, setSlowModeRemaining] = useState(0)
+  const [emojiQuery, setEmojiQuery] = useState<string | null>(null)
+  const [emojiResults, setEmojiResults] = useState<{ name: string; emoji: string }[]>([])
+  const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0)
+  const [slashHints, setSlashHints] = useState<typeof SLASH_COMMANDS>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -124,6 +151,24 @@ export function ChatInput({
     checkSlowMode()
   }
 
+  const selectEmoji = (name: string, emoji: string) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const cursorPos = textarea.selectionStart
+    const before = message.slice(0, cursorPos)
+    const after = message.slice(cursorPos)
+    const newBefore = before.replace(/:(\w+)$/, emoji + ' ')
+    setMessage(newBefore + after)
+    setEmojiQuery(null); setEmojiResults([])
+    setTimeout(() => { textarea.focus(); const p = newBefore.length; textarea.setSelectionRange(p, p) }, 0)
+  }
+
+  const selectSlashCommand = (cmd: string) => {
+    setMessage(cmd)
+    setSlashHints([])
+    setTimeout(() => textareaRef.current?.focus(), 0)
+  }
+
   const selectMention = (user: MentionUser) => {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -143,6 +188,14 @@ export function ChatInput({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Emoji shortcode navigation
+    if (emojiResults.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedEmojiIndex(i => Math.min(i + 1, emojiResults.length - 1)); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedEmojiIndex(i => Math.max(i - 1, 0)); return }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); const r = emojiResults[selectedEmojiIndex]; selectEmoji(r.name, r.emoji); return }
+      if (e.key === 'Escape') { setEmojiQuery(null); setEmojiResults([]); return }
+    }
+
     if (mentionResults.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -175,6 +228,17 @@ export function ChatInput({
     }
   }
 
+  const getEmojiQuery = (text: string, cursorPos: number): string | null => {
+    const before = text.slice(0, cursorPos)
+    const match = before.match(/:(\w+)$/)
+    return match ? match[1] : null
+  }
+
+  const getSlashQuery = (text: string): string | null => {
+    if (text.startsWith('/') && !text.includes(' ')) return text
+    return null
+  }
+
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setMessage(val)
@@ -183,6 +247,8 @@ export function ChatInput({
     typingTimeoutRef.current = setTimeout(() => onTypingStop?.(), 2000)
 
     const cursorPos = e.target.selectionStart
+
+    // Mention autocomplete
     const query = getMentionQuery(val, cursorPos)
     if (query !== null) {
       setMentionQuery(query)
@@ -194,6 +260,30 @@ export function ChatInput({
     } else {
       setMentionQuery(null)
       setMentionResults([])
+    }
+
+    // Emoji shortcode autocomplete
+    const eQuery = getEmojiQuery(val, cursorPos)
+    if (eQuery && eQuery.length >= 2) {
+      const matches = Object.entries(EMOJI_MAP)
+        .filter(([name]) => name.includes(eQuery.toLowerCase()))
+        .slice(0, 6)
+        .map(([name, emoji]) => ({ name, emoji }))
+      setEmojiQuery(eQuery)
+      setEmojiResults(matches)
+      setSelectedEmojiIndex(0)
+    } else {
+      setEmojiQuery(null)
+      setEmojiResults([])
+    }
+
+    // Slash command hints
+    const sQuery = getSlashQuery(val)
+    if (sQuery) {
+      const hints = SLASH_COMMANDS.filter(c => c.cmd.startsWith(sQuery)).slice(0, 5)
+      setSlashHints(hints)
+    } else {
+      setSlashHints([])
     }
   }, [onTypingStart, onTypingStop, onlineUsers])
 
@@ -304,6 +394,51 @@ export function ChatInput({
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="font-medium">@{user.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Emoji shortcode autocomplete */}
+      {emojiResults.length > 0 && emojiQuery && (
+        <div className="absolute bottom-full mb-2 right-0 left-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="rounded-2xl border border-border/60 shadow-2xl overflow-hidden bg-white dark:bg-muted backdrop-blur-lg">
+            <div className="px-3 pt-2 pb-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+              :{emojiQuery} — אימוג׳י
+            </div>
+            {emojiResults.map((r, idx) => (
+              <button
+                key={r.name}
+                type="button"
+                onClick={() => selectEmoji(r.name, r.emoji)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors text-right",
+                  idx === selectedEmojiIndex ? "bg-primary/10 text-primary" : "hover:bg-muted/60"
+                )}
+              >
+                <span className="text-lg">{r.emoji}</span>
+                <span className="text-muted-foreground">:{r.name}:</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Slash command hints */}
+      {slashHints.length > 0 && (
+        <div className="absolute bottom-full mb-2 right-0 left-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="rounded-2xl border border-border/60 shadow-2xl overflow-hidden bg-white dark:bg-muted backdrop-blur-lg">
+            <div className="px-3 pt-2 pb-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">פקודות</div>
+            {slashHints.map(hint => (
+              <button
+                key={hint.cmd}
+                type="button"
+                onClick={() => selectSlashCommand(hint.cmd)}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/60 text-right transition-colors"
+              >
+                <span className="font-mono font-medium text-primary">{hint.cmd}</span>
+                <span className="text-muted-foreground text-xs">{hint.desc}</span>
               </button>
             ))}
           </div>

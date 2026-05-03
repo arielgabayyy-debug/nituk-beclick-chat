@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -23,6 +23,7 @@ interface ChatMessageProps {
   isBookmarked?: boolean
   onToggleBookmark?: (messageId: string) => void
   onForward?: (content: string) => void
+  onBanUser?: (userId: string, userName: string) => void
 }
 
 function getInitials(name: string): string {
@@ -275,6 +276,7 @@ export function ChatMessageComponent({
   isBookmarked,
   onToggleBookmark,
   onForward,
+  onBanUser,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -595,15 +597,29 @@ export function ChatMessageComponent({
                   message.is_pinned ? "bg-amber-500/20" : "hover:bg-muted"
                 )}
                 onClick={() => onPin?.(message.id, message.is_pinned || false)}
+                title={message.is_pinned ? 'בטל נעיצה' : 'נעץ הודעה'}
               >
                 <Pin className={cn("w-3.5 h-3.5", message.is_pinned ? "text-amber-500" : "text-muted-foreground")} />
               </button>
               <button
                 className="w-7 h-7 flex items-center justify-center hover:bg-red-50 rounded-full transition-all"
                 onClick={() => onDelete?.(message.id)}
+                title="מחק הודעה"
               >
                 <Trash2 className="w-3.5 h-3.5 text-destructive" />
               </button>
+              {/* Quick ban (only for non-own, non-admin messages) */}
+              {!isOwn && user && onBanUser && (
+                <button
+                  className="w-7 h-7 flex items-center justify-center hover:bg-red-50 rounded-full transition-all"
+                  onClick={() => {
+                    if (window.confirm(`חסום את ${user.name}?`)) onBanUser(user.id, user.name)
+                  }}
+                  title={`חסום את ${user.name}`}
+                >
+                  <UserX className="w-3.5 h-3.5 text-red-400 hover:text-red-600" />
+                </button>
+              )}
             </>
           )}
         </div>

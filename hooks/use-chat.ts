@@ -529,6 +529,24 @@ export function useChat(currentUser: ChatUser | null) {
   // Get pinned messages
   const pinnedMessages = messages.filter(m => m.is_pinned)
 
+  // Quick ban user (admin only)
+  const banUser = useCallback(async (userId: string, userName: string) => {
+    if (currentUser?.user_type !== 'admin') return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('chat_users')
+      .update({ user_type: 'blocked' })
+      .eq('id', userId)
+    if (!error) {
+      // Post announcement
+      await supabase.from('system_messages').insert({
+        message_type: 'announcement',
+        content: `🚫 ${userName} נחסם על ידי המנהל`,
+        user_id: currentUser.id
+      }).select()
+    }
+  }, [currentUser])
+
   return {
     messages,
     pinnedMessages,
@@ -545,6 +563,7 @@ export function useChat(currentUser: ChatUser | null) {
     startTyping,
     stopTyping,
     sendAnnouncement,
+    banUser,
     onlineCount: onlineUsers.length
   }
 }
