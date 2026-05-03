@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import type { UserType } from '@/lib/chat-types'
 import { getRandomAvatarColor, AVATAR_COLORS } from '@/lib/chat-types'
 
-const ADMIN_EMAIL = 'nitukbeclick@gmail.com'
+const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com']
 
 interface LoginFormProps {
   mode: 'guest' | 'subscriber' | 'newsletter'
@@ -134,7 +134,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
         localStorage.removeItem(`nituk_remember_${mode}`)
       }
 
-      const isAdmin = email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()
+      const isAdmin = ADMIN_EMAILS.includes(email.trim().toLowerCase())
       await onSubmit(name.trim(), email.trim(), isAdmin ? 'admin' : config.userType, selectedColor)
     } catch {
       setError('שגיאה באימות הקוד')

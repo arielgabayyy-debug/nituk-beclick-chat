@@ -68,6 +68,8 @@ export default function ChatApp() {
     }
   }, [currentUser, oauthUser])
 
+  const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com']
+
   const syncOAuthUser = async (authUser: { email?: string; user_metadata?: Record<string, string> }) => {
     const supabase = createClient()
     const email = authUser.email
@@ -76,6 +78,7 @@ export default function ChatApp() {
                  email?.split('@')[0] || 'משתמש'
     const avatarUrl = authUser.user_metadata?.avatar_url ||
                       authUser.user_metadata?.picture || null
+    const isAdmin = email ? ADMIN_EMAILS.includes(email.toLowerCase()) : false
 
     if (!email) {
       setScreen('landing')
@@ -104,7 +107,7 @@ export default function ChatApp() {
           .insert({
             name,
             email,
-            user_type: 'subscriber',
+            user_type: isAdmin ? 'admin' : 'subscriber',
             avatar_color: '#06b6d4',
             avatar_url: avatarUrl,
             is_online: true,
