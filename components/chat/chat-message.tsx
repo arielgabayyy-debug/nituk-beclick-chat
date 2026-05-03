@@ -453,6 +453,8 @@ export function ChatMessageComponent({
   const hoverCardTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const touchStartXRef = useRef<number | null>(null)
   const lastTapRef = useRef<number>(0)
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [showContextMenu, setShowContextMenu] = useState(false)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX
@@ -465,6 +467,12 @@ export function ChatMessageComponent({
       setTimeout(() => setHeartBurst(false), 600)
     }
     lastTapRef.current = now
+    // Long press → context menu
+    longPressTimerRef.current = setTimeout(() => {
+      setShowContextMenu(true)
+      setShowActions(true)
+      if ('vibrate' in navigator) navigator.vibrate(50)
+    }, 600)
   }
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartXRef.current === null) return
@@ -475,9 +483,14 @@ export function ChatMessageComponent({
     setSwipeOffset(offset)
   }
   const handleTouchEnd = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
     if (swipeOffset > 40) onDoubleClick?.()
     setSwipeOffset(0)
     touchStartXRef.current = null
+  }
+
+  const handleTouchMoveCancel = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
   }
   const COLLAPSE_THRESHOLD = 300 // chars
   const isLong = !message.content.startsWith('[voice:') && message.content.length > COLLAPSE_THRESHOLD
@@ -539,7 +552,7 @@ export function ChatMessageComponent({
       onDoubleClick={onDoubleClick}
       onMouseLeave={() => { setShowActions(false); setShowReactions(false) }}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
+      onTouchMove={e => { handleTouchMove(e); handleTouchMoveCancel() }}
       onTouchEnd={handleTouchEnd}
       style={swipeOffset > 0 ? { transform: `translateX(${isOwn ? -swipeOffset : swipeOffset}px)`, transition: swipeOffset === 0 ? 'transform 0.2s' : 'none' } : undefined}
     >
@@ -886,6 +899,46 @@ export function ChatMessageComponent({
     </div>
     {lightboxSrc && (
       <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+    )}
+    {/* Mobile long-press context menu */}
+    {showContextMenu && (
+      <div className="fixed inset-0 z-[55] bg-black/40" onClick={() => setShowContextMenu(false)}>
+        <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl p-4 animate-in slide-in-from-bottom-4 duration-200" onClick={e => e.stopPropagation()}>
+          <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-4" />
+          <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{message.content.slice(0, 60)}{message.content.length > 60 ? '...' : ''}</p>
+          {/* Quick reactions */}
+          <div className="flex gap-3 justify-center mb-4">
+            {REACTION_EMOJIS.map(emoji => (
+              <button key={emoji} onClick={() => { onReact?.(message.id, emoji); setShowContextMenu(false) }}
+                className="text-2xl hover:scale-125 transition-transform active:scale-95">
+                {emoji}
+              </button>
+            ))}
+          </div>
+          {/* Actions */}
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => { onReply?.(message); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
+              <Reply className="w-4 h-4" /> השב
+            </button>
+            <button onClick={() => { navigator.clipboard.writeText(message.content); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
+              <Copy className="w-4 h-4" /> העתק
+            </button>
+            <button onClick={() => { onToggleBookmark?.(message.id); setShowContextMenu(false) }} className={cn("flex items-center gap-2 p-3 rounded-xl text-sm", isBookmarked ? "bg-amber-100 text-amber-700" : "bg-muted/40 hover:bg-muted")}>
+              <Bookmark className="w-4 h-4" /> {isBookmarked ? 'הסר שמירה' : 'שמור'}
+            </button>
+            {!isOwn && (
+              <button onClick={() => { setShowReportDialog(true); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-sm">
+                <Flag className="w-4 h-4" /> דווח
+              </button>
+            )}
+            {isOwn && onEdit && (
+              <button onClick={() => { setEditContent(message.content); setIsEditing(true); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-muted/40 rounded-xl text-sm hover:bg-muted">
+                <Pencil className="w-4 h-4" /> ערוך
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     )}
     {showReportDialog && (
       <ReportDialog

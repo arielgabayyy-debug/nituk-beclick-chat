@@ -567,16 +567,34 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 </div>
               </div>
             ) : allItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center mb-6 animate-pulse">
                   <span className="text-4xl">💬</span>
                 </div>
                 <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
                   ברוכים הבאים לצ&apos;אט!
                 </h3>
-                <p className="text-muted-foreground text-sm max-w-xs">
+                <p className="text-muted-foreground text-sm max-w-xs mb-6">
                   היו הראשונים לשלוח הודעה ולהתחיל את השיחה בקהילה
                 </p>
+                {/* Conversation starters */}
+                <div className="space-y-2 w-full max-w-xs">
+                  <p className="text-xs text-muted-foreground font-medium">💡 רעיונות להתחלה:</p>
+                  {[
+                    '👋 שלום לכולם! חדש/ה כאן',
+                    '🔥 יש מישהו שיודע על מבצע טוב?',
+                    '📱 עוברים ספק? ספרו לי',
+                    '💡 /aitip לטיפ חכם',
+                  ].map(starter => (
+                    <button
+                      key={starter}
+                      onClick={() => handleSendMessage(starter)}
+                      className="w-full text-sm bg-muted/40 hover:bg-muted border border-border/30 rounded-xl px-4 py-2.5 text-right transition hover:scale-[1.01]"
+                    >
+                      {starter}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <>
