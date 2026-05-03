@@ -191,11 +191,6 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
         <p className="text-center text-xs text-muted-foreground mt-6">
           בכניסה אתם מסכימים לתנאי השימוש ומדיניות הפרטיות
         </p>
-        <p className="text-center mt-2">
-          <a href="/admin" className="text-xs text-muted-foreground/40 hover:text-muted-foreground transition-colors">
-            כניסת מנהל
-          </a>
-        </p>
       </div>
     </div>
   )

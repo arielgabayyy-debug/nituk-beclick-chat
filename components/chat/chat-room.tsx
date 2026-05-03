@@ -23,13 +23,11 @@ import type { ChatUser, SystemMessage, ChatMessage } from '@/lib/chat-types'
 interface ChatRoomProps {
   currentUser: ChatUser
   onLogout: () => void
-  onAdminClick: () => void
-  adminClickCount: number
 }
 
 type SidebarTab = 'users' | 'leaderboard' | 'polls' | 'deals'
 
-export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount }: ChatRoomProps) {
+export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const { 
     messages, 
     pinnedMessages,
@@ -139,8 +137,6 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
         currentUser={currentUser}
         onlineCount={onlineCount}
         onLogout={onLogout}
-        onAdminClick={onAdminClick}
-        adminClickCount={adminClickCount}
         onToggleSearch={() => { setShowSearch(prev => !prev); setSearchQuery('') }}
       />
 

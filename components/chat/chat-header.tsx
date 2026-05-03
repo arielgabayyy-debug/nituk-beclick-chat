@@ -9,8 +9,6 @@ interface ChatHeaderProps {
   currentUser: ChatUser | null
   onlineCount: number
   onLogout: () => void
-  onAdminClick?: () => void
-  adminClickCount?: number
   onToggleSearch?: () => void
 }
 
@@ -18,8 +16,6 @@ export function ChatHeader({
   currentUser,
   onlineCount,
   onLogout,
-  onAdminClick,
-  adminClickCount = 0,
   onToggleSearch
 }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
@@ -52,10 +48,7 @@ export function ChatHeader({
     <header className="glass border-b border-border/50 px-4 py-3 sticky top-0 z-10">
       <div className="flex items-center justify-between gap-4">
         {/* Logo */}
-        <div
-          className="flex items-center gap-3 cursor-pointer select-none"
-          onClick={onAdminClick}
-        >
+        <div className="flex items-center gap-3 select-none">
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -63,11 +56,6 @@ export function ChatHeader({
               alt="חיבור וניתוק בקליק"
               className="w-12 h-12 rounded-xl shadow-lg"
             />
-            {adminClickCount > 0 && adminClickCount < 5 && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-secondary rounded-full flex items-center justify-center text-[10px] font-bold text-secondary-foreground">
-                {5 - adminClickCount}
-              </div>
-            )}
           </div>
           <div>
             <h1 className="text-lg font-bold gradient-text">חיבור וניתוק בקליק</h1>
