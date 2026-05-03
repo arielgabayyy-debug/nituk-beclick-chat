@@ -18,7 +18,7 @@ import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { ChatUser, SystemMessage } from '@/lib/chat-types'
+import type { ChatUser, SystemMessage, ChatMessage } from '@/lib/chat-types'
 
 interface ChatRoomProps {
   currentUser: ChatUser
@@ -71,6 +71,7 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('users')
   const [showUserProfile, setShowUserProfile] = useState<ChatUser | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
   const prevMessagesLengthRef = useRef(messages.length)
 
   // Auto-scroll to bottom on new messages
@@ -122,7 +123,7 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col chat-bg-animated">
       {/* Header */}
       <ChatHeader
         currentUser={currentUser}
@@ -259,6 +260,7 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
                         onPin={togglePinMessage}
                         onReact={addReaction}
                         onUserClick={handleUserClick}
+                        onReply={(msg) => setReplyTo(msg)}
                       />
                     </div>
                   ) : (
@@ -298,7 +300,13 @@ export function ChatRoom({ currentUser, onLogout, onAdminClick, adminClickCount 
                 </Button>
               )}
             </div>
-            <ChatInput onSend={sendMessage} onTypingStart={startTyping} onTypingStop={stopTyping} />
+            <ChatInput
+              onSend={sendMessage}
+              onTypingStart={startTyping}
+              onTypingStop={stopTyping}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+            />
           </div>
         </div>
 
