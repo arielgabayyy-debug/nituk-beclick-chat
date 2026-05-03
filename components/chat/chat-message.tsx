@@ -311,8 +311,19 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
   )
 }
 
+// Provider links
+const PROVIDER_LINKS: Record<string, { url: string; icon: string }> = {
+  'פרטנר': { url: 'https://www.partner.co.il', icon: '🔴' },
+  'סלקום': { url: 'https://www.cellcom.co.il', icon: '🔵' },
+  'פלאפון': { url: 'https://www.pelephone.co.il', icon: '🟢' },
+  'הוט מובייל': { url: 'https://www.hot.net.il', icon: '🟠' },
+  'גולן טלקום': { url: 'https://www.golantelecom.co.il', icon: '🟡' },
+  'רמי לוי': { url: 'https://www.ramilevi.co.il', icon: '🟣' },
+  '019': { url: 'https://www.019.net.il', icon: '⚫' },
+}
+
 function renderInlineText(content: string, searchQuery: string | undefined, keyPrefix: string): React.ReactNode {
-  // Split content into tokens: bold, mention, url, phone, plain text
+  // Split content into tokens: bold, mention, url, phone, provider, plain text
   // Israeli phone: 05X-XXXXXXX, 0X-XXXXXXX, +972-XX-XXXXXXX
   const tokenRegex = /(\*\*(.+?)\*\*)|(@\S+)|(https?:\/\/[^\s]+)|((?:\+972|0)[-\s]?(?:5[0-9]|[2-9])[-\s]?\d{7})/g
 
@@ -375,6 +386,23 @@ function renderInlineText(content: string, searchQuery: string | undefined, keyP
 }
 
 function highlightSearch(text: string, searchQuery: string | undefined, key: string): React.ReactNode {
+  // Check for provider mentions first
+  for (const [providerName, info] of Object.entries(PROVIDER_LINKS)) {
+    const idx = text.indexOf(providerName)
+    if (idx !== -1) {
+      return (
+        <span key={key}>
+          {idx > 0 && highlightSearch(text.slice(0, idx), searchQuery, `${key}-pre`)}
+          <a href={info.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 text-primary hover:underline font-medium" title={`פתח אתר ${providerName}`}>
+            <span>{info.icon}</span>{providerName}
+          </a>
+          {idx + providerName.length < text.length && highlightSearch(text.slice(idx + providerName.length), searchQuery, `${key}-post`)}
+        </span>
+      )
+    }
+  }
+
   if (!searchQuery || !text) return <span key={key}>{text}</span>
   const lowerText = text.toLowerCase()
   const lowerQuery = searchQuery.toLowerCase()

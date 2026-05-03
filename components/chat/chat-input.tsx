@@ -19,6 +19,14 @@ const EMOJI_MAP: Record<string, string> = {
   shrug: '🤷', facepalm: '🤦', exploding_head: '🤯', zzz: '😴', sparkles: '✨',
 }
 
+const TEMPLATES_KEY = 'chat_message_templates'
+const DEFAULT_TEMPLATES = [
+  'חיפשתי ומצאתי עסקה מדהימה! 🔥',
+  'מישהו יכול לעזור? יש לי שאלה על ',
+  'שמעתם על המבצע של ? שווה לבדוק!',
+  'תודה לכולם על העזרה! 🙏',
+]
+
 const SLASH_COMMANDS = [
   { cmd: '/shrug', desc: '¯\\_(ツ)_/¯' },
   { cmd: '/flip', desc: 'הפוך שולחן' },
@@ -76,6 +84,10 @@ export function ChatInput({
   const [emojiResults, setEmojiResults] = useState<{ name: string; emoji: string }[]>([])
   const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0)
   const [slashHints, setSlashHints] = useState<typeof SLASH_COMMANDS>([])
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [templates, setTemplates] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null') || DEFAULT_TEMPLATES } catch { return DEFAULT_TEMPLATES }
+  })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -568,12 +580,14 @@ export function ChatInput({
                 { label: 'B', wrap: '**', title: 'מודגש (Ctrl+B)' },
                 { label: 'I', wrap: '_', title: 'נטוי' },
                 { label: '`', wrap: '`', title: 'קוד' },
-              ].map(({ label, wrap, title }) => (
+                { label: '📋', wrap: '', title: 'תבניות שמורות', isTemplate: true },
+              ].map(({ label, wrap, title, isTemplate }) => (
                 <button
                   key={label}
                   type="button"
                   title={title}
                   onClick={() => {
+                    if (isTemplate) { setShowTemplates(t => !t); return }
                     const ta = textareaRef.current
                     if (!ta) return
                     const start = ta.selectionStart; const end = ta.selectionEnd
@@ -582,9 +596,25 @@ export function ChatInput({
                     setMessage(newMsg)
                     setTimeout(() => { ta.focus(); const p = start + wrap.length; ta.setSelectionRange(p, p + (sel || 'טקסט').length) }, 0)
                   }}
-                  className={`w-6 h-6 text-[11px] font-bold hover:bg-muted rounded flex items-center justify-center transition ${label === 'B' ? 'font-black' : label === 'I' ? 'italic' : 'font-mono'}`}
+                  className={`w-6 h-6 text-[11px] hover:bg-muted rounded flex items-center justify-center transition ${label === 'B' ? 'font-black' : label === 'I' ? 'italic font-medium' : label === '📋' ? 'text-base' : 'font-mono'}`}
                 >
                   {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Templates dropdown */}
+          {showTemplates && (
+            <div className="absolute -top-36 right-0 z-50 bg-white dark:bg-muted border border-border/50 rounded-xl shadow-xl p-2 w-56 animate-in fade-in slide-in-from-top-2 duration-150">
+              <p className="text-[10px] text-muted-foreground font-semibold px-2 mb-1.5 uppercase">תבניות הודעה</p>
+              {templates.map((t, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => { setMessage(t); setShowTemplates(false); setTimeout(() => textareaRef.current?.focus(), 0) }}
+                  className="w-full text-right text-xs px-2 py-1.5 hover:bg-muted/60 rounded-lg truncate transition"
+                >
+                  {t}
                 </button>
               ))}
             </div>
