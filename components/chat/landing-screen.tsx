@@ -16,22 +16,43 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
   const handleGoogleLogin = async () => {
     setIsLoadingGoogle(true)
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { data } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `https://nituk-beclick-chat.vercel.app/auth/callback`,
-        queryParams: { access_type: 'offline', prompt: 'consent' }
+        skipBrowserRedirect: true,
       }
     })
+    if (data?.url) {
+      // אם בתוך iframe - פתח בטאב חדש
+      if (window !== window.top) {
+        window.open(data.url, '_blank')
+      } else {
+        window.location.href = data.url
+      }
+    }
+    setIsLoadingGoogle(false)
   }
 
   const handleFacebookLogin = async () => {
     setIsLoadingFacebook(true)
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { data } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
-      options: { redirectTo: `https://nituk-beclick-chat.vercel.app/auth/callback` }
+      options: {
+        redirectTo: `https://nituk-beclick-chat.vercel.app/auth/callback`,
+        skipBrowserRedirect: true,
+      }
     })
+    if (data?.url) {
+      // אם בתוך iframe - פתח בטאב חדש
+      if (window !== window.top) {
+        window.open(data.url, '_blank')
+      } else {
+        window.location.href = data.url
+      }
+    }
+    setIsLoadingFacebook(false)
   }
 
   return (
