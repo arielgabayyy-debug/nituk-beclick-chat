@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer } from 'lucide-react'
+import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
 import { VoiceRecorder } from './voice-recorder'
+import { SavedRepliesPanel } from './saved-replies'
 
 // Smart emoji suggestions based on message keywords
 const SMART_EMOJI_TRIGGERS: { keywords: string[]; emoji: string }[] = [
@@ -109,6 +110,7 @@ export function ChatInput({
   const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0)
   const [slashHints, setSlashHints] = useState<typeof SLASH_COMMANDS>([])
   const [showTemplates, setShowTemplates] = useState(false)
+  const [showSavedReplies, setShowSavedReplies] = useState(false)
   const [smartEmojis, setSmartEmojis] = useState<string[]>([])
   const [templates, setTemplates] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null') || DEFAULT_TEMPLATES } catch { return DEFAULT_TEMPLATES }
@@ -651,13 +653,15 @@ export function ChatInput({
                 { label: 'I', wrap: '_', title: 'נטוי' },
                 { label: '`', wrap: '`', title: 'קוד' },
                 { label: '📋', wrap: '', title: 'תבניות שמורות', isTemplate: true },
-              ].map(({ label, wrap, title, isTemplate }) => (
+                { label: '⚡', wrap: '', title: 'תשובות שמורות', isSavedReply: true },
+              ].map(({ label, wrap, title, isTemplate, isSavedReply }) => (
                 <button
                   key={label}
                   type="button"
                   title={title}
                   onClick={() => {
                     if (isTemplate) { setShowTemplates(t => !t); return }
+                    if (isSavedReply) { setShowSavedReplies(t => !t); return }
                     const ta = textareaRef.current
                     if (!ta) return
                     const start = ta.selectionStart; const end = ta.selectionEnd
@@ -666,7 +670,7 @@ export function ChatInput({
                     setMessage(newMsg)
                     setTimeout(() => { ta.focus(); const p = start + wrap.length; ta.setSelectionRange(p, p + (sel || 'טקסט').length) }, 0)
                   }}
-                  className={`w-6 h-6 text-[11px] hover:bg-muted rounded flex items-center justify-center transition ${label === 'B' ? 'font-black' : label === 'I' ? 'italic font-medium' : label === '📋' ? 'text-base' : 'font-mono'}`}
+                  className={`w-6 h-6 text-[11px] hover:bg-muted rounded flex items-center justify-center transition ${label === 'B' ? 'font-black' : label === 'I' ? 'italic font-medium' : label === '📋' || label === '⚡' ? 'text-base' : 'font-mono'}`}
                 >
                   {label}
                 </button>
@@ -742,6 +746,13 @@ export function ChatInput({
           </Button>
         )}
       </form>
+      {showSavedReplies && (
+        <SavedRepliesPanel
+          onInsert={(content) => { setMessage(content); setTimeout(() => textareaRef.current?.focus(), 50) }}
+          onClose={() => setShowSavedReplies(false)}
+          currentDraft={message}
+        />
+      )}
     </div>
   )
 }

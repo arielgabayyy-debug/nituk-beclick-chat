@@ -31,6 +31,32 @@ export function useBookmarks() {
   return { bookmarkedIds, toggleBookmark, isBookmarked }
 }
 
+const MUTED_KEY = 'chat_muted_users'
+
+export function useMutedUsers() {
+  const [mutedUserIds, setMutedUserIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MUTED_KEY)
+      if (raw) setMutedUserIds(new Set(JSON.parse(raw)))
+    } catch {}
+  }, [])
+
+  const toggleMute = useCallback((userId: string) => {
+    setMutedUserIds(prev => {
+      const next = new Set(prev)
+      if (next.has(userId)) { next.delete(userId) } else { next.add(userId) }
+      localStorage.setItem(MUTED_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }, [])
+
+  const isMuted = useCallback((userId: string) => mutedUserIds.has(userId), [mutedUserIds])
+
+  return { mutedUserIds, toggleMute, isMuted }
+}
+
 interface BookmarksPanelProps {
   messages: ChatMessage[]
   bookmarkedIds: Set<string>

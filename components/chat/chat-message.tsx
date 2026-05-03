@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -31,6 +31,8 @@ interface ChatMessageProps {
   onDoubleClick?: () => void
   onUpvote?: (messageId: string) => void
   currentUserUpvoted?: boolean
+  isMuted?: boolean
+  onToggleMute?: (userId: string) => void
 }
 
 function getInitials(name: string): string {
@@ -438,6 +440,8 @@ export function ChatMessageComponent({
   onDoubleClick,
   onUpvote,
   currentUserUpvoted,
+  isMuted,
+  onToggleMute,
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -503,6 +507,20 @@ export function ChatMessageComponent({
   const isMentioned = !isOwn && currentUser && message.content.includes(`@${currentUser.name}`)
   const isDeal = !message.content.startsWith('[voice:') && /[₪%]|\d+\s*ש"ח|מבצע|חבילה|הנחה|עסקה|חינם|discount|sale/i.test(message.content)
 
+  // Auto-detect message category
+  type MsgCategory = { label: string; icon: string; color: string } | null
+  const msgCategory: MsgCategory = (() => {
+    if (message.content.startsWith('[voice:')) return null
+    const c = message.content
+    if (/\?|מה|איך|האם|למה|מתי|איפה|כמה|מי /i.test(c)) return { label: 'שאלה', icon: '❓', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' }
+    if (/[₪%]|\d+\s*ש"ח|מבצע|חבילה|הנחה|עסקה|חינם/i.test(c)) return { label: 'עסקה', icon: '💰', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' }
+    if (/עזרה|בעיה|לא עובד|תקוע|שגיאה|error|פיתרון|help/i.test(c)) return { label: 'עזרה', icon: '🆘', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' }
+    if (/תודה|יישר כח|עזרת|מעולה|כל הכבוד|ברכות|מזל טוב/i.test(c)) return { label: 'הכרת תודה', icon: '🙏', color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300' }
+    if (/סיפור|הצלחה|חסכתי|שדרגתי|עברתי|ניצחתי/i.test(c)) return { label: 'סיפור הצלחה', icon: '⭐', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }
+    if (/טיפ|עצה|המלצה|מומלץ|כדאי|tip|advice/i.test(c)) return { label: 'טיפ', icon: '💡', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' }
+    return null
+  })()
+
   const isEdited = message.updated_at && message.updated_at !== message.created_at
 
   const handleCopy = () => {
@@ -541,6 +559,25 @@ export function ChatMessageComponent({
 
   const handleAvatarMouseLeave = () => {
     hoverCardTimeoutRef.current = setTimeout(() => setShowHoverCard(false), 200)
+  }
+
+  // Muted user: show collapsed stub
+  if (isMuted) {
+    return (
+      <div className={cn("flex gap-3 group relative px-1 py-1", isOwn && "flex-row-reverse")}>
+        <div className="shrink-0 w-10 h-10 rounded-full bg-muted/40 flex items-center justify-center">
+          <VolumeX className="w-4 h-4 text-muted-foreground/40" />
+        </div>
+        <div className={cn("flex items-center gap-2 opacity-40", isOwn && "flex-row-reverse")}>
+          <span className="text-xs text-muted-foreground">{user?.name || 'משתמש'}</span>
+          <span className="text-xs text-muted-foreground italic">הודעה מושתקת</span>
+          <button
+            className="text-[10px] text-primary hover:underline"
+            onClick={() => onToggleMute?.(message.user_id)}
+          >הצג</button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -636,9 +673,17 @@ export function ChatMessageComponent({
               Lv.{user.level}
             </span>
           )}
-          <span className="text-[10px] text-muted-foreground">{formatTime(message.created_at)}</span>
+          <span
+            className="text-[10px] text-muted-foreground cursor-default"
+            title={new Date(message.created_at).toLocaleString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          >{formatTime(message.created_at)}</span>
           {isEdited && (
             <span className="text-[10px] text-muted-foreground italic">(נערך)</span>
+          )}
+          {msgCategory && !isGrouped && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${msgCategory.color}`}>
+              {msgCategory.icon} {msgCategory.label}
+            </span>
           )}
         </div>
 
@@ -818,6 +863,23 @@ export function ChatMessageComponent({
             </button>
           )}
 
+          {/* Mute user (for non-own messages) */}
+          {!isOwn && onToggleMute && user && (
+            <button
+              className={cn(
+                "w-7 h-7 flex items-center justify-center rounded-full transition-all",
+                isMuted ? "bg-orange-100 dark:bg-orange-900/30" : "hover:bg-muted"
+              )}
+              onClick={() => onToggleMute(message.user_id)}
+              title={isMuted ? `הסר השתקה ל-${user.name}` : `השתק את ${user.name}`}
+            >
+              {isMuted
+                ? <Volume2 className="w-3.5 h-3.5 text-orange-500" />
+                : <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />
+              }
+            </button>
+          )}
+
           {/* WhatsApp share */}
           {!message.content.startsWith('[voice:') && (
             <button
@@ -936,6 +998,11 @@ export function ChatMessageComponent({
             <button onClick={() => { onToggleBookmark?.(message.id); setShowContextMenu(false) }} className={cn("flex items-center gap-2 p-3 rounded-xl text-sm", isBookmarked ? "bg-amber-100 text-amber-700" : "bg-muted/40 hover:bg-muted")}>
               <Bookmark className="w-4 h-4" /> {isBookmarked ? 'הסר שמירה' : 'שמור'}
             </button>
+            {!isOwn && onToggleMute && user && (
+              <button onClick={() => { onToggleMute(message.user_id); setShowContextMenu(false) }} className={cn("flex items-center gap-2 p-3 rounded-xl text-sm", isMuted ? "bg-orange-50 text-orange-600" : "bg-muted/40 hover:bg-muted")}>
+                {isMuted ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />} {isMuted ? 'הסר השתקה' : 'השתק'}
+              </button>
+            )}
             {!isOwn && (
               <button onClick={() => { setShowReportDialog(true); setShowContextMenu(false) }} className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-sm">
                 <Flag className="w-4 h-4" /> דווח

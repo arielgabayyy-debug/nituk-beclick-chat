@@ -17,7 +17,7 @@ import { UserProfile } from './user-profile'
 import { KeyboardShortcuts } from './keyboard-shortcuts'
 import { WelcomeToast } from './welcome-toast'
 import { Confetti } from './confetti'
-import { useBookmarks, BookmarksPanel } from './message-bookmarks'
+import { useBookmarks, useMutedUsers, BookmarksPanel } from './message-bookmarks'
 import { OfflineIndicator } from './offline-indicator'
 import { ChatStats } from './chat-stats'
 import { ChatRulesCard } from './chat-rules'
@@ -114,6 +114,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const { permission, sendNotification } = useNotificationPermission()
   const [forwardedContent, setForwardedContent] = useState<string | null>(null)
   const { bookmarkedIds, toggleBookmark, isBookmarked } = useBookmarks()
+  const { toggleMute, isMuted } = useMutedUsers()
   const prevMessagesLengthRef = useRef(messages.length)
 
   // Track scroll position
@@ -667,6 +668,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           onDoubleClick={() => setReplyTo(item.data)}
                           onUpvote={upvoteMessage}
                           currentUserUpvoted={JSON.parse(typeof window !== 'undefined' ? localStorage.getItem(`upvoted_${currentUser.id}`) || '[]' : '[]').includes(item.data.id)}
+                          isMuted={item.data.user_id !== currentUser.id && isMuted(item.data.user_id)}
+                          onToggleMute={item.data.user_id !== currentUser.id ? toggleMute : undefined}
                         />
                       </div>
                     )

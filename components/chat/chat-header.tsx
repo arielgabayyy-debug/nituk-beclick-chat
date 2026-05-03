@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus } from 'lucide-react'
+import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
@@ -9,6 +9,7 @@ import { StreakBadge, useStreak } from './streak-badge'
 import { UserStatusEditor, useUserStatus } from './user-status'
 import { AvatarPicker } from './avatar-picker'
 import { InviteModal } from './invite-modal'
+import { ChatThemePicker, useChatTheme } from './chat-theme'
 import type { ChatUser } from '@/lib/chat-types'
 
 interface ChatHeaderProps {
@@ -23,6 +24,8 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
   const [isDark, setIsDark] = useState(false)
   const [showStatusEditor, setShowStatusEditor] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
+  const [showThemePicker, setShowThemePicker] = useState(false)
+  const { themeId, setTheme } = useChatTheme()
   const [streakToast, setStreakToast] = useState<string | null>(null)
   const { streak, isNewDay } = useStreak()
   const { status } = useUserStatus(currentUser?.id || '')
@@ -138,6 +141,11 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
+            {/* Theme picker */}
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setShowThemePicker(true)} title="ערכת נושא">
+              <Palette className="w-4 h-4" />
+            </Button>
+
             {/* Invite friends */}
             <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setShowInvite(true)} title="הזמן חברים">
               <UserPlus className="w-4 h-4" />
@@ -176,6 +184,7 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
 
       {/* Invite modal */}
       {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+      {showThemePicker && <ChatThemePicker currentThemeId={themeId} onSelect={setTheme} onClose={() => setShowThemePicker(false)} />}
       {/* Status editor modal */}
       {showStatusEditor && currentUser && (
         <UserStatusEditor userId={currentUser.id} onClose={() => setShowStatusEditor(false)} />
