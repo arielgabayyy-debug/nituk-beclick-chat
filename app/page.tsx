@@ -5,6 +5,7 @@ import { LandingScreen } from '@/components/chat/landing-screen'
 import { LoginForm } from '@/components/chat/login-form'
 import { ChatRoom } from '@/components/chat/chat-room'
 import { LoadingScreen } from '@/components/chat/loading-screen'
+import { AccessibilityPanel } from '@/components/chat/accessibility-panel'
 import { useChatUser } from '@/hooks/use-chat'
 import { createClient } from '@/lib/supabase/client'
 import type { UserType, ChatUser } from '@/lib/chat-types'
@@ -164,9 +165,9 @@ export default function ChatApp() {
   const activeUser = oauthUser || currentUser
 
   if (screen === 'loading') return <LoadingScreen message={loadingMessage} />
-  if (screen === 'landing') return <LandingScreen onSelectMode={handleSelectMode} onlineCount={onlineCount} />
-  if (screen === 'login') return <LoginForm mode={loginMode} onSubmit={handleLogin} onBack={() => setScreen('landing')} isLoading={isLoading} />
-  if (screen === 'chat' && activeUser) return <ChatRoom currentUser={activeUser} onLogout={handleLogout} />
+  if (screen === 'landing') return <><LandingScreen onSelectMode={handleSelectMode} onlineCount={onlineCount} /><AccessibilityPanel /></>
+  if (screen === 'login') return <><LoginForm mode={loginMode} onSubmit={handleLogin} onBack={() => setScreen('landing')} isLoading={isLoading} /><AccessibilityPanel /></>
+  if (screen === 'chat' && activeUser) return <><ChatRoom currentUser={activeUser} onLogout={handleLogout} /><AccessibilityPanel /></>
 
   return <LoadingScreen />
 }

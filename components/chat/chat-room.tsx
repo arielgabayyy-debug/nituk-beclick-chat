@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
-import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Loader2, Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -28,22 +28,23 @@ interface ChatRoomProps {
 type SidebarTab = 'users' | 'leaderboard' | 'polls' | 'deals'
 
 export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
-  const { 
-    messages, 
+  const {
+    messages,
     pinnedMessages,
     systemMessages,
-    onlineUsers, 
+    onlineUsers,
     typingUsers,
-    isLoading, 
-    error, 
+    isLoading,
+    error,
     sendMessage,
+    editMessage,
     deleteMessage,
     togglePinMessage,
     addReaction,
     startTyping,
     stopTyping,
     sendAnnouncement,
-    onlineCount 
+    onlineCount
   } = useChat(currentUser)
 
   const {
@@ -72,16 +73,45 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const [unreadSinceScroll, setUnreadSinceScroll] = useState(0)
   const prevMessagesLengthRef = useRef(messages.length)
+
+  // Track scroll position
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80
+    setIsAtBottom(atBottom)
+    if (atBottom) setUnreadSinceScroll(0)
+  }, [])
+
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [handleScroll])
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (isAtBottom && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    } else if (messages.length > prevMessagesLengthRef.current && !isAtBottom) {
+      const lastMessage = messages[messages.length - 1]
+      if (lastMessage && lastMessage.user_id !== currentUser.id) {
+        setUnreadSinceScroll(c => c + 1)
+      }
     }
-  }, [messages])
+  }, [messages, isAtBottom, currentUser.id])
 
-  // Play sound on new message (not own)
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setUnreadSinceScroll(0)
+    setIsAtBottom(true)
+  }
+
+  // Play sound on new message (not own) and track prev length
   useEffect(() => {
     if (messages.length > prevMessagesLengthRef.current && soundEnabled) {
       const lastMessage = messages[messages.length - 1]
@@ -253,6 +283,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           )}
 
           {/* Messages */}
+          <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 chat-scrollbar">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
@@ -293,6 +324,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                         onReact={addReaction}
                         onUserClick={handleUserClick}
                         onReply={(msg) => setReplyTo(msg)}
+                        onEdit={editMessage}
                         searchQuery={searchQuery || undefined}
                       />
                     </div>
@@ -300,9 +332,20 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                     <SystemMessageComponent key={item.data.id} message={item.data as SystemMessage} />
                   )
                 ))}
-                <div ref={messagesEndRef} />
               </>
             )}
+            <div ref={messagesEndRef} />
+          </div>
+          {/* Scroll to bottom button */}
+          {!isAtBottom && (
+            <button
+              onClick={scrollToBottom}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-full shadow-lg hover:opacity-90 transition animate-in fade-in slide-in-from-bottom-2 duration-200"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+              {unreadSinceScroll > 0 ? `${unreadSinceScroll} הודעות חדשות` : 'גלול למטה'}
+            </button>
+          )}
           </div>
 
           {/* Typing indicator */}
@@ -396,18 +439,13 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         </div>
       </div>
 
-      {/* Mobile online users bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 glass border-t border-border/30 p-3 safe-area-inset-bottom backdrop-blur-xl z-40">
-        <div className="flex items-center justify-center gap-3 text-sm">
-          <div className="relative">
-            <div className="w-3 h-3 bg-emerald-500 rounded-full" />
-            <div className="absolute inset-0 w-3 h-3 bg-emerald-500 rounded-full animate-ping opacity-75" />
-          </div>
-          <span className="text-muted-foreground">
-            <span className="font-bold text-foreground">{onlineCount}</span> מחוברים עכשיו
-          </span>
-        </div>
-      </div>
+      {/* Mobile bottom nav */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-border/30 safe-area-inset-bottom z-40 flex" aria-label="ניווט תחתון">
+        <button onClick={() => {}} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-primary"><MessageCircle className="w-5 h-5" /><span>צ׳אט</span></button>
+        <button onClick={() => setSidebarTab('leaderboard')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><Trophy className="w-5 h-5" /><span>מובילים</span></button>
+        <button onClick={() => setSidebarTab('deals')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><Flame className="w-5 h-5" /><span>עסקאות</span></button>
+        <button onClick={() => setSidebarTab('polls')} className="flex-1 flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground hover:text-foreground"><BarChart3 className="w-5 h-5" /><span>סקרים</span></button>
+      </nav>
 
       {/* User Profile Modal */}
       {showUserProfile && (
@@ -423,15 +461,6 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         </div>
       )}
 
-      <style jsx global>{`
-        .highlight-message {
-          animation: highlight 2s ease-out;
-        }
-        @keyframes highlight {
-          0% { background-color: rgba(6, 182, 212, 0.3); }
-          100% { background-color: transparent; }
-        }
-      `}</style>
     </div>
   )
 }

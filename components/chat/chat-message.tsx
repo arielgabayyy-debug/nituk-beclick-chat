@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, X as XIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -16,11 +16,54 @@ interface ChatMessageProps {
   onReact?: (messageId: string, emoji: string) => void
   onUserClick?: (user: ChatUser) => void
   onReply?: (message: ChatMessageType) => void
+  onEdit?: (messageId: string, newContent: string) => void
   searchQuery?: string
 }
 
 function getInitials(name: string): string {
   return name.charAt(0).toUpperCase()
+}
+
+interface HoverCardProps {
+  user: ChatUser
+  onOpenProfile: () => void
+  onClose: () => void
+}
+
+function UserHoverCard({ user, onOpenProfile, onClose }: HoverCardProps) {
+  return (
+    <div
+      className="absolute z-50 top-10 right-0 w-52 bg-white dark:bg-muted border border-border/60 rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150"
+      onMouseLeave={onClose}
+    >
+      <div className="flex items-center gap-3 mb-2">
+        <div
+          className="w-10 h-10 rounded-full shrink-0 shadow-md overflow-hidden flex items-center justify-center"
+          style={{ backgroundColor: user.avatar_color || '#06b6d4' }}
+        >
+          {user.avatar_url ? (
+            <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-sm font-bold text-white">{getInitials(user.name)}</span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate">{user.name}</p>
+          <UserBadge userType={user.user_type} />
+        </div>
+      </div>
+      <div className="flex gap-3 text-xs text-muted-foreground mb-3">
+        <span>⭐ {(user as ChatUser & { points?: number }).points ?? 0} נקודות</span>
+        <span>🏅 רמה {(user as ChatUser & { level?: number }).level ?? 1}</span>
+      </div>
+      <button
+        onClick={() => { onOpenProfile(); onClose() }}
+        className="w-full text-xs bg-primary text-primary-foreground rounded-lg py-1.5 hover:opacity-90 transition"
+      >
+        פתח פרופיל
+      </button>
+    </div>
+  )
 }
 
 function groupReactions(reactions: MessageReaction[]): { emoji: string; count: number; userIds: string[] }[] {
@@ -36,80 +79,89 @@ function groupReactions(reactions: MessageReaction[]): { emoji: string; count: n
 const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i
 const URL_REGEX = /(https?:\/\/[^\s]+)/g
 
+function CodeBlock({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <div className="relative my-2 group/code">
+      <pre className="code-block bg-gray-900 dark:bg-black text-gray-100 rounded-xl px-4 py-3 overflow-x-auto text-xs font-mono leading-relaxed border border-border/40">
+        <code>{code}</code>
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute top-2 left-2 opacity-0 group-hover/code:opacity-100 transition-all bg-white/10 hover:bg-white/20 text-white rounded-md p-1"
+        title="העתק קוד"
+      >
+        {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      </button>
+    </div>
+  )
+}
+
 function renderMessageContent(content: string, searchQuery?: string): React.ReactNode {
-  // Collect image URLs
+  // Handle triple backtick code blocks first
+  const codeBlockRegex = /```([\s\S]*?)```/g
+  const segments: { type: 'code' | 'inline' | 'text'; value: string }[] = []
+  let lastIdx = 0
+  let m: RegExpExecArray | null
+
+  while ((m = codeBlockRegex.exec(content)) !== null) {
+    if (m.index > lastIdx) {
+      segments.push({ type: 'text', value: content.slice(lastIdx, m.index) })
+    }
+    segments.push({ type: 'code', value: m[1] })
+    lastIdx = m.index + m[0].length
+  }
+  if (lastIdx < content.length) {
+    segments.push({ type: 'text', value: content.slice(lastIdx) })
+  }
+
+  const renderTextSegment = (text: string, segKey: string) => {
+    // Handle inline code within text segments
+    const inlineCodeRegex = /`([^`]+)`/g
+    const inlineParts: React.ReactNode[] = []
+    let inlineLastIdx = 0
+    let im: RegExpExecArray | null
+    while ((im = inlineCodeRegex.exec(text)) !== null) {
+      if (im.index > inlineLastIdx) {
+        inlineParts.push(renderInlineText(text.slice(inlineLastIdx, im.index), searchQuery, `${segKey}-plain-${inlineLastIdx}`))
+      }
+      inlineParts.push(
+        <code key={`${segKey}-inline-${im.index}`} className="inline-code bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-xs font-mono">
+          {im[1]}
+        </code>
+      )
+      inlineLastIdx = im.index + im[0].length
+    }
+    if (inlineLastIdx < text.length) {
+      inlineParts.push(renderInlineText(text.slice(inlineLastIdx), searchQuery, `${segKey}-plain-end`))
+    }
+    return inlineParts
+  }
+
+  // Collect image URLs for preview
   const imageUrls: string[] = []
   const urlMatches = content.match(URL_REGEX) || []
   urlMatches.forEach(url => {
     if (IMAGE_EXTENSIONS.test(url)) imageUrls.push(url)
   })
 
-  // Split content into tokens: bold, mention, url, plain text
-  // Process in one pass using a combined regex
-  const tokenRegex = /(\*\*(.+?)\*\*)|(@\S+)|(https?:\/\/[^\s]+)/g
-
-  const nodes: React.ReactNode[] = []
-  let lastIndex = 0
-  let match: RegExpExecArray | null
-
-  while ((match = tokenRegex.exec(content)) !== null) {
-    const [full, boldFull, boldInner, mention, url] = match
-    const start = match.index
-
-    // Plain text before this match
-    if (start > lastIndex) {
-      nodes.push(highlightSearch(content.slice(lastIndex, start), searchQuery, `plain-${lastIndex}`))
-    }
-
-    if (boldFull && boldInner) {
-      nodes.push(
-        <strong key={`bold-${start}`}>{highlightSearch(boldInner, searchQuery, `bold-inner-${start}`)}</strong>
-      )
-    } else if (mention) {
-      nodes.push(
-        <span key={`mention-${start}`} className="mention-tag">{mention}</span>
-      )
-    } else if (url) {
-      const isImage = IMAGE_EXTENSIONS.test(url)
-      if (!isImage) {
-        nodes.push(
-          <a
-            key={`url-${start}`}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline text-cyan-600 hover:text-cyan-700 break-all"
-          >
-            {highlightSearch(url, searchQuery, `url-text-${start}`)}
-          </a>
-        )
-      } else {
-        // Image URLs - render inline text as link, image shown below
-        nodes.push(
-          <a
-            key={`url-${start}`}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline text-cyan-600 hover:text-cyan-700 break-all"
-          >
-            {highlightSearch(url, searchQuery, `img-url-text-${start}`)}
-          </a>
-        )
-      }
-    }
-
-    lastIndex = start + full.length
-  }
-
-  // Remaining plain text
-  if (lastIndex < content.length) {
-    nodes.push(highlightSearch(content.slice(lastIndex), searchQuery, `plain-end-${lastIndex}`))
-  }
-
   return (
     <>
-      <p className="whitespace-pre-wrap break-words">{nodes}</p>
+      {segments.map((seg, i) => {
+        if (seg.type === 'code') {
+          return <CodeBlock key={`code-${i}`} code={seg.value} />
+        }
+        return (
+          <p key={`text-${i}`} className="whitespace-pre-wrap break-words">
+            {renderTextSegment(seg.value, `seg-${i}`)}
+          </p>
+        )
+      })}
       {/* Inline image previews */}
       {imageUrls.map((imgUrl, i) => (
         <a key={`img-${i}`} href={imgUrl} target="_blank" rel="noopener noreferrer">
@@ -124,6 +176,56 @@ function renderMessageContent(content: string, searchQuery?: string): React.Reac
       ))}
     </>
   )
+}
+
+function renderInlineText(content: string, searchQuery: string | undefined, keyPrefix: string): React.ReactNode {
+  // Split content into tokens: bold, mention, url, plain text
+  const tokenRegex = /(\*\*(.+?)\*\*)|(@\S+)|(https?:\/\/[^\s]+)/g
+
+  const nodes: React.ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = tokenRegex.exec(content)) !== null) {
+    const [full, boldFull, boldInner, mention, url] = match
+    const start = match.index
+
+    if (start > lastIndex) {
+      nodes.push(highlightSearch(content.slice(lastIndex, start), searchQuery, `${keyPrefix}-plain-${lastIndex}`))
+    }
+
+    if (boldFull && boldInner) {
+      nodes.push(
+        <strong key={`${keyPrefix}-bold-${start}`}>{highlightSearch(boldInner, searchQuery, `${keyPrefix}-bold-inner-${start}`)}</strong>
+      )
+    } else if (mention) {
+      nodes.push(
+        <span key={`${keyPrefix}-mention-${start}`} className="mention-tag">{mention}</span>
+      )
+    } else if (url) {
+      const isImage = IMAGE_EXTENSIONS.test(url)
+      nodes.push(
+        <a
+          key={`${keyPrefix}-url-${start}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline text-cyan-600 hover:text-cyan-700 break-all"
+        >
+          {highlightSearch(url, searchQuery, `${keyPrefix}-url-text-${start}`)}
+        </a>
+      )
+      if (isImage) { /* image shown in preview block */ }
+    }
+
+    lastIndex = start + full.length
+  }
+
+  if (lastIndex < content.length) {
+    nodes.push(highlightSearch(content.slice(lastIndex), searchQuery, `${keyPrefix}-plain-end`))
+  }
+
+  return <>{nodes}</>
 }
 
 function highlightSearch(text: string, searchQuery: string | undefined, key: string): React.ReactNode {
@@ -150,15 +252,23 @@ export function ChatMessageComponent({
   onReact,
   onUserClick,
   onReply,
+  onEdit,
   searchQuery
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(message.content)
+  const [showHoverCard, setShowHoverCard] = useState(false)
+  const hoverCardTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   const isOwn = message.user_id === currentUser?.id
   const isAdmin = currentUser?.user_type === 'admin'
   const user = message.user as ChatUser | undefined
   const groupedReactions = groupReactions(message.reactions || [])
+
+  const isEdited = message.updated_at && message.updated_at !== message.created_at
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content)
@@ -168,6 +278,27 @@ export function ChatMessageComponent({
 
   const handleReport = () => {
     alert('הודעה דווחה למנהל')
+  }
+
+  const handleSaveEdit = () => {
+    if (editContent.trim() && editContent.trim() !== message.content) {
+      onEdit?.(message.id, editContent.trim())
+    }
+    setIsEditing(false)
+  }
+
+  const handleCancelEdit = () => {
+    setEditContent(message.content)
+    setIsEditing(false)
+  }
+
+  const handleAvatarClick = () => {
+    if (hoverCardTimeoutRef.current) clearTimeout(hoverCardTimeoutRef.current)
+    setShowHoverCard(true)
+  }
+
+  const handleAvatarMouseLeave = () => {
+    hoverCardTimeoutRef.current = setTimeout(() => setShowHoverCard(false), 200)
   }
 
   return (
@@ -188,36 +319,58 @@ export function ChatMessageComponent({
         </div>
       )}
 
-      {/* Avatar */}
-      <button
-        onClick={() => user && onUserClick?.(user)}
-        className="w-10 h-10 rounded-full shrink-0 transition-transform hover:scale-105 shadow-lg cursor-pointer hover:ring-2 hover:ring-primary/50 overflow-hidden"
-        style={{
-          backgroundColor: user?.avatar_color || '#06b6d4',
-          boxShadow: `0 4px 14px ${user?.avatar_color || '#06b6d4'}50`
-        }}
-      >
-        {user?.avatar_url ? (
-          <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
-        ) : (
-          <span className="flex items-center justify-center w-full h-full text-sm font-bold text-white">
-            {user ? getInitials(user.name) : '?'}
-          </span>
+      {/* Avatar with presence ring */}
+      <div className="relative shrink-0">
+        <button
+          onClick={handleAvatarClick}
+          onMouseLeave={handleAvatarMouseLeave}
+          className={cn(
+            "w-10 h-10 rounded-full transition-transform hover:scale-105 shadow-lg cursor-pointer overflow-hidden",
+            user?.is_online && "avatar-ring"
+          )}
+          style={{
+            backgroundColor: user?.avatar_color || '#06b6d4',
+            boxShadow: `0 4px 14px ${user?.avatar_color || '#06b6d4'}50`
+          }}
+        >
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="flex items-center justify-center w-full h-full text-sm font-bold text-white">
+              {user ? getInitials(user.name) : '?'}
+            </span>
+          )}
+        </button>
+        {/* Online green dot */}
+        {user?.is_online && (
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-background rounded-full" />
         )}
-      </button>
+        {/* Hover card */}
+        {showHoverCard && user && (
+          <UserHoverCard
+            user={user}
+            onOpenProfile={() => onUserClick?.(user)}
+            onClose={() => setShowHoverCard(false)}
+          />
+        )}
+      </div>
 
       {/* Message content */}
       <div className={cn("flex flex-col max-w-[78%]", isOwn && "items-end")}>
         {/* User info */}
         <div className={cn("flex items-center gap-2 mb-1", isOwn && "flex-row-reverse")}>
           <button
-            onClick={() => user && onUserClick?.(user)}
+            onClick={handleAvatarClick}
+            onMouseLeave={handleAvatarMouseLeave}
             className="text-sm font-semibold hover:text-primary transition-colors"
           >
             {user?.name || 'משתמש'}
           </button>
           {user && <UserBadge userType={user.user_type} />}
           <span className="text-[10px] text-muted-foreground">{formatTime(message.created_at)}</span>
+          {isEdited && (
+            <span className="text-[10px] text-muted-foreground italic">(נערך)</span>
+          )}
         </div>
 
         {/* Bubble */}
@@ -232,22 +385,53 @@ export function ChatMessageComponent({
             <img src={message.gif_url} alt="gif" className="rounded-xl max-w-[240px] mb-2" />
           )}
 
-          {renderMessageContent(message.content, searchQuery)}
+          {isEditing ? (
+            <div className="flex flex-col gap-2 min-w-[200px]">
+              <textarea
+                value={editContent}
+                onChange={e => setEditContent(e.target.value)}
+                className="w-full bg-white/10 dark:bg-black/20 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-white/30 min-h-[60px]"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit() }
+                  if (e.key === 'Escape') handleCancelEdit()
+                }}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancelEdit}
+                  className="text-xs px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition"
+                >
+                  ביטול
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="text-xs px-2 py-1 rounded-md bg-white/30 hover:bg-white/40 transition font-medium"
+                >
+                  שמור
+                </button>
+              </div>
+            </div>
+          ) : (
+            renderMessageContent(message.content, searchQuery)
+          )}
 
           {/* Copy button on hover */}
-          <button
-            onClick={handleCopy}
-            className={cn(
-              "absolute -top-2 opacity-0 group-hover/bubble:opacity-100 transition-all",
-              "bg-white dark:bg-muted border border-border/60 rounded-full p-1 shadow-sm",
-              isOwn ? "-left-2" : "-right-2"
-            )}
-          >
-            {copied
-              ? <Check className="w-3 h-3 text-emerald-500" />
-              : <Copy className="w-3 h-3 text-muted-foreground" />
-            }
-          </button>
+          {!isEditing && (
+            <button
+              onClick={handleCopy}
+              className={cn(
+                "absolute -top-2 opacity-0 group-hover/bubble:opacity-100 transition-all",
+                "bg-white dark:bg-muted border border-border/60 rounded-full p-1 shadow-sm",
+                isOwn ? "-left-2" : "-right-2"
+              )}
+            >
+              {copied
+                ? <Check className="w-3 h-3 text-emerald-500" />
+                : <Copy className="w-3 h-3 text-muted-foreground" />
+              }
+            </button>
+          )}
         </div>
 
         {/* Reactions */}
@@ -272,7 +456,7 @@ export function ChatMessageComponent({
       </div>
 
       {/* Action buttons */}
-      {showActions && (
+      {showActions && !isEditing && (
         <div className={cn(
           "absolute -top-3 flex items-center gap-0.5 z-10",
           "bg-white dark:bg-muted border border-border/60 rounded-full px-1 py-0.5 shadow-lg",
@@ -313,6 +497,17 @@ export function ChatMessageComponent({
           >
             <Reply className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
+
+          {/* Edit (own messages only) */}
+          {isOwn && onEdit && (
+            <button
+              className="w-7 h-7 flex items-center justify-center hover:bg-muted rounded-full transition-all"
+              onClick={() => { setEditContent(message.content); setIsEditing(true) }}
+              title="ערוך הודעה"
+            >
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
 
           {/* Report (for non-own messages) */}
           {!isOwn && (

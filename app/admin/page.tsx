@@ -102,7 +102,7 @@ const userTypeLabel: Record<string, string> = {
 }
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'registrations' | 'users' | 'messages' | 'newsletter'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'registrations' | 'users' | 'messages' | 'newsletter' | 'settings'>('overview')
   const [stats, setStats] = useState<Stats | null>(null)
   const [users, setUsers] = useState<UserRow[]>([])
   const [messages, setMessages] = useState<MessageRow[]>([])
@@ -122,6 +122,24 @@ export default function AdminDashboard() {
   const [chartData, setChartData] = useState<{ date: string; count: number }[]>([])
   const [toast, setToast] = useState<{ name: string; type: string } | null>(null)
   const lastSeenRef = useRef<string>(new Date().toISOString())
+  const [slowModeEnabled, setSlowModeEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!localStorage.getItem('slow_mode_seconds')
+    }
+    return false
+  })
+  const [slowModeSeconds, setSlowModeSeconds] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return parseInt(localStorage.getItem('slow_mode_seconds') || '10', 10)
+    }
+    return 10
+  })
+  const [bannedWordsText, setBannedWordsText] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('banned_words') || ''
+    }
+    return ''
+  })
 
   // ── Auto-auth: check existing Google session ────────────────────────────
   useEffect(() => {
@@ -360,6 +378,33 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url)
   }
 
+  const exportMessagesCSV = () => {
+    const csv = [
+      ['שם', 'סוג', 'תוכן', 'תאריך'].join(','),
+      ...messages.map(m => [
+        `"${m.user?.name || ''}"`,
+        m.user?.user_type || '',
+        `"${m.content.replace(/"/g, '""')}"`,
+        new Date(m.created_at).toLocaleString('he-IL')
+      ].join(','))
+    ].join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `messages-${Date.now()}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const saveSettings = () => {
+    if (slowModeEnabled) {
+      localStorage.setItem('slow_mode_seconds', String(slowModeSeconds))
+    } else {
+      localStorage.removeItem('slow_mode_seconds')
+    }
+    localStorage.setItem('banned_words', bannedWordsText)
+    alert('הגדרות נשמרו!')
+  }
+
   const filteredUsers = users.filter(u =>
     u.name.includes(searchUser) || u.email?.includes(searchUser) || u.user_type.includes(searchUser)
   )
@@ -479,13 +524,14 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="bg-white border-b px-6">
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto">
           {[
             { id: 'overview', label: 'סקירה', icon: BarChart3 },
             { id: 'registrations', label: 'הרשמות', icon: UserPlus, badge: newRegCount },
             { id: 'users', label: 'משתמשים', icon: Users },
             { id: 'messages', label: 'הודעות', icon: MessageCircle },
             { id: 'newsletter', label: 'ניוזלטר', icon: Mail },
+            { id: 'settings', label: 'הגדרות', icon: Shield },
           ].map(tab => (
             <button
               key={tab.id}
@@ -831,6 +877,12 @@ export default function AdminDashboard() {
                   <button onClick={fetchMessages} className="text-sm text-purple-600 hover:underline flex items-center gap-1 shrink-0">
                     <RefreshCw className="w-4 h-4" /> רענן
                   </button>
+                  <button
+                    onClick={exportMessagesCSV}
+                    className="flex items-center gap-1 bg-purple-600 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-purple-700 transition shrink-0"
+                  >
+                    <Download className="w-4 h-4" /> ייצוא CSV
+                  </button>
                 </div>
                 <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
                   {filteredMessages.map(msg => (
@@ -869,6 +921,70 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ── SETTINGS TAB ─────────────────────────────────────────── */}
+            {activeTab === 'settings' && (
+              <div className="space-y-6 max-w-2xl">
+                {/* Slow mode */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border">
+                  <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-purple-600" />
+                    מצב איטי (Slow Mode)
+                  </h2>
+                  <div className="flex items-center gap-4 mb-4">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={slowModeEnabled}
+                        onChange={e => setSlowModeEnabled(e.target.checked)}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600" />
+                    </label>
+                    <span className="text-sm text-gray-700">{slowModeEnabled ? 'פעיל' : 'כבוי'}</span>
+                  </div>
+                  {slowModeEnabled && (
+                    <div className="flex items-center gap-3">
+                      <label className="text-sm text-gray-600">שניות בין הודעות:</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={3600}
+                        value={slowModeSeconds}
+                        onChange={e => setSlowModeSeconds(Number(e.target.value))}
+                        className="border rounded-lg px-3 py-1.5 w-24 text-right focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Word filter */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border">
+                  <h2 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                    <Ban className="w-5 h-5 text-red-500" />
+                    סינון מילים אסורות
+                  </h2>
+                  <p className="text-xs text-gray-400 mb-3">
+                    {bannedWordsText.split(',').filter(w => w.trim()).length} מילים • מופרדות בפסיקים
+                  </p>
+                  <textarea
+                    value={bannedWordsText}
+                    onChange={e => setBannedWordsText(e.target.value)}
+                    placeholder="מילה1, מילה2, מילה3..."
+                    rows={4}
+                    className="w-full border rounded-xl px-4 py-2.5 text-right focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none text-sm"
+                    dir="rtl"
+                  />
+                </div>
+
+                <button
+                  onClick={saveSettings}
+                  className="w-full bg-purple-600 text-white rounded-xl py-3 font-semibold hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" /> שמור הגדרות
+                </button>
               </div>
             )}
 

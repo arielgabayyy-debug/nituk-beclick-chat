@@ -15,6 +15,13 @@ export function useChat(currentUser: ChatUser | null) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [bannedWords, setBannedWords] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('banned_words')
+      if (stored) return stored.split(',').map(w => w.trim()).filter(Boolean)
+    }
+    return []
+  })
   const channelRef = useRef<RealtimeChannel | null>(null)
   const presenceChannelRef = useRef<RealtimeChannel | null>(null)
   const typingChannelRef = useRef<RealtimeChannel | null>(null)
@@ -100,6 +107,22 @@ export function useChat(currentUser: ChatUser | null) {
       return
     }
 
+    // Check banned words (reload from localStorage each call to stay fresh)
+    const currentBanned = (() => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('banned_words')
+        return stored ? stored.split(',').map(w => w.trim()).filter(Boolean) : []
+      }
+      return bannedWords
+    })()
+    const lowerContent = content.toLowerCase()
+    const foundBanned = currentBanned.find(w => w && lowerContent.includes(w.toLowerCase()))
+    if (foundBanned) {
+      setError('ההודעה מכילה מילה אסורה ולא ניתן לשלוח אותה.')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
     try {
       const { error } = await supabase
         .from('chat_messages')
@@ -116,6 +139,16 @@ export function useChat(currentUser: ChatUser | null) {
       console.error('Error sending message:', err)
       setError('שגיאה בשליחת ההודעה')
     }
+  }, [currentUser, bannedWords])
+
+  // Edit message (own messages only)
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+    if (!newContent.trim()) return
+    await supabase
+      .from('chat_messages')
+      .update({ content: newContent.trim(), updated_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('user_id', currentUser?.id ?? '')
   }, [currentUser])
 
   // Delete message (admin only)
@@ -484,6 +517,7 @@ export function useChat(currentUser: ChatUser | null) {
     isLoading,
     error,
     sendMessage,
+    editMessage,
     deleteMessage,
     togglePinMessage,
     addReaction,

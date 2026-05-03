@@ -25,6 +25,7 @@ export interface ChatMessage {
   user_id: string
   content: string
   created_at: string
+  updated_at?: string
   is_pinned?: boolean
   mentions?: string[]
   has_gif?: boolean
