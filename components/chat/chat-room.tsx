@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useSwipe } from '@/hooks/use-swipe'
-import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock } from 'lucide-react'
+import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock, Settings } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
@@ -135,14 +135,16 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [mobilePanel, setMobilePanel] = useState<SidebarTab | null>(null)
 
   const mobilePanelSwipe = useSwipe({
-    onSwipeLeft: () => setMobilePanel(p => {
+    // RTL: swipe right = go forward (next panel), swipe left = go back (towards chat)
+    onSwipeRight: () => setMobilePanel(p => {
       const idx = MOBILE_PANELS_ORDER.indexOf(p)
       return MOBILE_PANELS_ORDER[(idx + 1) % MOBILE_PANELS_ORDER.length]
     }),
-    onSwipeRight: () => setMobilePanel(p => {
+    onSwipeLeft: () => setMobilePanel(p => {
       const idx = MOBILE_PANELS_ORDER.indexOf(p)
       return MOBILE_PANELS_ORDER[(idx - 1 + MOBILE_PANELS_ORDER.length) % MOBILE_PANELS_ORDER.length]
     }),
+    onSwipeDown: () => setMobilePanel(null),
     threshold: 60,
   })
   const [showQuickDeal, setShowQuickDeal] = useState(false)
@@ -156,6 +158,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [threadMessage, setThreadMessage] = useState<ChatMessage | null>(null)
   const [displayedCount, setDisplayedCount] = useState(80)
   const [showScheduled, setShowScheduled] = useState(false)
+  const [showMobileTools, setShowMobileTools] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
   const { scheduled, schedule: scheduleMessage, cancel: cancelScheduled, pendingCount: scheduledCount } = useScheduledMessages(useCallback((content: string) => sendMessageRef.current(content), []))
@@ -440,7 +443,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       />
 
       {/* Main content */}
-      <div className="flex-1 flex gap-4 p-4 max-w-[1600px] mx-auto w-full">
+      <div className="flex-1 flex sm:gap-4 sm:p-4 max-w-[1600px] mx-auto w-full mobile-pb-safe lg:pb-0">
         {/* Left sidebar - Community features (hidden on mobile, hidden in focus mode) */}
         <div className={cn(
           "hidden xl:flex flex-col gap-4 transition-all duration-300",
@@ -564,7 +567,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         </Button>
 
         {/* Chat area */}
-        <div className="flex-1 flex flex-col glass rounded-2xl overflow-hidden border border-border/30 shadow-2xl min-w-0">
+        <div className="flex-1 flex flex-col glass sm:rounded-2xl overflow-hidden sm:border sm:border-border/30 sm:shadow-2xl min-w-0">
           {/* Pinned messages */}
           <div className="flex items-center gap-2">
             <div className="flex-1">
@@ -706,14 +709,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Messages */}
           <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 chat-scrollbar">
-            {/* Onboarding checklist for new users */}
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 chat-scrollbar">
+            {/* Onboarding checklist for new users - desktop only */}
             {!isLoading && currentUser.messages_count < 20 && (
-              <OnboardingChecklist
+              <div className="hidden sm:block"><OnboardingChecklist
                 user={currentUser}
                 messagesCount={messages.filter(m => m.user_id === currentUser.id).length}
                 onSendMessage={handleSendMessage}
-              />
+              /></div>
             )}
             {isLoading ? (
               <MessageSkeleton />
@@ -865,8 +868,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           <TypingIndicator typingUsers={typingUsers} />
 
           {/* Input area */}
-          <div className="border-t border-border/30 p-4 bg-card/30 backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-2">
+          <div className="border-t border-border/30 p-2 sm:p-4 bg-card/30 backdrop-blur-sm">
+            <div className="hidden sm:flex items-center gap-2 mb-2">
               <div className="relative">
                 <Button
                   variant="ghost"
@@ -1026,6 +1029,27 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               {/* Celebration button */}
               <CelebrationButton onSend={handleSendMessage} />
             </div>
+
+            {/* Mobile toolbar */}
+            <div className="flex sm:hidden items-center gap-1.5 mb-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSoundEnabled(!soundEnabled)} title={soundEnabled ? 'השתק' : 'הפעל צלילים'}>
+                {soundEnabled ? <Volume2 className="w-4 h-4 text-muted-foreground" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
+              </Button>
+              <Button variant="ghost" size="icon" className={cn("h-8 w-8 shrink-0 relative", showBookmarks && "bg-amber-500/10 text-amber-500")} onClick={() => setShowBookmarks(!showBookmarks)}>
+                <Bookmark className={cn("w-4 h-4", showBookmarks ? "text-amber-500 fill-amber-500" : "text-muted-foreground")} />
+                {bookmarkedIds.size > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center leading-none">{bookmarkedIds.size > 9 ? '9+' : bookmarkedIds.size}</span>}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 relative" onClick={() => { setShowNotificationCenter(v => !v); setUnreadMentions(0) }}>
+                <Bell className="w-4 h-4 text-muted-foreground" />
+                {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center badge-pulse">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+              </Button>
+              <div className="flex-1" />
+              <CelebrationButton onSend={handleSendMessage} />
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setShowMobileTools(true)} title="כלים נוספים">
+                <Settings className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </div>
+
             <ChatInput
               onSend={handleSendMessage}
               onTypingStart={startTyping}
@@ -1097,35 +1121,44 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-border/30 safe-area-inset-bottom z-40 flex" aria-label="ניווט תחתון">
-        <button onClick={() => setMobilePanel(null)} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", !mobilePanel ? "text-primary" : "text-muted-foreground")}>
-          <MessageCircle className="w-5 h-5" /><span>צ׳אט</span>
-        </button>
-        <button onClick={() => setMobilePanel(p => p === 'leaderboard' ? null : 'leaderboard')} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", mobilePanel === 'leaderboard' ? "text-primary" : "text-muted-foreground")}>
-          <Trophy className="w-5 h-5" /><span>מובילים</span>
-        </button>
-        <button onClick={() => setMobilePanel(p => p === 'deals' ? null : 'deals')} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", mobilePanel === 'deals' ? "text-primary" : "text-muted-foreground")}>
-          <Flame className="w-5 h-5" /><span>עסקאות</span>
-        </button>
-        <button onClick={() => setMobilePanel(p => p === 'users' ? null : 'users')} className={cn("flex-1 flex flex-col items-center gap-1 py-2 text-xs transition", mobilePanel === 'users' ? "text-primary" : "text-muted-foreground")}>
-          <BarChart3 className="w-5 h-5" /><span>מחוברים</span>
-        </button>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-border/30 z-40" aria-label="ניווט תחתון" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex">
+          <button onClick={() => setMobilePanel(null)} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", !mobilePanel ? "text-primary" : "text-muted-foreground")}>
+            <MessageCircle className="w-5 h-5" /><span>צ׳אט</span>
+          </button>
+          <button onClick={() => setMobilePanel(p => p === 'leaderboard' ? null : 'leaderboard')} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'leaderboard' ? "text-primary" : "text-muted-foreground")}>
+            <Trophy className="w-5 h-5" /><span>מובילים</span>
+          </button>
+          <button onClick={() => setMobilePanel(p => p === 'deals' ? null : 'deals')} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'deals' ? "text-primary" : "text-muted-foreground")}>
+            <Flame className="w-5 h-5" /><span>עסקאות</span>
+          </button>
+          <button onClick={() => setMobilePanel(p => p === 'users' ? null : 'users')} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'users' ? "text-primary" : "text-muted-foreground")}>
+            <BarChart3 className="w-5 h-5" /><span>מחוברים</span>
+          </button>
+        </div>
       </nav>
 
       {/* Mobile panel sheet */}
       {mobilePanel && (
         <div
-          className="lg:hidden fixed inset-x-0 bottom-16 z-30 bg-white dark:bg-gray-900 border-t border-border/30 shadow-2xl rounded-t-2xl max-h-[60vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300"
+          className="lg:hidden fixed inset-x-0 z-30 bg-white dark:bg-gray-900 border-t border-border/30 shadow-2xl rounded-t-2xl max-h-[60vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300"
+          style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
           {...mobilePanelSwipe}
         >
-          {/* Swipe indicator */}
-          <div className="flex items-center justify-center gap-1.5 mb-2">
-            {MOBILE_PANELS_ORDER.map((p, i) => (
-              <div
-                key={i}
-                className={`h-1 rounded-full transition-all ${mobilePanel === p ? 'w-6 bg-primary' : 'w-1.5 bg-muted'}`}
-              />
-            ))}
+          {/* Drag handle + close */}
+          <div className="flex items-center justify-between mb-2 px-1">
+            <button onClick={() => setMobilePanel(null)} className="p-1.5 rounded-lg hover:bg-muted transition" aria-label="סגור">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <div className="flex items-center gap-1.5">
+              {MOBILE_PANELS_ORDER.filter(p => p !== null).map((p, i) => (
+                <div
+                  key={i}
+                  className={`h-1 rounded-full transition-all ${mobilePanel === p ? 'w-6 bg-primary' : 'w-1.5 bg-muted'}`}
+                />
+              ))}
+            </div>
+            <div className="w-7" />
           </div>
           {mobilePanel === 'leaderboard' && <Leaderboard users={leaderboard} currentUserId={currentUser.id} />}
           {mobilePanel === 'deals' && <HotDeals deals={hotDeals} currentUser={currentUser} onVote={voteDeal} onShare={shareDeal} />}
@@ -1286,6 +1319,61 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
             })
           }}
         />
+      )}
+
+      {/* Mobile tools sheet */}
+      {showMobileTools && (
+        <div className="fixed inset-0 z-[55] flex flex-col justify-end sm:hidden" dir="rtl">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMobileTools(false)} />
+          <div className="relative bg-white dark:bg-gray-900 rounded-t-2xl animate-in slide-in-from-bottom-4 duration-200">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+            <div className="px-4 pt-2 pb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-base">כלים</h3>
+                <button onClick={() => setShowMobileTools(false)} className="p-1.5 rounded-lg hover:bg-muted transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                <button onClick={() => { setShowGallery(true); setShowMobileTools(false) }} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/40 hover:bg-muted transition text-xs font-medium">
+                  <Images className="w-5 h-5" />
+                  גלריה
+                </button>
+                <button onClick={() => { setShowQuickDeal(true); setShowMobileTools(false) }} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/40 hover:bg-muted transition text-xs font-medium text-orange-500">
+                  <Flame className="w-5 h-5" />
+                  עסקה 🔥
+                </button>
+                <button onClick={() => { setShowPointsShop(true); setShowMobileTools(false) }} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/40 hover:bg-muted transition text-xs font-medium text-amber-500">
+                  <Star className="w-5 h-5" />
+                  {currentUser.points} נק׳
+                </button>
+                <button onClick={() => { setShowScheduled(true); setShowMobileTools(false) }} className="relative flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/40 hover:bg-muted transition text-xs font-medium">
+                  <Clock className="w-5 h-5" />
+                  מתוזמן
+                  {scheduledCount > 0 && <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-primary text-primary-foreground text-[8px] font-bold rounded-full flex items-center justify-center">{scheduledCount}</span>}
+                </button>
+                <button onClick={() => { setFocusMode(f => !f); setShowMobileTools(false) }} className={cn("flex flex-col items-center gap-1.5 p-3 rounded-xl transition text-xs font-medium", focusMode ? "bg-primary/10 text-primary" : "bg-muted/40 hover:bg-muted")}>
+                  {focusMode ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                  {focusMode ? 'רגיל' : 'פוקוס'}
+                </button>
+                <button onClick={() => { setShowPriceAlerts(true); setShowMobileTools(false) }} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/40 hover:bg-muted transition text-xs font-medium text-amber-600 dark:text-amber-400">
+                  <Bell className="w-5 h-5" />
+                  התראת מחיר
+                </button>
+                <button onClick={() => { setShowPinboard(true); setShowMobileTools(false) }} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/40 hover:bg-muted transition text-xs font-medium">
+                  <Bookmark className="w-5 h-5" />
+                  נעוצות
+                </button>
+                <button onClick={() => { setShowExport(true); setShowMobileTools(false) }} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/40 hover:bg-muted transition text-xs font-medium">
+                  <Download className="w-5 h-5" />
+                  ייצוא
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

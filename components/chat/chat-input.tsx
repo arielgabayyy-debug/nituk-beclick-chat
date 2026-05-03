@@ -485,9 +485,9 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Speed dial - quick messages when input is empty */}
+      {/* Speed dial - quick messages when input is empty (desktop only) */}
       {!message && !replyTo && (
-        <div className="flex items-center gap-1 mb-1.5 overflow-x-auto">
+        <div className="hidden sm:flex items-center gap-1 mb-1.5 overflow-x-auto">
           {customDials.slice(0, 5).map((text, i) => (
             <button
               key={i}
@@ -526,15 +526,15 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Smart text suggestions */}
+      {/* Smart text suggestions - desktop only */}
       {message.length > 3 && !showEmojis && (
-        <SmartSuggestions
+        <div className="hidden sm:block"><SmartSuggestions
           message={message}
           onSelect={(suffix) => {
             setMessage(prev => prev + suffix)
             setTimeout(() => textareaRef.current?.focus(), 0)
           }}
-        />
+        /></div>
       )}
 
       {/* Full Emoji picker */}
@@ -667,12 +667,15 @@ export function ChatInput({
           }
         </Button>
 
-        {/* Voice + Video recorders - show only when message is empty */}
+        {/* Voice recorder - always show on mobile, show when empty on desktop */}
+        <div className={!message ? 'block' : 'hidden sm:block'}>
+          <VoiceRecorder onSend={handleVoiceSend} disabled={disabled} />
+        </div>
+        {/* Video recorder - desktop only when empty */}
         {!message && (
-          <>
-            <VoiceRecorder onSend={handleVoiceSend} disabled={disabled} />
+          <div className="hidden sm:block">
             <VideoRecorder onSend={(content) => { onSend(content) }} disabled={disabled} />
-          </>
+          </div>
         )}
 
         <div className="flex-1 relative">

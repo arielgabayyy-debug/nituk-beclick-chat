@@ -717,18 +717,48 @@ export function useChatUser() {
   }
 
   const registerUser = async (
-    name: string, 
-    email: string | null, 
+    name: string,
+    email: string | null,
     userType: UserType,
     avatarColor: string
   ): Promise<ChatUser | null> => {
     setIsLoading(true)
     try {
+      const normalizedEmail = email ? email.toLowerCase().trim() : null
+
+      // For users with an email, check if they already exist (returning user)
+      if (normalizedEmail) {
+        const { data: existing } = await supabase
+          .from('chat_users')
+          .select('*')
+          .eq('email', normalizedEmail)
+          .maybeSingle()
+
+        if (existing) {
+          const { data: updated } = await supabase
+            .from('chat_users')
+            .update({
+              name: name.trim() || existing.name,
+              is_online: true,
+              last_seen: new Date().toISOString(),
+            })
+            .eq('id', existing.id)
+            .select()
+            .single()
+
+          const returnedUser = updated || existing
+          localStorage.setItem('chat_user_id', returnedUser.id)
+          setCurrentUser({ ...returnedUser, is_online: true })
+          return { ...returnedUser, is_online: true }
+        }
+      }
+
+      // New user — insert
       const { data, error } = await supabase
         .from('chat_users')
         .insert({
           name,
-          email,
+          email: normalizedEmail,
           user_type: userType,
           avatar_color: avatarColor,
           is_online: true
@@ -737,7 +767,7 @@ export function useChatUser() {
         .single()
 
       if (error) throw error
-      
+
       if (data) {
         localStorage.setItem('chat_user_id', data.id)
         setCurrentUser(data)

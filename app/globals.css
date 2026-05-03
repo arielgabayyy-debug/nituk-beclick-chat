@@ -254,6 +254,13 @@
   animation: notification-pop 0.3s ease-out;
 }
 
+/* Mobile: content padding-bottom that includes iOS safe area inset */
+@media (max-width: 1023px) {
+  .mobile-pb-safe {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
 /* Entrance animations */
 @keyframes slide-in-right {
   from {
