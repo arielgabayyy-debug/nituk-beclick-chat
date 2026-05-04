@@ -93,55 +93,10 @@ export function VideoRecorder({ onSend, disabled }: VideoRecorderProps) {
     }
   }
 
-  // ── Start camera (desktop / Android with getUserMedia) ────────────────
-  const startCamera = async () => {
+  // ── Start camera — always use native picker (no permission dialog) ─────
+  const startCamera = () => {
     setPermError(null)
-
-    // Mobile: use native picker
-    if (isMobile() || isIOS()) {
-      openNativeFilePicker()
-      return
-    }
-
-    // Desktop: check permissions first
-    const camPerm = await checkPermission('camera')
-    const micPerm = await checkPermission('microphone')
-
-    if (camPerm === 'denied' || micPerm === 'denied') {
-      setPermError('הגישה למצלמה/מיקרופון נחסמה. לחץ על 🔒 בשורת הכתובת ואפשר הרשאות.')
-      return
-    }
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      // Fallback to file picker
-      openNativeFilePicker()
-      return
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: true
-      })
-      streamRef.current = stream
-      if (previewRef.current) {
-        previewRef.current.srcObject = stream
-        await previewRef.current.play()
-      }
-      setPhase('preview')
-    } catch (err: unknown) {
-      const name = err instanceof Error ? err.name : ''
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        setPermError('לא ניתן לגשת למצלמה. אשר הרשאה בדפדפן ונסה שוב.')
-      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-        setPermError('לא נמצאה מצלמה במכשיר זה.')
-      } else if (name === 'NotReadableError') {
-        setPermError('המצלמה תפוסה על ידי אפליקציה אחרת.')
-      } else {
-        // Last resort: file picker
-        openNativeFilePicker()
-      }
-    }
+    openNativeFilePicker()
   }
 
   const startRecording = () => {

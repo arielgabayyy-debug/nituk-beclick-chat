@@ -99,6 +99,21 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  // ── Visual Viewport: keep chat above keyboard on mobile ─────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return
+    const vv = window.visualViewport
+    const onResize = () => {
+      const isKeyboardOpen = vv.height < window.innerHeight * 0.8
+      if (isKeyboardOpen) {
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 80)
+      }
+    }
+    vv.addEventListener('resize', onResize)
+    return () => vv.removeEventListener('resize', onResize)
+  }, [])
+
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [soundVolume, setSoundVolume] = useState(0.3)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)

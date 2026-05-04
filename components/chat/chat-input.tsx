@@ -778,11 +778,17 @@ export function ChatInput({
             disabled={disabled}
             rows={1}
             maxLength={1000}
+            enterKeyHint="send"
+            inputMode="text"
+            autoCorrect="on"
+            autoComplete="off"
+            spellCheck
             className={cn(
               "w-full resize-none rounded-2xl px-4 py-3 text-sm",
               "bg-white border-2 border-border/50 shadow-sm",
               "focus:outline-none focus:border-primary/50",
               "placeholder:text-muted-foreground transition-all",
+              "touch-manipulation",
               disabled && "opacity-50 cursor-not-allowed",
               message.length > 800 && "border-orange-300 focus:border-orange-400"
             )}
