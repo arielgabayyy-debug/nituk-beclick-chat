@@ -29,8 +29,12 @@ export async function POST(request: Request) {
     })
 
     if (error) {
-      console.error('Supabase OTP error:', error.message)
-      return NextResponse.json({ error: 'שגיאה בשליחת המייל. נסה שוב.' }, { status: 500 })
+      console.error('Supabase OTP error:', error.message, error.status)
+      // Rate limit is temporary — tell user to wait
+      if (error.message?.includes('rate limit') || error.status === 429) {
+        return NextResponse.json({ error: 'נסו שוב בעוד מספר דקות (הגעתם למגבלת שליחות).' }, { status: 429 })
+      }
+      return NextResponse.json({ error: `שגיאה: ${error.message}` }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
