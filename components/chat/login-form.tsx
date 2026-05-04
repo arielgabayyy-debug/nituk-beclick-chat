@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { ArrowRight, User, Mail, Loader2, Check } from 'lucide-react'
+import { ArrowRight, User, Mail, Loader2, Check, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -49,6 +49,8 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [showEmailForm, setShowEmailForm] = useState(false)
+  const [isReturningUser, setIsReturningUser] = useState(false)
+  const [returningName, setReturningName] = useState('')
 
   useEffect(() => {
     const saved = localStorage.getItem(`nituk_remember_${mode}`)
@@ -69,6 +71,21 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
       return () => clearTimeout(t)
     }
   }, [countdown])
+
+  // ── Check if email belongs to existing subscriber ──────────────────────
+  const checkExistingUser = async (emailToCheck: string) => {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('chat_users')
+        .select('id, name, user_type')
+        .eq('email', emailToCheck.trim().toLowerCase())
+        .limit(1)
+      return data?.[0] ?? null
+    } catch {
+      return null
+    }
+  }
 
   // ── Google OAuth ───────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
@@ -92,7 +109,6 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
   // ── Magic link ─────────────────────────────────────────────────────────
   const sendMagicLink = async () => {
     if (!email.trim() || !email.includes('@')) { setError('נא להזין אימייל תקין'); return }
-    if (mode !== 'subscriber' && !name.trim()) { setError('נא להזין שם'); return }
 
     setIsSending(true)
     setError('')
@@ -101,30 +117,48 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
       const supabase = createClient()
       const trimmedEmail = email.trim().toLowerCase()
 
+      // ── Check if returning subscriber ──────────────────────────────
+      const existingUser = await checkExistingUser(trimmedEmail)
+      const isReturning = !!existingUser
+      setIsReturningUser(isReturning)
+      if (existingUser?.name) setReturningName(existingUser.name)
+
+      const displayName = name.trim()
+        || (isReturning ? existingUser!.name : trimmedEmail.split('@')[0])
+      const intendedType = isReturning
+        ? (existingUser!.user_type ?? config.userType)
+        : config.userType
+
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          shouldCreateUser: true,
           data: {
-            display_name: name.trim() || trimmedEmail.split('@')[0],
-            intended_type: config.userType,
+            display_name: displayName,
+            intended_type: intendedType,
             avatar_color: selectedColor,
           },
         },
       })
 
       if (otpError) {
-        const isRateLimit = otpError.message?.toLowerCase().includes('rate limit') ||
-                            otpError.message?.toLowerCase().includes('too many')
-        setError(isRateLimit
-          ? 'הגענו למגבלת מיילים לשעה. השתמשו בכניסה עם Google 👆'
-          : (otpError.message || 'שגיאה בשליחת הקישור'))
+        const msg = otpError.message?.toLowerCase() || ''
+        if (msg.includes('rate limit') || msg.includes('too many')) {
+          setError('הגענו למגבלת מיילים. נסו כניסה עם Google 👆')
+        } else if (msg.includes('smtp') || msg.includes('sending') || msg.includes('email')) {
+          setError('שגיאה בשליחת המייל — נסו כניסה עם Google 👆')
+        } else if (msg.includes('invalid') || msg.includes('not found')) {
+          setError('כתובת מייל לא תקינה')
+        } else {
+          setError('שגיאה בשליחה, נסו שוב')
+        }
         return
       }
 
       if (rememberMe) {
         localStorage.setItem(`nituk_remember_${mode}`, JSON.stringify({
-          name: name.trim(), email: email.trim(), color: selectedColor
+          name: displayName, email: email.trim(), color: selectedColor
         }))
       }
 
@@ -163,17 +197,27 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
             <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-primary/10 flex items-center justify-center">
               <Mail className="w-10 h-10 text-primary" />
             </div>
+
+            {isReturningUser && returningName ? (
+              <div className="mb-3 flex items-center justify-center gap-1 text-primary text-sm font-medium">
+                <Sparkles className="w-4 h-4" />
+                ברוך הבא בחזרה, {returningName}!
+              </div>
+            ) : null}
+
             <h2 className="text-xl font-bold mb-2">בדקו את תיבת המייל</h2>
             <p className="text-sm text-muted-foreground mb-1">שלחנו קישור כניסה אל:</p>
             <p className="text-base font-semibold text-primary mb-4" dir="ltr">{email}</p>
+
             <div className="bg-muted/30 rounded-xl p-4 mb-5 text-right">
               <p className="text-sm font-medium mb-2">כיצד להיכנס:</p>
               <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
                 <li>פתחו את תיבת המייל שלכם</li>
-                <li>חפשו מייל מ-Supabase (בדקו גם ספאם)</li>
-                <li>לחצו על כפתור "Log In" בתוך המייל</li>
+                <li>חפשו מייל מ-{'"'}ניתוק בקליק{'"'} (בדקו גם ספאם)</li>
+                <li>לחצו על כפתור הכניסה בתוך המייל</li>
               </ol>
             </div>
+
             <div className="flex items-center gap-2 justify-center mb-4">
               {[0, 150, 300].map(d => (
                 <div key={d} className="w-2 h-2 bg-primary rounded-full animate-bounce"
@@ -181,6 +225,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
               ))}
               <span className="text-xs text-muted-foreground mr-1">ממתין לאישור...</span>
             </div>
+
             {error && <p className="text-sm text-destructive mb-3">{error}</p>}
             {countdown > 0
               ? <p className="text-sm text-muted-foreground">שליחה חוזרת בעוד {countdown} שניות</p>
@@ -304,7 +349,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
                   <Button type="submit" disabled={isSending}
                     className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
                     {isSending
-                      ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" />שולח...</>
+                      ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" />בודק ושולח...</>
                       : <><Mail className="w-4 h-4 ml-2" />שלח קישור כניסה</>}
                   </Button>
                 </form>
