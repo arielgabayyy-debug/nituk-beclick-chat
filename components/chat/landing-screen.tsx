@@ -46,7 +46,7 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center p-4 pt-8 pb-10 relative overflow-y-auto overflow-x-hidden">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -55,19 +55,19 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
 
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-6">
-          <div className="flex justify-center mb-4">
-            <CommunityLogo size={88} animated showText={false} />
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-3">
+            <CommunityLogo size={72} animated showText={false} />
           </div>
-          <h1 className="text-3xl font-bold gradient-text mb-2">ניתוק בקליק</h1>
-          <p className="text-muted-foreground flex items-center justify-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold gradient-text mb-1">ניתוק בקליק</h1>
+          <p className="text-muted-foreground flex items-center justify-center gap-2 text-sm">
             השוואת מחירי סלולר חכמה
             <span className="bg-gradient-to-r from-secondary to-primary text-white px-2 py-0.5 rounded-full text-xs font-semibold">AI</span>
           </p>
         </div>
 
         {/* Stats bar */}
-        <div className="flex items-center justify-center gap-4 mb-6">
+        <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
           <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1.5">
             <div className="w-2 h-2 bg-emerald-500 rounded-full pulse-online" />
             <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{onlineCount}</span>
@@ -179,18 +179,19 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
           {/* Newsletter */}
           <button
             onClick={() => onSelectMode('newsletter')}
-            className="w-full glass rounded-xl p-4 flex items-center gap-4 hover:bg-muted/30 transition-all hover:scale-[1.02] group border border-accent/30"
+            className="w-full rounded-xl p-4 flex items-center gap-4 transition-all hover:scale-[1.02] group border-2 border-dashed border-emerald-400/50 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
           >
-            <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-              <Mail className="w-6 h-6 text-accent" />
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+              <Mail className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div className="text-right flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="font-semibold">מנוי ניוזלטר</h3>
-                <span className="text-[10px] px-1.5 py-0.5 bg-accent/20 text-accent rounded-full">חינם</span>
+            <div className="text-right flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                <h3 className="font-semibold text-emerald-800 dark:text-emerald-300">הרשמה לניוזלטר</h3>
+                <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-full font-medium shrink-0">חינם לגמרי</span>
               </div>
-              <p className="text-sm text-muted-foreground">הירשמו וקבלו עדכונים + תג מיוחד</p>
+              <p className="text-sm text-muted-foreground">קבלו עדכוני חבילות + תג מיוחד בקהילה</p>
             </div>
+            <Mail className="w-5 h-5 text-emerald-500 shrink-0" />
           </button>
         </div>
 
