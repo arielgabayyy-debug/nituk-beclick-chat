@@ -22,7 +22,10 @@ export async function POST(request: Request) {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: 'https://nituk-beclick-chat.vercel.app/auth/callback',
+      },
     })
 
     if (error) {

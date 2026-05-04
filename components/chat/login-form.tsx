@@ -278,51 +278,32 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
               </form>
             </>
           ) : (
-            // ── OTP step ─────────────────────────────────────────────────
+            // ── Magic link step ───────────────────────────────────────────
             <>
               <div className="text-center mb-6">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                  <ShieldCheck className="w-8 h-8 text-primary" />
+                  <Mail className="w-8 h-8 text-primary" />
                 </div>
-                <h2 className="text-xl font-bold mb-1">אימות אימייל</h2>
-                <p className="text-sm text-muted-foreground">שלחנו קוד בן 6 ספרות אל:</p>
+                <h2 className="text-xl font-bold mb-1">בדקו את תיבת המייל</h2>
+                <p className="text-sm text-muted-foreground">שלחנו קישור כניסה אל:</p>
                 <p className="text-sm font-semibold text-primary mt-1" dir="ltr">{email}</p>
+                <p className="text-xs text-muted-foreground mt-2">לחצו על הקישור במייל להיכנס לצ׳אט</p>
                 <p className="text-xs text-muted-foreground mt-1">בדקו גם ספאם / קידומי מכירות</p>
               </div>
 
-              <div className="space-y-5">
-                {/* OTP inputs */}
-                <div className="flex justify-center gap-2" dir="ltr">
-                  {otpCode.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={el => { inputRefs.current[i] = el }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={e => handleOtpChange(i, e.target.value)}
-                      onKeyDown={e => handleOtpKeyDown(i, e)}
-                      onPaste={i === 0 ? handleOtpPaste : undefined}
-                      disabled={isVerifying}
-                      className={cn(
-                        "w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 transition-all",
-                        "bg-muted/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20",
-                        digit ? "border-primary bg-primary/5" : "border-muted-foreground/30"
-                      )}
-                    />
-                  ))}
+              <div className="space-y-4">
+                {/* Visual indicator */}
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <div className="flex gap-1">
+                    {[0,1,2].map(i => (
+                      <div key={i} className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                        style={{ animationDelay: `${i * 0.15}s` }} />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">ממתין לאישור...</p>
                 </div>
 
                 {error && <p className="text-sm text-destructive text-center">{error}</p>}
-
-                <Button onClick={handleVerifyOtp}
-                  disabled={isVerifying || otpCode.some(d => !d)}
-                  className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                  {isVerifying
-                    ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" />מאמת...</>
-                    : <><ShieldCheck className="w-4 h-4 ml-2" />אימות והצטרפות</>}
-                </Button>
 
                 <div className="text-center">
                   {countdown > 0
@@ -330,7 +311,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
                     : <Button variant="ghost" size="sm" onClick={handleSendOtp} disabled={isSendingOtp}>
                         {isSendingOtp
                           ? <><Loader2 className="w-4 h-4 ml-1 animate-spin" />שולח...</>
-                          : <><RefreshCw className="w-4 h-4 ml-1" />שלח קוד חדש</>}
+                          : <><RefreshCw className="w-4 h-4 ml-1" />שלח קישור חדש</>}
                       </Button>
                   }
                 </div>

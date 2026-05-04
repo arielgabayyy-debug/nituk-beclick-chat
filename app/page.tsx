@@ -28,11 +28,9 @@ export default function ChatApp() {
   useEffect(() => {
     const supabase = createClient()
 
-    // Skip email/magic-link logins — handled by LoginForm
+    // Handle all sign-ins including magic link (email provider)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const provider = session.user.app_metadata?.provider
-        if (provider === 'email') return
         setLoadingMessage('מתחבר עם הפרופיל שלך...')
         await syncOAuthUser(session.user)
       }
