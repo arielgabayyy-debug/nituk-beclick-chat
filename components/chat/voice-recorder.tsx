@@ -101,12 +101,11 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   // Idle state
   return (
     <>
-      {/* accept="audio/*" + capture="user" → opens phone's voice recorder on mobile */}
+      {/* audio/* WITHOUT capture → shows audio recorder / file picker (not camera) */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*,audio/mp4,audio/m4a,.m4a,.mp3,.aac,.wav,.ogg"
-        capture="user"
+        accept="audio/*,audio/mp4,audio/m4a,.m4a,.mp3,.aac,.wav,.ogg,.webm"
         className="hidden"
         onChange={handleFile}
       />
