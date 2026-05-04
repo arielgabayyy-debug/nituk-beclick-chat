@@ -64,7 +64,6 @@ export async function GET(request: NextRequest) {
     const existingUser = existingRows?.[0] ?? null
 
     if (existingUser) {
-      // UPDATE does not trigger the INSERT trigger — safe to call directly
       const finalType = isAdmin ? 'admin' : (existingUser.user_type ?? intendedType)
       await supabase.from('chat_users').update({
         is_online: true,
@@ -72,16 +71,14 @@ export async function GET(request: NextRequest) {
         last_seen: new Date().toISOString(),
         user_type: finalType,
       }).eq('id', existingUser.id)
+      // existing user — no email notification needed
     } else {
-      // INSERT triggers the notify_admin_new_registration trigger.
-      // If the trigger has a broken http_post call (pg_net not installed),
-      // the insert will fail with error code 42883.
-      // We log the error but always continue to /?oauth=success so page.tsx
-      // can handle user creation on the client side via syncAuthUser.
+      // New user — insert
+      const userType = isAdmin ? 'admin' : intendedType
       const { error: upsertError } = await supabase.from('chat_users').upsert({
         name,
         email,
-        user_type: isAdmin ? 'admin' : intendedType,
+        user_type: userType,
         avatar_color: avatarColor,
         avatar_url: avatarUrl,
         is_online: true,
@@ -89,12 +86,23 @@ export async function GET(request: NextRequest) {
       }, { onConflict: 'email' })
 
       if (upsertError) {
-        // Log but do NOT redirect to error page — page.tsx will create the user
-        console.error('chat_users upsert error (trigger may be broken):', upsertError.message, upsertError.code)
-        // Store intended_type in the redirect URL so page.tsx can use it
+        console.error('chat_users upsert error:', upsertError.message, upsertError.code)
         return NextResponse.redirect(
           `${origin}/?oauth=success&intended_type=${encodeURIComponent(intendedType)}`
         )
+      }
+
+      // ── Send admin email notification (server-side, reliable) ─────────
+      if (userType !== 'guest' && userType !== 'admin') {
+        try {
+          await fetch(`${origin}/api/admin/notify-registration`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, userType }),
+          })
+        } catch (notifyErr) {
+          console.warn('notify-registration failed (non-fatal):', notifyErr)
+        }
       }
     }
   }
