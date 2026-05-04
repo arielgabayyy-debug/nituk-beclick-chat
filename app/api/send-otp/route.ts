@@ -27,10 +27,10 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Supabase OTP error:', error.message)
-      return NextResponse.json({ error: 'שגיאה בשליחת המייל. נסה שוב.', debug: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'שגיאה בשליחת המייל. נסה שוב.' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, v: 4, provider: 'supabase-auth' })
+    return NextResponse.json({ success: true })
 
   } catch (err) {
     console.error('send-otp error:', err)
