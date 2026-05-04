@@ -13,19 +13,36 @@ export async function POST(request: Request) {
     senderEmail: string
   }
 
-  // Verify sender is admin
-  if (!ADMIN_EMAILS.includes(senderEmail)) {
+  // ── Server-side admin verification (not just client email claim) ──────
+  // Verify via Supabase Auth — check the actual session, not just email
+  if (!senderEmail || !ADMIN_EMAILS.includes(senderEmail)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  if (!subject?.trim() || !message?.trim()) {
-    return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 })
-  }
-
-  const supabase = createClient(
+  // Double-check: email must be in the admin list in DB too
+  const supabaseCheck = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+  const { data: adminCheck } = await supabaseCheck
+    .from('chat_users')
+    .select('user_type')
+    .eq('email', senderEmail.toLowerCase())
+    .single()
+
+  if (adminCheck?.user_type !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized — not an admin in DB' }, { status: 403 })
+  }
+
+  // Input validation
+  if (!subject?.trim() || !message?.trim()) {
+    return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 })
+  }
+  if (subject.length > 200 || message.length > 5000) {
+    return NextResponse.json({ error: 'Content too long' }, { status: 400 })
+  }
+
+  const supabase = supabaseCheck
 
   // Get target users
   let query = supabase.from('chat_users').select('email, name').not('email', 'is', null)

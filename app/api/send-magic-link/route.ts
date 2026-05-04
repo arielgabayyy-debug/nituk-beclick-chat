@@ -8,21 +8,56 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
 
-// Sender email — must be verified in Brevo (Settings → Senders)
 const SENDER_EMAIL = 'arielgabayyy@gmail.com'
 const SENDER_NAME = 'ניתוק בקליק'
 
+// ── In-memory rate limiting: max 3 magic links per email per 10 minutes ──
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT = 3
+const RATE_WINDOW_MS = 10 * 60 * 1000
+
+function checkRateLimit(email: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(email)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(email, { count: 1, resetAt: now + RATE_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT) return false
+  entry.count++
+  return true
+}
+
+// ── Input validation ──────────────────────────────────────────────────────
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MAX_NAME_LENGTH = 50
+const ALLOWED_TYPES = ['subscriber', 'newsletter', 'guest']
+
+function sanitizeString(s: unknown, maxLen = 100): string {
+  if (typeof s !== 'string') return ''
+  return s.trim().slice(0, maxLen).replace(/[<>]/g, '')
+}
+
 export async function POST(request: Request) {
   try {
-    const { email, redirectTo, intendedType, displayName, avatarColor } = await request.json()
+    const body = await request.json()
+    const { email: rawEmail, redirectTo, intendedType: rawType, displayName: rawName, avatarColor: rawColor } = body
 
-    if (!email || !email.includes('@')) {
+    // Validate email
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+    if (!email || !EMAIL_REGEX.test(email)) {
       return NextResponse.json({ error: 'כתובת מייל לא תקינה' }, { status: 400 })
     }
 
-    const trimmedEmail = email.trim().toLowerCase()
-    const origin = new URL(request.url).origin
-    const callbackUrl = redirectTo || `${origin}/auth/callback`
+    // Sanitize inputs
+    const displayName = sanitizeString(rawName, MAX_NAME_LENGTH)
+    const intendedType = ALLOWED_TYPES.includes(rawType) ? rawType : 'subscriber'
+    const avatarColor = /^#[0-9A-Fa-f]{6}$/.test(rawColor) ? rawColor : '#06b6d4'
+
+    // Rate limit check
+    if (!checkRateLimit(email)) {
+      return NextResponse.json({ error: 'יותר מדי בקשות. נסה שוב בעוד 10 דקות.' }, { status: 429 })
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -32,24 +67,30 @@ export async function POST(request: Request) {
     const { data: existingRows } = await supabase
       .from('chat_users')
       .select('id, name, user_type')
-      .eq('email', trimmedEmail)
+      .eq('email', email)
       .limit(1)
 
     const existingUser = existingRows?.[0] ?? null
-    const isAdmin = ADMIN_EMAILS.includes(trimmedEmail)
-    const finalType = isAdmin ? 'admin' : (existingUser?.user_type ?? intendedType ?? 'subscriber')
-    const finalName = displayName || existingUser?.name || trimmedEmail.split('@')[0]
+    const isAdmin = ADMIN_EMAILS.includes(email)
+    const finalType = isAdmin ? 'admin' : (existingUser?.user_type ?? intendedType)
+    const finalName = displayName || existingUser?.name || email.split('@')[0]
+
+    // Sanitize redirect URL — only allow same-origin or known domains
+    const origin = new URL(request.url).origin
+    const callbackUrl = redirectTo?.startsWith(origin) || redirectTo?.startsWith('https://nitukbeclick.co.il')
+      ? redirectTo
+      : `${origin}/auth/callback`
 
     // ── Generate magic link via Supabase Admin ─────────────────────────────
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
-      email: trimmedEmail,
+      email,
       options: {
         redirectTo: callbackUrl,
         data: {
           display_name: finalName,
           intended_type: finalType,
-          avatar_color: avatarColor || '#06b6d4',
+          avatar_color: avatarColor,
         },
       },
     })
@@ -71,7 +112,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         sender: { name: SENDER_NAME, email: SENDER_EMAIL },
-        to: [{ email: trimmedEmail, name: finalName }],
+        to: [{ email: email, name: finalName }],
         subject: 'הקישור שלך לכניסה — ניתוק בקליק',
         htmlContent: `
           <div dir="rtl" style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#0f172a;color:#f8fafc;border-radius:12px;">
