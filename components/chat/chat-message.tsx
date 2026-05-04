@@ -646,8 +646,8 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
     <div
       id={`message-${message.id}`}
       className={cn(
-        "flex gap-3 group relative px-1 rounded-2xl transition-all message-enter",
-        isGrouped ? "py-0.5 mt-0.5" : "py-1.5 mt-1",
+        "flex gap-2 group relative px-1 rounded-xl transition-all message-enter",
+        isGrouped ? "py-px mt-px" : "py-1 mt-0.5",
         isOwn && "flex-row-reverse",
         message.is_pinned && "bg-amber-500/5 rounded-xl p-2 -mx-2 border border-amber-500/20",
         isMentioned && "bg-cyan-500/5 rounded-xl px-2 py-1 -mx-2 border border-cyan-400/30",
@@ -681,31 +681,31 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
         </div>
       )}
 
-      {/* Avatar with presence ring — hidden for grouped messages */}
-      <div className={cn("relative shrink-0", isGrouped && "invisible w-10")}>
+      {/* Avatar — smaller, hidden for grouped messages */}
+      <div className={cn("relative shrink-0", isGrouped && "invisible w-8")}>
         <button
           onClick={handleAvatarClick}
           onMouseLeave={handleAvatarMouseLeave}
           className={cn(
-            "w-10 h-10 rounded-full transition-transform hover:scale-105 shadow-lg cursor-pointer overflow-hidden",
+            "w-8 h-8 rounded-full transition-transform hover:scale-105 cursor-pointer overflow-hidden shadow-md",
             user?.is_online && "avatar-ring"
           )}
           style={{
             backgroundColor: user?.avatar_color || '#06b6d4',
-            boxShadow: `0 4px 14px ${user?.avatar_color || '#06b6d4'}50`
+            boxShadow: `0 2px 8px ${user?.avatar_color || '#06b6d4'}40`
           }}
         >
           {user?.avatar_url ? (
             <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
           ) : (
-            <span className="flex items-center justify-center w-full h-full text-sm font-bold text-white">
+            <span className="flex items-center justify-center w-full h-full text-xs font-bold text-white">
               {user ? getInitials(user.name) : '?'}
             </span>
           )}
         </button>
-        {/* Online green dot */}
+        {/* Online dot */}
         {user?.is_online && (
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-background rounded-full" />
+          <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 border border-background rounded-full" />
         )}
         {/* Hover card */}
         {showHoverCard && user && (
@@ -719,9 +719,9 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
       </div>
 
       {/* Message content */}
-      <div className={cn("flex flex-col max-w-[78%]", isOwn && "items-end")}>
+      <div className={cn("flex flex-col max-w-[82%]", isOwn && "items-end")}>
         {/* User info — hidden for grouped messages */}
-        <div className={cn("flex items-center gap-2 mb-1", isOwn && "flex-row-reverse", isGrouped && "hidden")}>
+        <div className={cn("flex items-center gap-1.5 mb-0.5", isOwn && "flex-row-reverse", isGrouped && "hidden")}>
           <button
             onClick={handleAvatarClick}
             onMouseLeave={handleAvatarMouseLeave}
@@ -754,9 +754,9 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
 
         {/* Bubble */}
         <div className={cn(
-          "relative px-4 py-2.5 rounded-2xl text-sm leading-relaxed group/bubble",
+          "relative px-3 py-1.5 rounded-2xl text-sm leading-snug group/bubble",
           isOwn
-            ? "bg-gradient-to-br from-cyan-500 to-purple-600 text-white rounded-tr-sm shadow-lg shadow-cyan-500/20"
+            ? "bg-gradient-to-br from-cyan-500 to-purple-600 text-white rounded-tr-sm shadow-md shadow-cyan-500/20"
             : "bg-white dark:bg-muted border border-border/60 rounded-tl-sm shadow-sm",
         )}>
           {/* GIF */}

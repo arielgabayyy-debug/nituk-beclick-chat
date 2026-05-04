@@ -711,7 +711,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
           {/* Messages */}
           <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 chat-scrollbar">
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-0.5 chat-scrollbar">
             {isLoading ? (
               <MessageSkeleton />
             ) : error ? (
