@@ -36,6 +36,7 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [bars, setBars] = useState<number[]>(Array(BAR_COUNT).fill(4))
+  const [permError, setPermError] = useState<string | null>(null)
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -154,12 +155,13 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     } catch (err: unknown) {
       const name = err instanceof Error ? err.name : ''
       if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-        alert('לא נמצא מיקרופון במכשיר זה.')
+        setPermError('לא נמצא מיקרופון.')
       } else if (name === 'NotReadableError' || name === 'TrackStartError') {
-        alert('המיקרופון תפוס על ידי אפליקציה אחרת. סגור אותה ונסה שוב.')
+        setPermError('המיקרופון תפוס. סגור אפליקציות אחרות.')
+      } else if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setPermError('נחסמה גישה. לחץ 🔒 בכתובת ואשר מיקרופון.')
       } else {
-        // Permission denied or any other error — no alert, no fallback on desktop
-        alert('לא ניתן לגשת למיקרופון. ודא שהדפדפן קיבל הרשאה.')
+        openNativeFilePicker()
       }
     }
   }
@@ -267,21 +269,26 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
         className="hidden"
         onChange={handleNativeFile}
       />
-      <button
-        type="button"
-        onClick={handleMicClick}
-        disabled={disabled}
-        className={cn(
-          "flex items-center justify-center min-h-[44px] min-w-[44px] p-2.5 rounded-xl transition-all",
-          "hover:bg-red-50 hover:text-red-500 active:bg-red-100 active:scale-95 text-muted-foreground",
-          "touch-manipulation select-none",
-          disabled && "opacity-50 pointer-events-none"
+      <div className="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          onClick={() => { setPermError(null); handleMicClick() }}
+          disabled={disabled}
+          className={cn(
+            "flex items-center justify-center min-h-[44px] min-w-[44px] p-2.5 rounded-xl transition-all",
+            "hover:bg-red-50 hover:text-red-500 active:bg-red-100 active:scale-95 text-muted-foreground",
+            "touch-manipulation select-none",
+            disabled && "opacity-50 pointer-events-none"
+          )}
+          title="הקלט הודעה קולית"
+          aria-label="הקלט הודעה קולית"
+        >
+          <Mic className="w-5 h-5" />
+        </button>
+        {permError && (
+          <p className="text-[10px] text-destructive text-center max-w-[100px] leading-tight px-1">{permError}</p>
         )}
-        title="הקלט הודעה קולית"
-        aria-label="הקלט הודעה קולית"
-      >
-        <Mic className="w-5 h-5" />
-      </button>
+      </div>
     </>
   )
 }

@@ -27,13 +27,19 @@ const nextConfig = {
               "worker-src 'self' blob:",
             ].join('; '),
           },
-          // ── Permissions: only the specific origins that need mic/camera ──
+          // ── Permissions-Policy ───────────────────────────────────────────
+          // self = nituk-beclick-chat.vercel.app (direct access)
+          // nitukbeclick.co.il = WordPress parent that embeds us in an iframe
+          // www.nitukbeclick.co.il = with www
+          // The iframe ALSO needs allow="microphone; camera" — see WordPress snippet below
           {
             key: 'Permissions-Policy',
             value: [
-              'microphone=(self "https://nitukbeclick.co.il")',
-              'camera=(self "https://nitukbeclick.co.il")',
-              'autoplay=(self)',
+              'microphone=(self "https://nitukbeclick.co.il" "https://www.nitukbeclick.co.il")',
+              'camera=(self "https://nitukbeclick.co.il" "https://www.nitukbeclick.co.il")',
+              'display-capture=(self)',
+              'autoplay=(self "https://nitukbeclick.co.il" "https://www.nitukbeclick.co.il")',
+              'fullscreen=(self "https://nitukbeclick.co.il" "https://www.nitukbeclick.co.il")',
               'geolocation=()',
               'payment=()',
               'usb=()',
