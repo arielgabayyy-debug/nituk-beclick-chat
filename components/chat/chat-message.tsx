@@ -677,18 +677,18 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
         </div>
       )}
 
-      {/* Avatar — smaller, hidden for grouped messages */}
+      {/* Avatar — hidden for grouped messages */}
       <div className={cn("relative shrink-0", isGrouped && "invisible w-8")}>
         <button
           onClick={handleAvatarClick}
           onMouseLeave={handleAvatarMouseLeave}
           className={cn(
-            "w-8 h-8 rounded-full transition-transform hover:scale-105 cursor-pointer overflow-hidden shadow-md",
+            "w-8 h-8 rounded-full transition-transform hover:scale-105 cursor-pointer overflow-hidden",
             user?.is_online && "avatar-ring"
           )}
           style={{
             backgroundColor: user?.avatar_color || '#06b6d4',
-            boxShadow: `0 2px 8px ${user?.avatar_color || '#06b6d4'}40`
+            boxShadow: `0 2px 10px ${user?.avatar_color || '#06b6d4'}50`
           }}
         >
           {user?.avatar_url ? (
@@ -715,9 +715,9 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
       </div>
 
       {/* Message content */}
-      <div className={cn("flex flex-col max-w-[82%]", isOwn && "items-end")}>
+      <div className={cn("flex flex-col max-w-[80%] sm:max-w-[75%]", isOwn && "items-end")}>
         {/* User info — hidden for grouped messages */}
-        <div className={cn("flex items-center gap-1.5 mb-0.5", isOwn && "flex-row-reverse", isGrouped && "hidden")}>
+        <div className={cn("flex items-center gap-1.5 mb-1", isOwn && "flex-row-reverse", isGrouped && "hidden")}>
           <button
             onClick={handleAvatarClick}
             onMouseLeave={handleAvatarMouseLeave}
@@ -756,10 +756,10 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
 
         {/* Bubble */}
         <div className={cn(
-          "relative px-3 py-1.5 rounded-2xl text-sm leading-snug group/bubble",
+          "relative px-3.5 py-2 text-sm leading-relaxed group/bubble",
           isOwn
-            ? "bg-gradient-to-br from-cyan-500 to-purple-600 text-white rounded-tr-sm shadow-md shadow-cyan-500/20"
-            : "bg-white dark:bg-muted border border-border/60 rounded-tl-sm shadow-sm",
+            ? "bg-gradient-to-br from-cyan-500 to-purple-600 text-white rounded-[18px_18px_4px_18px] shadow-md shadow-cyan-500/20"
+            : "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-[18px_18px_18px_4px] shadow-sm",
         )}>
           {/* GIF */}
           {message.has_gif && message.gif_url && (

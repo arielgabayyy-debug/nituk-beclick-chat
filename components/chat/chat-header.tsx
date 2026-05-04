@@ -92,16 +92,16 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
       {/* Skip to main content — accessibility */}
       <a href="#chat-messages" className="skip-link">דלג לצ'אט</a>
 
-      <header className="glass border-b border-border/50 px-4 py-3 sticky top-0 z-10" role="banner">
-        <div className="flex items-center justify-between gap-4">
+      <header className="bg-gradient-to-r from-cyan-600 via-cyan-500 to-purple-600 shadow-lg sticky top-0 z-10 border-b border-white/10" role="banner" style={{ minHeight: '56px' }}>
+        <div className="flex items-center justify-between gap-4 px-4 py-2">
           {/* Logo */}
           <div className="flex items-center gap-3 select-none">
             <div className="relative">
-              <CommunityLogo size={48} animated={false} />
+              <CommunityLogo size={40} animated={false} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold gradient-text">חיבור וניתוק בקליק</h1>
+                <h1 className="text-base font-bold text-white drop-shadow-sm">חיבור וניתוק בקליק</h1>
                 {unreadCount > 0 && (
                   <button
                     onClick={onMarkRead}
@@ -112,9 +112,14 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
                   </button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                השוואת מחירים חכמה
-                <span className="bg-gradient-to-r from-secondary to-primary text-white px-1.5 py-0.5 rounded text-[10px] font-semibold">AI</span>
+              <p className="text-xs text-white/70 flex items-center gap-1.5">
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full inline-block" />
+                  {onlineCount} מחוברים
+                </span>
+                <span className="hidden md:inline text-white/50">·</span>
+                <span className="hidden md:inline">השוואת מחירים חכמה</span>
+                <span className="hidden md:inline bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-semibold">AI</span>
               </p>
             </div>
             {/* Streak badge next to logo */}
@@ -131,44 +136,38 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
             {/* === Desktop: full controls === */}
             <div className="hidden sm:flex items-center gap-1">
               <ConnectionStatus />
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full ml-2">
-                <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full pulse-online" />
-                <Users className="w-4 h-4 text-muted-foreground" aria-hidden />
-                <span className="text-sm font-medium" aria-label={`${onlineCount} משתמשים מחוברים`}>{onlineCount}</span>
-                <span className="text-xs text-muted-foreground hidden md:block">מחוברים</span>
-              </div>
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onToggleSearch} title="חיפוש הודעות (Ctrl+F)" aria-label="חיפוש">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={onToggleSearch} title="חיפוש הודעות (Ctrl+F)" aria-label="חיפוש">
                 <Search className="w-4 h-4" />
               </Button>
               <div className="relative"><BackgroundPicker /></div>
               {currentUser && <NotificationBell currentUserId={currentUser.id} currentUserName={currentUser.name} />}
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleDarkMode} title={isDark ? 'מצב בהיר' : 'מצב כהה'} aria-label={isDark ? 'עבור למצב בהיר' : 'עבור למצב כהה'}>
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={toggleDarkMode} title={isDark ? 'מצב בהיר' : 'מצב כהה'} aria-label={isDark ? 'עבור למצב בהיר' : 'עבור למצב כהה'}>
                 {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setShowThemePicker(true)} title="ערכת נושא">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={() => setShowThemePicker(true)} title="ערכת נושא">
                 <Palette className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={() => setShowInvite(true)} title="הזמן חברים">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={() => setShowInvite(true)} title="הזמן חברים">
                 <UserPlus className="w-4 h-4" />
               </Button>
               {currentUser?.user_type === 'admin' && (
-                <a href="/admin" className="h-9 w-9 flex items-center justify-center hover:bg-muted rounded-lg transition text-muted-foreground hover:text-primary" title="פתח דשבורד ניהול">
+                <a href="/admin" className="h-9 w-9 flex items-center justify-center hover:bg-white/20 rounded-lg transition text-white/80 hover:text-white" title="פתח דשבורד ניהול">
                   <LayoutDashboard className="w-4 h-4" />
                 </a>
               )}
               <WhatsNew />
               {currentUser && (
-                <Button variant="ghost" size="icon" className={`h-9 w-9 ${status ? 'text-primary' : 'text-muted-foreground'}`} onClick={() => setShowStatusEditor(true)} title={status ? `${status.emoji} ${status.text}` : 'הגדר סטטוס'} aria-label="הגדר סטטוס">
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={() => setShowStatusEditor(true)} title={status ? `${status.emoji} ${status.text}` : 'הגדר סטטוס'} aria-label="הגדר סטטוס">
                   {status ? <span className="text-base leading-none">{status.emoji}</span> : <Smile className="w-4 h-4" />}
                 </Button>
               )}
               {currentUser && (
                 <div className="relative group">
-                  <button className="flex items-center gap-2 p-1 rounded-xl hover:bg-muted transition" title={`${currentUser.name} — לחץ לאפשרויות`}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow ring-2 ring-primary/30" style={{ backgroundColor: currentUser.avatar_color }}>
+                  <button className="flex items-center gap-2 p-1 rounded-xl hover:bg-white/20 transition" title={`${currentUser.name} — לחץ לאפשרויות`}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow ring-2 ring-white/30" style={{ backgroundColor: currentUser.avatar_color }}>
                       {currentUser.avatar_url ? <img src={currentUser.avatar_url} alt={currentUser.name} className="w-full h-full rounded-full object-cover" /> : currentUser.name.charAt(0).toUpperCase()}
                     </div>
-                    <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                    <ChevronDown className="w-3 h-3 text-white/70" />
                   </button>
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-900 border border-border/60 rounded-xl shadow-xl z-50 overflow-hidden opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 animate-in fade-in zoom-in-95">
                     <div className="px-3 py-2.5 border-b border-border/30 bg-muted/20">
@@ -202,21 +201,21 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
 
             {/* === Mobile: minimal controls + settings sheet === */}
             <div className="flex sm:hidden items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onToggleSearch} aria-label="חיפוש">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={onToggleSearch} aria-label="חיפוש">
                 <Search className="w-4 h-4" />
               </Button>
               {currentUser && <NotificationBell currentUserId={currentUser.id} currentUserName={currentUser.name} />}
               {onShowSmartSettings && (
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onShowSmartSettings} aria-label="הגדרות חכמות">
-                  <Brain className="w-4 h-4 text-primary/70" />
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={onShowSmartSettings} aria-label="הגדרות חכמות">
+                  <Brain className="w-4 h-4" />
                 </Button>
               )}
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowMobileSettings(true)} aria-label="הגדרות">
+              <Button variant="ghost" size="icon" className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20" onClick={() => setShowMobileSettings(true)} aria-label="הגדרות">
                 <Settings className="w-4 h-4" />
               </Button>
               {currentUser && (
                 <button
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow ring-2 ring-primary/30"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow ring-2 ring-white/30"
                   style={{ backgroundColor: currentUser.avatar_color }}
                   onClick={() => setShowMobileSettings(true)}
                   aria-label={currentUser.name}

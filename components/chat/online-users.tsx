@@ -58,61 +58,59 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
   }
 
   return (
-    <div className="glass rounded-2xl overflow-hidden border border-border/30 shadow-xl">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/20 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary" />
-            </div>
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-[10px] font-bold text-black">
-              {users.length}
-            </div>
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <span className="text-sm font-bold text-gray-700 dark:text-gray-200">מחוברים עכשיו</span>
           </div>
-          <div className="text-right">
-            <span className="text-sm font-semibold block">משתמשים מחוברים</span>
-            <span className="text-xs text-muted-foreground">בזמן אמת</span>
-          </div>
+          <span className="text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+            {users.length}
+          </span>
         </div>
         {isExpanded ? (
-          <ChevronUp className="w-5 h-5 text-muted-foreground" />
+          <ChevronUp className="w-4 h-4 text-muted-foreground" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
         )}
       </button>
 
       {/* Stats bar */}
       <div className={cn(
-        "overflow-hidden transition-all duration-300 border-t border-border/20",
+        "overflow-hidden transition-all duration-300",
         isExpanded ? "max-h-[500px]" : "max-h-0"
       )}>
         {/* User type counts */}
-        <div className="grid grid-cols-4 gap-2 p-3 bg-muted/20">
+        <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-100 dark:border-gray-800">
           {counts.admin > 0 && (
-            <div className="flex items-center gap-1 text-xs">
-              <Crown className="w-3 h-3 text-purple-400" />
+            <div className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400">
+              <Crown className="w-3 h-3" />
               <span>{counts.admin}</span>
             </div>
           )}
           {counts.subscriber > 0 && (
-            <div className="flex items-center gap-1 text-xs">
-              <Star className="w-3 h-3 text-cyan-400" />
+            <div className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400">
+              <Star className="w-3 h-3" />
               <span>{counts.subscriber}</span>
             </div>
           )}
           {counts.newsletter > 0 && (
-            <div className="flex items-center gap-1 text-xs">
-              <Mail className="w-3 h-3 text-amber-400" />
+            <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+              <Mail className="w-3 h-3" />
               <span>{counts.newsletter}</span>
             </div>
           )}
           {counts.guest > 0 && (
-            <div className="flex items-center gap-1 text-xs">
-              <User className="w-3 h-3 text-muted-foreground" />
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <User className="w-3 h-3" />
               <span>{counts.guest}</span>
             </div>
           )}
@@ -120,8 +118,8 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
 
         {/* User search */}
         {users.length > 5 && (
-          <div className="px-3 pb-2">
-            <div className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-1.5">
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-xl px-3 py-1.5">
               <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <input
                 type="text"
@@ -135,7 +133,7 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
         )}
 
         {/* User list */}
-        <div className="px-3 pb-3 space-y-1 chat-scrollbar overflow-y-auto max-h-80">
+        <div className="px-3 pb-3 space-y-0.5 chat-scrollbar overflow-y-auto max-h-80">
           {users.length === 0 ? (
             <div className="text-center py-8">
               <div className="w-12 h-12 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-3">
@@ -147,49 +145,46 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
             </div>
           ) : (
             sortedUsers.map((user, index) => (
-              <button 
+              <button
                 key={user.id}
                 onClick={() => onUserClick?.(user)}
                 className={cn(
-                  "w-full flex items-center gap-3 p-2.5 rounded-xl transition-all hover:bg-muted/30 cursor-pointer",
-                  user.id === currentUserId && "bg-primary/10 border border-primary/20",
+                  "w-full flex items-center gap-3 px-2 py-2 rounded-xl transition-all hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer text-right",
+                  user.id === currentUserId && "bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200/50 dark:border-cyan-800/50",
                   "animate-in fade-in slide-in-from-right-2"
                 )}
-                style={{ animationDelay: `${index * 50}ms` }}
+                style={{ animationDelay: `${index * 40}ms` }}
               >
                 {/* Avatar with online indicator */}
-                <div className="relative">
-                  <div 
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-transform hover:scale-105"
-                    style={{ 
+                <div className="relative shrink-0">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white"
+                    style={{
                       backgroundColor: user.avatar_color,
-                      boxShadow: `0 4px 14px ${user.avatar_color}40`
+                      boxShadow: `0 2px 8px ${user.avatar_color}40`
                     }}
                   >
-                    {getInitials(user.name)}
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                    ) : getInitials(user.name)}
                   </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-card">
-                    <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75" />
-                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900" />
                 </div>
 
                 {/* User info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-semibold truncate">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-sm font-semibold truncate text-gray-800 dark:text-gray-100">
                       {user.name}
                     </span>
                     {user.id === currentUserId && (
-                      <span className="text-[10px] text-primary bg-primary/20 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[9px] text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-400 px-1.5 py-0.5 rounded-full shrink-0">
                         אתה
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
                     <UserBadge userType={user.user_type} joinedAt={user.created_at} />
-                    {user.messages_count > 0 && (
-                      <span className="text-[9px] text-muted-foreground">💬 {user.messages_count}</span>
-                    )}
                   </div>
                 </div>
 

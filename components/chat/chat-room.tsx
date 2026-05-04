@@ -405,7 +405,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
   return (
     <div
-      className="h-screen flex flex-col chat-bg-animated relative overflow-hidden"
+      className="h-screen flex flex-col bg-gray-100/80 dark:bg-gray-950 relative overflow-hidden"
       onDragOver={e => { e.preventDefault(); setIsDraggingFile(true) }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false) }}
       onDrop={handleDrop}
@@ -464,7 +464,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       <div className="flex-1 flex gap-0 sm:gap-3 lg:gap-4 p-0 sm:p-2 lg:p-4 w-full mobile-pb-safe lg:pb-0 overflow-hidden">
         {/* Left sidebar - Community features (hidden on mobile/tablet, visible on xl+) */}
         <div className={cn(
-          "hidden xl:flex flex-col gap-3 transition-all duration-300 overflow-y-auto chat-scrollbar",
+          "hidden xl:flex flex-col gap-3 transition-all duration-300 overflow-y-auto scrollbar-none",
           sidebarCollapsed || focusMode ? "w-0 overflow-hidden opacity-0 p-0" : "w-72 2xl:w-80 shrink-0"
         )}>
           {/* Daily widgets */}
@@ -515,7 +515,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Community button — opens full panel */}
           <button
             onClick={() => setShowCommunityPanel(true)}
-            className="w-full flex items-center gap-2 text-sm font-medium bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 transition text-primary"
+            className="w-full flex items-center gap-2 text-sm font-semibold bg-gradient-to-r from-cyan-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:to-purple-500/20 border border-cyan-200/50 dark:border-cyan-800/30 rounded-2xl px-4 py-3 transition text-cyan-700 dark:text-cyan-400 shadow-sm"
           >
             <Globe className="w-4 h-4" />
             קהילה — כלים ותוכן נוסף
@@ -534,7 +534,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         </Button>
 
         {/* Chat area */}
-        <div className="flex-1 flex flex-col glass rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden sm:border sm:border-border/30 sm:shadow-2xl min-w-0">
+        <div className="flex-1 flex flex-col bg-white dark:bg-gray-900 rounded-none sm:rounded-2xl overflow-hidden sm:border sm:border-gray-200/70 dark:sm:border-gray-800 sm:shadow-md min-w-0">
           {/* Pinned messages */}
           <div className="flex items-center gap-2">
             <div className="flex-1">
@@ -675,8 +675,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           })()}
 
           {/* Messages */}
-          <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden">
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-0.5 chat-scrollbar">
+          <div id="chat-messages" className="relative flex-1 flex flex-col overflow-hidden bg-gray-50/50 dark:bg-gray-950/30">
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-0.5 chat-scroll chat-scrollbar">
             {isLoading ? (
               <MessageSkeleton />
             ) : error ? (
@@ -733,12 +733,12 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                 {allItems.map((item, idx) => {
                   if (item.type === 'date') {
                     return (
-                      <div key={`date-${item.time}`} className="flex items-center gap-3 my-2">
-                        <div className="flex-1 h-px bg-border/40" />
-                        <span className="text-[11px] text-muted-foreground font-medium px-2 py-0.5 bg-muted/50 rounded-full shrink-0">
+                      <div key={`date-${item.time}`} className="flex items-center gap-3 my-3">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent" />
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold px-3 py-1 bg-white dark:bg-gray-800 rounded-full shrink-0 shadow-sm border border-gray-100 dark:border-gray-700">
                           {item.label}
                         </span>
-                        <div className="flex-1 h-px bg-border/40" />
+                        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-gray-200 dark:via-gray-700 to-transparent" />
                       </div>
                     )
                   }
@@ -827,7 +827,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           <TypingIndicator typingUsers={typingUsers} />
 
           {/* Input area */}
-          <div className="border-t border-border/30 p-2 sm:p-4 bg-card/30 backdrop-blur-sm">
+          <div className="border-t border-gray-200/70 dark:border-gray-800 p-2 sm:p-3 bg-white dark:bg-gray-900 shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
             <ChatInput
               onSend={handleSendMessage}
               onTypingStart={startTyping}
@@ -842,14 +842,16 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         </div>
 
         {/* Right sidebar - Users & Leaderboard (hidden in focus mode) */}
-        <div className={cn("hidden lg:flex flex-col w-60 xl:w-72 2xl:w-80 shrink-0 gap-3 transition-all duration-300 overflow-y-auto chat-scrollbar", focusMode && "!hidden")}>
+        <div className={cn("hidden lg:flex flex-col w-60 xl:w-72 2xl:w-80 shrink-0 gap-3 transition-all duration-300 overflow-y-auto scrollbar-none", focusMode && "!hidden")}>
           {/* Sidebar tabs */}
-          <div className="flex gap-1 p-1 bg-card/30 backdrop-blur-xl rounded-xl border border-border/30">
+          <div className="flex gap-1 p-1 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200/70 dark:border-gray-800 shadow-sm">
             <button
               onClick={() => setSidebarTab('users')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                sidebarTab === 'users' ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"
+                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
+                sidebarTab === 'users'
+                  ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-sm"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground"
               )}
             >
               <span className="relative flex h-2 w-2">
@@ -861,21 +863,25 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
             <button
               onClick={() => setSidebarTab('leaderboard')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                sidebarTab === 'leaderboard' ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"
+                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
+                sidebarTab === 'leaderboard'
+                  ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-sm"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground"
               )}
             >
-              <Trophy className="h-3.5 w-3.5" />
+              <Trophy className="h-3 w-3" />
               מובילים
             </button>
             <button
               onClick={() => setSidebarTab('deals')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                sidebarTab === 'deals' ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"
+                "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
+                sidebarTab === 'deals'
+                  ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-sm"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground"
               )}
             >
-              <Flame className="h-3.5 w-3.5" />
+              <Flame className="h-3 w-3" />
               עסקאות
             </button>
           </div>
@@ -890,37 +896,71 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {sidebarTab === 'deals' && (
             <HotDeals deals={hotDeals} currentUser={currentUser} onVote={voteDeal} onShare={shareDeal} />
           )}
-
-          {/* Admin templates moved to announcement bar area */}
         </div>
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-border/30 z-40" aria-label="ניווט תחתון" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)' }}>
-        <div className="flex">
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/97 dark:bg-gray-950/97 backdrop-blur-lg border-t border-gray-200/80 dark:border-gray-800 z-40 shadow-[0_-2px_16px_rgba(0,0,0,0.06)]"
+        aria-label="ניווט תחתון"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)', minHeight: '60px' }}
+      >
+        <div className="flex h-14">
           <button
             onClick={() => { setMobileTab('chat'); setMobilePanel(null); setShowCommunityPanel(false) }}
-            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobileTab === 'chat' && !showCommunityPanel ? "text-primary" : "text-muted-foreground")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all relative",
+              mobileTab === 'chat' && !showCommunityPanel
+                ? "text-cyan-600 dark:text-cyan-400"
+                : "text-gray-400 dark:text-gray-500"
+            )}
           >
-            <MessageCircle className="w-5 h-5" /><span>צ׳אט</span>
+            <MessageCircle className={cn("w-5 h-5 transition-transform", mobileTab === 'chat' && !showCommunityPanel && "scale-110")} />
+            <span>צ׳אט</span>
+            {mobileTab === 'chat' && !showCommunityPanel && (
+              <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-t-full" />
+            )}
           </button>
           <button
             onClick={() => { setMobileTab('community'); setShowCommunityPanel(true); setMobilePanel(null) }}
-            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", showCommunityPanel ? "text-primary" : "text-muted-foreground")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all relative",
+              showCommunityPanel ? "text-cyan-600 dark:text-cyan-400" : "text-gray-400 dark:text-gray-500"
+            )}
           >
-            <Globe className="w-5 h-5" /><span>קהילה</span>
+            <Globe className={cn("w-5 h-5 transition-transform", showCommunityPanel && "scale-110")} />
+            <span>קהילה</span>
+            {showCommunityPanel && (
+              <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-t-full" />
+            )}
           </button>
           <button
             onClick={() => { setMobileTab('deals'); setMobilePanel(p => p === 'deals' ? null : 'deals'); setShowCommunityPanel(false) }}
-            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'deals' ? "text-primary" : "text-muted-foreground")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all relative",
+              mobilePanel === 'deals' ? "text-orange-500" : "text-gray-400 dark:text-gray-500"
+            )}
           >
-            <Flame className="w-5 h-5" /><span>עסקאות</span>
+            <Flame className={cn("w-5 h-5 transition-transform", mobilePanel === 'deals' && "scale-110")} />
+            <span>עסקאות</span>
+            {mobilePanel === 'deals' && (
+              <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-orange-400 to-red-500 rounded-t-full" />
+            )}
           </button>
           <button
             onClick={() => { setMobileTab('profile'); setShowUserProfile(currentUser); setMobilePanel(null); setShowCommunityPanel(false) }}
-            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobileTab === 'profile' && !showCommunityPanel && !mobilePanel ? "text-primary" : "text-muted-foreground")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all relative",
+              mobileTab === 'profile' && !showCommunityPanel && !mobilePanel
+                ? "text-cyan-600 dark:text-cyan-400"
+                : "text-gray-400 dark:text-gray-500"
+            )}
           >
-            <Users className="w-5 h-5" /><span>פרופיל</span>
+            <Users className={cn("w-5 h-5 transition-transform", mobileTab === 'profile' && !showCommunityPanel && !mobilePanel && "scale-110")} />
+            <span>פרופיל</span>
+            {mobileTab === 'profile' && !showCommunityPanel && !mobilePanel && (
+              <span className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-t-full" />
+            )}
           </button>
         </div>
       </nav>
@@ -928,8 +968,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       {/* Mobile panel sheet (deals only now) */}
       {mobilePanel && (
         <div
-          className="lg:hidden fixed inset-x-0 z-30 bg-white dark:bg-gray-900 border-t border-border/30 shadow-2xl rounded-t-2xl max-h-[60vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300"
-          style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
+          className="lg:hidden fixed inset-x-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200/70 dark:border-gray-800 shadow-2xl rounded-t-2xl max-h-[62vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300"
+          style={{ bottom: 'calc(3.75rem + max(env(safe-area-inset-bottom, 0px), 4px))' }}
           {...mobilePanelSwipe}
         >
           {/* Drag handle + close */}
@@ -941,7 +981,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
               {MOBILE_PANELS_ORDER.filter(p => p !== null).map((p, i) => (
                 <div
                   key={i}
-                  className={`h-1 rounded-full transition-all ${mobilePanel === p ? 'w-6 bg-primary' : 'w-1.5 bg-muted'}`}
+                  className={`h-1 rounded-full transition-all ${mobilePanel === p ? 'w-6 bg-gradient-to-r from-cyan-500 to-purple-600' : 'w-1.5 bg-muted'}`}
                 />
               ))}
             </div>
