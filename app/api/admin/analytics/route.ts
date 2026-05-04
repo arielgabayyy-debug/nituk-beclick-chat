@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   try {
     // Messages per day
     const { data: messages } = await supabase
-      .from('messages')
+      .from('chat_messages')
       .select('created_at, user_id')
       .gte('created_at', since)
       .order('created_at')

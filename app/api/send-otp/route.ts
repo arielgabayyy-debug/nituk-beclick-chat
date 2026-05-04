@@ -1,7 +1,6 @@
-// This route is kept for backward compatibility.
-// The login form now calls Supabase Auth directly (client-side).
+// Auth is handled client-side via Supabase Auth (supabase.auth.signInWithOtp)
+// This route is no longer used.
 import { NextResponse } from 'next/server'
-
 export async function POST() {
-  return NextResponse.json({ error: 'Use Supabase Auth directly' }, { status: 410 })
+  return NextResponse.json({ error: 'Deprecated — use Supabase Auth client-side' }, { status: 410 })
 }

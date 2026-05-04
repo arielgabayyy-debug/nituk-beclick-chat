@@ -263,8 +263,6 @@ export const GIF_CATEGORIES = [
   ]},
 ]
 
-export const ADMIN_PASSWORD = 'nituk2024'
-
 export function getRandomAvatarColor(): string {
   return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]
 }

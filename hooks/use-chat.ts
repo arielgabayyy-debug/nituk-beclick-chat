@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { ChatUser, ChatMessage, UserType, SystemMessage, TypingUser, MessageReaction } from '@/lib/chat-types'
-import { ADMIN_PASSWORD } from '@/lib/chat-types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const supabase = createClient()
@@ -792,41 +791,6 @@ export function useChatUser() {
     }
   }
 
-  const loginAdmin = async (password: string): Promise<boolean> => {
-    if (password !== ADMIN_PASSWORD) {
-      return false
-    }
-
-    setIsLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('chat_users')
-        .insert({
-          name: 'מנהל',
-          email: 'admin@nituk.co.il',
-          user_type: 'admin',
-          avatar_color: '#8b5cf6',
-          is_online: true
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      
-      if (data) {
-        localStorage.setItem('chat_user_id', data.id)
-        setCurrentUser(data)
-        return true
-      }
-      return false
-    } catch (err) {
-      console.error('Error admin login:', err)
-      return false
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const logout = async () => {
     if (currentUser) {
       await supabase
@@ -842,7 +806,6 @@ export function useChatUser() {
     currentUser,
     isLoading,
     registerUser,
-    loginAdmin,
     logout
   }
 }

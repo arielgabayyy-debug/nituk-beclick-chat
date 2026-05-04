@@ -137,7 +137,6 @@ export default function AdminDashboard() {
   const [searchUser, setSearchUser] = useState('')
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set())
   const [searchMessage, setSearchMessage] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(true)
@@ -309,15 +308,6 @@ export default function AdminDashboard() {
         .finally(() => setIsLoading(false))
     }
   }, [isAuthenticated, fetchStats, fetchUsers, fetchMessages])
-
-  const handleLogin = () => {
-    if (adminPassword === 'nituk2024' || adminPassword === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
-      setIsAuthenticated(true)
-      setAuthError('')
-    } else {
-      setAuthError('סיסמה שגויה')
-    }
-  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
