@@ -547,19 +547,44 @@ export function useChat(currentUser: ChatUser | null) {
       )
       .subscribe()
 
-    // Subscribe to reactions
+    // Subscribe to reactions — update local state instead of full refetch
     reactionsChannelRef.current = supabase
       .channel('reactions_channel')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'message_reactions'
         },
-        () => {
-          // Refetch messages to get updated reactions
-          fetchMessages()
+        async (payload) => {
+          const { data } = await supabase
+            .from('message_reactions')
+            .select(`*, user:chat_users(*)`)
+            .eq('id', payload.new.id)
+            .single()
+          if (data) {
+            setMessages(prev => prev.map(m =>
+              m.id === data.message_id
+                ? { ...m, reactions: [...(m.reactions || []).filter(r => r.id !== data.id), data] }
+                : m
+            ))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'message_reactions'
+        },
+        (payload) => {
+          setMessages(prev => prev.map(m =>
+            m.reactions?.some(r => r.id === payload.old.id)
+              ? { ...m, reactions: (m.reactions || []).filter(r => r.id !== payload.old.id) }
+              : m
+          ))
         }
       )
       .subscribe()

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer, Zap } from 'lucide-react'
+import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer, Zap, Film } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { QUICK_EMOJIS } from '@/lib/chat-types'
@@ -11,6 +11,7 @@ import { VideoRecorder } from './video-recorder'
 import { SavedRepliesPanel } from './saved-replies'
 import { useSpeedDials, SpeedDialEditor } from './speed-dial-editor'
 import { FullEmojiPicker } from './full-emoji-picker'
+import { GifPicker } from './gif-picker'
 import { SmartSuggestions } from './smart-suggestions'
 import { MarkdownPreview } from './markdown-preview'
 import { checkMessage } from '@/hooks/use-auto-mod'
@@ -107,6 +108,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const [message, setMessage] = useState('')
   const [showEmojis, setShowEmojis] = useState(false)
+  const [showGifPicker, setShowGifPicker] = useState(false)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionResults, setMentionResults] = useState<MentionUser[]>([])
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
@@ -223,7 +225,8 @@ export function ChatInput({
       const file = imageItem.getAsFile()
       if (file) await uploadImageFile(file)
     }
-  }, [onSend])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -249,6 +252,7 @@ export function ChatInput({
     onSend(finalMessage)
     setMessage('')
     setShowEmojis(false)
+    setShowGifPicker(false)
     setMentionQuery(null)
     setMentionResults([])
     onTypingStop?.()
@@ -646,7 +650,7 @@ export function ChatInput({
           variant="ghost"
           size="icon"
           className={cn("h-11 w-11 shrink-0 rounded-xl", showEmojis && "bg-primary/10 text-primary")}
-          onClick={() => setShowEmojis(!showEmojis)}
+          onClick={() => { setShowEmojis(v => !v); setShowGifPicker(false) }}
         >
           <Smile className="w-5 h-5" />
         </Button>
@@ -666,6 +670,27 @@ export function ChatInput({
             : <ImagePlus className="w-5 h-5" />
           }
         </Button>
+
+        {/* GIF picker button */}
+        <div className="relative shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn("h-11 w-11 rounded-xl", showGifPicker && "bg-primary/10 text-primary")}
+            onClick={() => { setShowGifPicker(v => !v); setShowEmojis(false) }}
+            disabled={disabled}
+            title="שלח GIF"
+          >
+            <Film className="w-5 h-5" />
+          </Button>
+          {showGifPicker && (
+            <GifPicker
+              onSelect={(url) => { onSend(url); setShowGifPicker(false) }}
+              onClose={() => setShowGifPicker(false)}
+            />
+          )}
+        </div>
 
         {/* Voice recorder - always show on mobile, show when empty on desktop */}
         <div className={!message ? 'block' : 'hidden sm:block'}>

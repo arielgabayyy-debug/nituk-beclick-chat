@@ -284,10 +284,10 @@ html, body, #__next {
   height: -webkit-fill-available;
 }
 
-/* h-screen fallback for iframe contexts */
+/* h-screen fallback for iframe contexts — 100vh first as fallback, 100dvh second to win */
 .h-screen {
-  height: 100dvh;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* iOS Safari: prevent body bounce scroll */

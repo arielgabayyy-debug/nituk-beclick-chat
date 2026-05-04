@@ -337,6 +337,8 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
           <img
             src={imgUrl}
             alt="תמונה מהצ׳אט"
+            loading="lazy"
+            decoding="async"
             className="max-w-[300px] max-h-[300px] object-cover border border-border/40 shadow-sm"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
