@@ -25,7 +25,7 @@ export default function ChatApp() {
   useEffect(() => {
     const supabase = createClient()
 
-    // Handle all Supabase Auth sign-ins (magic link + Google + Facebook)
+    // ── Listen for ALL auth events ─────────────────────────────────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         setLoadingMessage('מתחבר...')
@@ -37,13 +37,26 @@ export default function ChatApp() {
       }
     })
 
-    // Check existing session on load
+    // ── Check session / handle OAuth/magic-link redirect ───────────────
     const checkSession = async () => {
       const urlParams = new URLSearchParams(window.location.search)
-      if (urlParams.get('oauth') === 'success') {
+      const code = urlParams.get('code')
+      const oauthSuccess = urlParams.get('oauth') === 'success'
+      const authError = urlParams.get('auth_error')
+
+      // If there's a code at root (Supabase didn't redirect to /auth/callback),
+      // forward it to the callback route for server-side exchange
+      if (code) {
+        window.location.replace(`/auth/callback?code=${encodeURIComponent(code)}`)
+        return
+      }
+
+      // Clean up URL
+      if (oauthSuccess || authError) {
         window.history.replaceState({}, '', '/')
       }
 
+      // Check for active session
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         setLoadingMessage('מתחבר...')
@@ -69,40 +82,49 @@ export default function ChatApp() {
     const supabase = createClient()
 
     try {
-      const { data: existingUser } = await supabase
+      const { data: chatUser } = await supabase
         .from('chat_users')
         .select('*')
         .eq('email', email)
         .maybeSingle()
 
-      if (existingUser) {
-        // Mark online
+      if (chatUser) {
         await supabase.from('chat_users').update({
           is_online: true,
           last_seen: new Date().toISOString(),
-        }).eq('id', existingUser.id)
+        }).eq('id', chatUser.id)
 
-        localStorage.setItem('chat_user_id', existingUser.id)
-        setOauthUser({ ...existingUser, is_online: true })
+        localStorage.setItem('chat_user_id', chatUser.id)
+        setOauthUser({ ...chatUser, is_online: true })
         setScreen('chat')
       } else {
-        // New user — auth/callback already created the record, fetch it
-        const { data: newUser } = await supabase
-          .from('chat_users')
-          .select('*')
-          .eq('email', email)
-          .maybeSingle()
+        // Callback may not have run yet — create user now from auth metadata
+        const meta = authUser.user_metadata || {}
+        const name = meta.full_name || meta.name || meta.display_name || email.split('@')[0]
+        const avatarColor = meta.avatar_color || '#06b6d4'
+        const intendedType = meta.intended_type || 'subscriber'
+
+        const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+        const isAdmin = ADMIN_EMAILS.includes(email)
+
+        const { data: newUser } = await supabase.from('chat_users').insert({
+          name,
+          email,
+          user_type: isAdmin ? 'admin' : intendedType,
+          avatar_color: avatarColor,
+          is_online: true,
+        }).select().single()
 
         if (newUser) {
           localStorage.setItem('chat_user_id', newUser.id)
           setOauthUser(newUser)
           setScreen('chat')
         } else {
-          // User not in chat_users yet (callback not run) — show landing
           setScreen('landing')
         }
       }
-    } catch {
+    } catch (err) {
+      console.error('syncAuthUser error:', err)
       setScreen('landing')
     }
   }
@@ -127,7 +149,6 @@ export default function ChatApp() {
     setScreen('login')
   }
 
-  // Guest login — no Supabase Auth needed
   const handleLogin = async (name: string, email: string | null, userType: UserType, avatarColor: string) => {
     const user = await registerUser(name, email, userType, avatarColor)
     if (user) setScreen('chat')
