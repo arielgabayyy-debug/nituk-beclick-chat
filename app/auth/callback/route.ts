@@ -50,7 +50,21 @@ export async function GET(request: NextRequest) {
     const name = meta.full_name || meta.name || meta.display_name || email.split('@')[0]
     const avatarUrl = meta.avatar_url || meta.picture || null
     const avatarColor = meta.avatar_color || '#06b6d4'
-    const intendedType = (meta.intended_type as string) || 'subscriber'
+
+    // Try to read intended_type from the OAuth state param (set by login-form.tsx)
+    // Fall back to user_metadata.intended_type, then default to 'subscriber'
+    let intendedType = (meta.intended_type as string) || 'subscriber'
+    const stateParam = searchParams.get('state')
+    if (stateParam) {
+      try {
+        const stateObj = JSON.parse(stateParam)
+        if (stateObj.intended_type) {
+          intendedType = stateObj.intended_type
+        }
+      } catch {
+        // ignore malformed state
+      }
+    }
 
     const { data: existingRows } = await supabase
       .from('chat_users')
@@ -61,6 +75,7 @@ export async function GET(request: NextRequest) {
     const existingUser = existingRows?.[0] ?? null
 
     if (existingUser) {
+      // UPDATE does not trigger the INSERT trigger — safe to call directly
       const finalType = isAdmin ? 'admin' : (existingUser.user_type ?? intendedType)
       await supabase.from('chat_users').update({
         is_online: true,
@@ -69,7 +84,12 @@ export async function GET(request: NextRequest) {
         user_type: finalType,
       }).eq('id', existingUser.id)
     } else {
-      await supabase.from('chat_users').upsert({
+      // INSERT triggers the notify_admin_new_registration trigger.
+      // If the trigger has a broken http_post call (pg_net not installed),
+      // the insert will fail with error code 42883.
+      // We log the error but always continue to /?oauth=success so page.tsx
+      // can handle user creation on the client side via syncAuthUser.
+      const { error: upsertError } = await supabase.from('chat_users').upsert({
         name,
         email,
         user_type: isAdmin ? 'admin' : intendedType,
@@ -78,6 +98,15 @@ export async function GET(request: NextRequest) {
         is_online: true,
         last_seen: new Date().toISOString(),
       }, { onConflict: 'email' })
+
+      if (upsertError) {
+        // Log but do NOT redirect to error page — page.tsx will create the user
+        console.error('chat_users upsert error (trigger may be broken):', upsertError.message, upsertError.code)
+        // Store intended_type in the redirect URL so page.tsx can use it
+        return NextResponse.redirect(
+          `${origin}/?oauth=success&intended_type=${encodeURIComponent(intendedType)}`
+        )
+      }
     }
   }
 

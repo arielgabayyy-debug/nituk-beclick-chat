@@ -76,12 +76,22 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
     setIsGoogleLoading(true)
     setError('')
     try {
+      // Save intended_type and name to localStorage BEFORE redirecting to Google.
+      // After OAuth completes, page.tsx reads these to register the user correctly.
+      localStorage.setItem('nituk_intended_type', mode)
+      localStorage.setItem('nituk_intended_name', name.trim())
+
       const supabase = createClient()
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { access_type: 'offline', prompt: 'consent' },
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+            // Pass intended_type in state so auth/callback can also read it
+            state: JSON.stringify({ intended_type: mode, name: name.trim() }),
+          },
         },
       })
     } catch {

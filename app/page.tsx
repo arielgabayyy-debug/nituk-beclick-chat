@@ -86,6 +86,16 @@ export default function ChatApp() {
         }
       }
 
+      // Read intended_type from URL (set by callback when trigger fails)
+      // or from localStorage (set by login-form before OAuth redirect)
+      const intendedTypeFromUrl = urlParams.get('intended_type')
+      const intendedTypeFromStorage = localStorage.getItem('nituk_intended_type')
+      if (intendedTypeFromUrl || intendedTypeFromStorage) {
+        // Prefer URL param (more reliable after full page reload)
+        const resolved = intendedTypeFromUrl || intendedTypeFromStorage
+        if (resolved) localStorage.setItem('nituk_intended_type', resolved)
+      }
+
       // Clean up URL
       if (oauthSuccess || authError) {
         window.history.replaceState({}, '', '/')
@@ -150,6 +160,9 @@ export default function ChatApp() {
         }).eq('id', chatUser.id)
 
         localStorage.setItem('chat_user_id', chatUser.id)
+        // Clean up OAuth intent keys
+        localStorage.removeItem('nituk_intended_type')
+        localStorage.removeItem('nituk_intended_name')
         setOauthUser({ ...chatUser, is_online: true })
         clearTimeout(timeout)
         setScreen('chat')
@@ -157,7 +170,14 @@ export default function ChatApp() {
         const meta = authUser.user_metadata || {}
         const name = (meta.full_name || meta.name || meta.display_name || email.split('@')[0]) as string
         const avatarColor = (meta.avatar_color || '#06b6d4') as string
-        const intendedType = (meta.intended_type || 'subscriber') as string
+
+        // Read intended_type saved by login-form.tsx before the OAuth redirect
+        const savedIntendedType = localStorage.getItem('nituk_intended_type')
+        const intendedType = (savedIntendedType || (meta.intended_type as string) || 'subscriber') as string
+
+        // Clean up the stored intent
+        localStorage.removeItem('nituk_intended_type')
+        localStorage.removeItem('nituk_intended_name')
 
         const { data: upserted, error: upsertError } = await supabase
           .from('chat_users')
@@ -172,7 +192,9 @@ export default function ChatApp() {
           .select()
           .single()
 
-        if (upsertError) console.error('upsert error:', upsertError.message)
+        if (upsertError) {
+          console.error('upsert error:', upsertError.message, upsertError.code)
+        }
 
         if (upserted) {
           localStorage.setItem('chat_user_id', upserted.id)
@@ -180,12 +202,52 @@ export default function ChatApp() {
           clearTimeout(timeout)
           setScreen('chat')
         } else {
-          // Final fallback
+          // Upsert failed — try the server-side registration endpoint which has
+          // service_role access and handles the broken trigger more gracefully
+          const metaAvatarUrl = (authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null) as string | null
+          try {
+            const regRes = await fetch('/api/register-oauth-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email,
+                name,
+                user_type: isAdmin ? 'admin' : intendedType,
+                avatar_color: avatarColor,
+                avatar_url: metaAvatarUrl,
+              }),
+            })
+
+            const regData = await regRes.json()
+
+            if (regRes.ok && regData.user) {
+              localStorage.setItem('chat_user_id', regData.user.id)
+              localStorage.removeItem('nituk_intended_type')
+              localStorage.removeItem('nituk_intended_name')
+              setOauthUser(regData.user)
+              clearTimeout(timeout)
+              setScreen('chat')
+              return
+            }
+
+            if (regData.error === 'trigger_broken') {
+              // The database trigger is broken — INSERT fails completely.
+              // Log and show landing so the user is not stuck on loading screen.
+              console.error('CRITICAL: DB trigger broken. Apply fix_trigger_safe.sql in Supabase SQL Editor.')
+              console.error('SQL fix:', regData.sql_fix)
+            }
+          } catch (regErr) {
+            console.error('register-oauth-user API error:', regErr)
+          }
+
+          // Final fallback — check if user somehow got created
           const { data: refetch } = await supabase
             .from('chat_users').select('*').eq('email', email).limit(1)
           const found = refetch?.[0]
           if (found) {
             localStorage.setItem('chat_user_id', found.id)
+            localStorage.removeItem('nituk_intended_type')
+            localStorage.removeItem('nituk_intended_name')
             setOauthUser(found)
             clearTimeout(timeout)
             setScreen('chat')
