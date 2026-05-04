@@ -32,11 +32,13 @@ export async function GET(request: NextRequest) {
     const avatarColor = meta.avatar_color || '#06b6d4'
     const intendedType = (meta.intended_type as string) || 'subscriber'
 
-    const { data: existingUser } = await supabase
+    const { data: existingRows } = await supabase
       .from('chat_users')
       .select('id, user_type')
       .eq('email', email)
-      .maybeSingle()
+      .order('created_at', { ascending: true })
+      .limit(1)
+    const existingUser = existingRows?.[0] ?? null
 
     if (existingUser) {
       const finalType = isAdmin ? 'admin' : (existingUser.user_type ?? intendedType)
@@ -47,14 +49,15 @@ export async function GET(request: NextRequest) {
         user_type: finalType,
       }).eq('id', existingUser.id)
     } else {
-      await supabase.from('chat_users').insert({
+      await supabase.from('chat_users').upsert({
         name,
         email,
         user_type: isAdmin ? 'admin' : intendedType,
         avatar_color: avatarColor,
         avatar_url: avatarUrl,
         is_online: true,
-      })
+        last_seen: new Date().toISOString(),
+      }, { onConflict: 'email' })
     }
   }
 

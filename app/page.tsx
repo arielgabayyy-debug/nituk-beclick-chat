@@ -82,11 +82,13 @@ export default function ChatApp() {
     const supabase = createClient()
 
     try {
-      const { data: chatUser } = await supabase
+      const { data: rows } = await supabase
         .from('chat_users')
         .select('*')
         .eq('email', email)
-        .maybeSingle()
+        .order('created_at', { ascending: true })
+        .limit(1)
+      const chatUser = rows?.[0] ?? null
 
       if (chatUser) {
         await supabase.from('chat_users').update({
@@ -98,29 +100,39 @@ export default function ChatApp() {
         setOauthUser({ ...chatUser, is_online: true })
         setScreen('chat')
       } else {
-        // Callback may not have run yet — create user now from auth metadata
+        // User not in chat_users — upsert (safe with UNIQUE constraint on email)
         const meta = authUser.user_metadata || {}
         const name = meta.full_name || meta.name || meta.display_name || email.split('@')[0]
         const avatarColor = meta.avatar_color || '#06b6d4'
         const intendedType = meta.intended_type || 'subscriber'
-
         const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
         const isAdmin = ADMIN_EMAILS.includes(email)
 
-        const { data: newUser } = await supabase.from('chat_users').insert({
+        const { data: upserted } = await supabase.from('chat_users').upsert({
           name,
           email,
           user_type: isAdmin ? 'admin' : intendedType,
           avatar_color: avatarColor,
           is_online: true,
-        }).select().single()
+          last_seen: new Date().toISOString(),
+        }, { onConflict: 'email' }).select().single()
 
-        if (newUser) {
-          localStorage.setItem('chat_user_id', newUser.id)
-          setOauthUser(newUser)
+        if (upserted) {
+          localStorage.setItem('chat_user_id', upserted.id)
+          setOauthUser(upserted)
           setScreen('chat')
         } else {
-          setScreen('landing')
+          // Final fallback — try fetching again
+          const { data: refetch } = await supabase
+            .from('chat_users').select('*').eq('email', email).limit(1)
+          const found = refetch?.[0]
+          if (found) {
+            localStorage.setItem('chat_user_id', found.id)
+            setOauthUser(found)
+            setScreen('chat')
+          } else {
+            setScreen('landing')
+          }
         }
       }
     } catch (err) {
