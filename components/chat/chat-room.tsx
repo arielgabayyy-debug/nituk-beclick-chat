@@ -445,11 +445,11 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       />
 
       {/* Main content */}
-      <div className="flex-1 flex sm:gap-4 sm:p-4 max-w-[1600px] mx-auto w-full mobile-pb-safe lg:pb-0">
-        {/* Left sidebar - Community features (hidden on mobile, hidden in focus mode) */}
+      <div className="flex-1 flex gap-0 sm:gap-3 lg:gap-4 p-0 sm:p-2 lg:p-4 w-full mobile-pb-safe lg:pb-0 overflow-hidden">
+        {/* Left sidebar - Community features (hidden on mobile/tablet, visible on xl+) */}
         <div className={cn(
-          "hidden xl:flex flex-col gap-4 transition-all duration-300",
-          sidebarCollapsed || focusMode ? "w-0 overflow-hidden opacity-0" : "w-80 shrink-0"
+          "hidden xl:flex flex-col gap-3 transition-all duration-300 overflow-y-auto chat-scrollbar",
+          sidebarCollapsed || focusMode ? "w-0 overflow-hidden opacity-0 p-0" : "w-72 2xl:w-80 shrink-0"
         )}>
           {/* Daily widgets */}
           <DailyQuestionCard question={dailyQuestion} />
@@ -562,14 +562,14 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="hidden xl:flex h-8 w-8 shrink-0 self-start mt-4"
+          className="hidden xl:flex h-8 w-5 shrink-0 self-start mt-4 p-0"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
         >
           {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
 
         {/* Chat area */}
-        <div className="flex-1 flex flex-col glass sm:rounded-2xl overflow-hidden sm:border sm:border-border/30 sm:shadow-2xl min-w-0">
+        <div className="flex-1 flex flex-col glass rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden sm:border sm:border-border/30 sm:shadow-2xl min-w-0">
           {/* Pinned messages */}
           <div className="flex items-center gap-2">
             <div className="flex-1">
@@ -1058,7 +1058,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         </div>
 
         {/* Right sidebar - Users & Leaderboard (hidden in focus mode) */}
-        <div className={cn("hidden lg:flex flex-col w-80 shrink-0 gap-4 transition-all duration-300", focusMode && "!hidden")}>
+        <div className={cn("hidden lg:flex flex-col w-60 xl:w-72 2xl:w-80 shrink-0 gap-3 transition-all duration-300 overflow-y-auto chat-scrollbar", focusMode && "!hidden")}>
           {/* Sidebar tabs */}
           <div className="flex gap-1 p-1 bg-card/30 backdrop-blur-xl rounded-xl border border-border/30">
             <button
@@ -1115,7 +1115,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-border/30 z-40" aria-label="ניווט תחתון" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-border/30 z-40" aria-label="ניווט תחתון" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)' }}>
         <div className="flex">
           <button onClick={() => setMobilePanel(null)} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", !mobilePanel ? "text-primary" : "text-muted-foreground")}>
             <MessageCircle className="w-5 h-5" /><span>צ׳אט</span>

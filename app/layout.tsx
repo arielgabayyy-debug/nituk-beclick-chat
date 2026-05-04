@@ -1,9 +1,9 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Heebo } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const heebo = Heebo({ 
+const heebo = Heebo({
   subsets: ["hebrew", "latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
   variable: "--font-heebo"
@@ -14,12 +14,20 @@ export const metadata: Metadata = {
   description: 'הצטרפו לקהילה הגדולה בישראל להשוואת מחירי סלולר ואינטרנט',
   generator: 'v0.app',
   manifest: '/manifest.json',
-  themeColor: '#06b6d4',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'ניתוק בקליק',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#06b6d4',
 }
 
 export default function RootLayout({
