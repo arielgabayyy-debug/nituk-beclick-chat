@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)

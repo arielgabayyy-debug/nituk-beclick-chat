@@ -12,7 +12,7 @@ import {
 import { formatTimeAgo } from '@/lib/chat-types'
 
 // All admin emails — auto-authenticated without password
-const ADMIN_EMAILS = ['arielgabayyy@gmail.com', 'nitukbeclick@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+const ADMIN_EMAILS = ['arielgabayyy@gmail.com', 'nitukbeclick@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
 // ── SVG Analytics Chart ───────────────────────────────────────────────────
 function AnalyticsChart({ data, color = '#8b5cf6', label }: {

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'edge'
 
-const ADMIN_EMAILS = ['arielgabayyy@gmail.com', 'nitukbeclick@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+const ADMIN_EMAILS = ['arielgabayyy@gmail.com', 'nitukbeclick@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
 export async function POST(request: Request) {
   const { subject, message, targetType, senderEmail } = await request.json() as {

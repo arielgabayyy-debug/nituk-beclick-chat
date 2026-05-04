@@ -14,7 +14,7 @@ import type { UserType, ChatUser } from '@/lib/chat-types'
 type Screen = 'loading' | 'landing' | 'login' | 'chat'
 type LoginMode = 'guest' | 'subscriber' | 'newsletter'
 
-const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
 export default function ChatApp() {
   const [screen, setScreen] = useState<Screen>('loading')

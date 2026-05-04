@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 const BREVO_API_KEY = process.env.BREVO_API_KEY!
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
 const SENDER_EMAIL = 'arielgabayyy@gmail.com'
 const SENDER_NAME = 'ניתוק בקליק'
