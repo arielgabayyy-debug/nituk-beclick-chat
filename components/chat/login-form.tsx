@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 import type { UserType } from '@/lib/chat-types'
 import { getRandomAvatarColor, AVATAR_COLORS } from '@/lib/chat-types'
 import { createClient } from '@/lib/supabase/client'
-
 interface LoginFormProps {
   mode: 'guest' | 'subscriber' | 'newsletter'
   onSubmit: (name: string, email: string | null, userType: UserType, avatarColor: string) => Promise<void>
@@ -72,21 +71,6 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
     }
   }, [countdown])
 
-  // ── Check if email belongs to existing subscriber ──────────────────────
-  const checkExistingUser = async (emailToCheck: string) => {
-    try {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('chat_users')
-        .select('id, name, user_type')
-        .eq('email', emailToCheck.trim().toLowerCase())
-        .limit(1)
-      return data?.[0] ?? null
-    } catch {
-      return null
-    }
-  }
-
   // ── Google OAuth ───────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true)
@@ -106,7 +90,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
     }
   }
 
-  // ── Magic link ─────────────────────────────────────────────────────────
+  // ── Magic link (via server API → Resend REST, no SMTP) ────────────────
   const sendMagicLink = async () => {
     if (!email.trim() || !email.includes('@')) { setError('נא להזין אימייל תקין'); return }
 
@@ -114,47 +98,31 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
     setError('')
 
     try {
-      const supabase = createClient()
       const trimmedEmail = email.trim().toLowerCase()
+      const displayName = name.trim() || trimmedEmail.split('@')[0]
 
-      // ── Check if returning subscriber ──────────────────────────────
-      const existingUser = await checkExistingUser(trimmedEmail)
-      const isReturning = !!existingUser
-      setIsReturningUser(isReturning)
-      if (existingUser?.name) setReturningName(existingUser.name)
-
-      const displayName = name.trim()
-        || (isReturning ? existingUser!.name : trimmedEmail.split('@')[0])
-      const intendedType = isReturning
-        ? (existingUser!.user_type ?? config.userType)
-        : config.userType
-
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: trimmedEmail,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          shouldCreateUser: true,
-          data: {
-            display_name: displayName,
-            intended_type: intendedType,
-            avatar_color: selectedColor,
-          },
-        },
+      const res = await fetch('/api/send-magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          redirectTo: `${window.location.origin}/auth/callback`,
+          intendedType: config.userType,
+          displayName,
+          avatarColor: selectedColor,
+        }),
       })
 
-      if (otpError) {
-        const msg = otpError.message?.toLowerCase() || ''
-        if (msg.includes('rate limit') || msg.includes('too many')) {
-          setError('הגענו למגבלת מיילים. נסו כניסה עם Google 👆')
-        } else if (msg.includes('smtp') || msg.includes('sending') || msg.includes('email')) {
-          setError('שגיאה בשליחת המייל — נסו כניסה עם Google 👆')
-        } else if (msg.includes('invalid') || msg.includes('not found')) {
-          setError('כתובת מייל לא תקינה')
-        } else {
-          setError('שגיאה בשליחה, נסו שוב')
-        }
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'שגיאה בשליחה, נסה שוב')
         return
       }
+
+      // Update UI with returning user info
+      setIsReturningUser(!!data.isReturning)
+      if (data.name) setReturningName(data.name)
 
       if (rememberMe) {
         localStorage.setItem(`nituk_remember_${mode}`, JSON.stringify({
