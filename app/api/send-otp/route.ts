@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'שגיאה בשליחת המייל. נסה שוב.' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, v: 3 })
 
   } catch (err) {
     console.error('send-otp error:', err)
