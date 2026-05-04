@@ -3,7 +3,7 @@
 import { useState, useRef, memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag, MessageCircle } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag, MessageCircle, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -746,6 +746,12 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
           >{formatTime(message.created_at)}</span>
           {isEdited && (
             <span className="text-[10px] text-muted-foreground italic">(נערך)</span>
+          )}
+          {/* Delivery status for own messages: double-check = confirmed in list */}
+          {isOwn && !isGrouped && (
+            <span className="text-[10px] text-cyan-400/70 flex items-center" title="נשלח ואושר">
+              <CheckCheck className="w-3 h-3" />
+            </span>
           )}
           {(manualTag || (msgCategory && !isGrouped)) && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${manualTag ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' : msgCategory!.color}`}>

@@ -22,9 +22,11 @@ interface ChatHeaderProps {
   onAvatarColorChange?: (color: string) => void
   onShowOnboarding?: () => void
   onShowSmartSettings?: () => void
+  unreadCount?: number
+  onMarkRead?: () => void
 }
 
-export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange, onShowOnboarding, onShowSmartSettings }: ChatHeaderProps) {
+export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange, onShowOnboarding, onShowSmartSettings, unreadCount = 0, onMarkRead }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
   const [showStatusEditor, setShowStatusEditor] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
@@ -102,7 +104,18 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
               />
             </div>
             <div>
-              <h1 className="text-lg font-bold gradient-text">חיבור וניתוק בקליק</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-bold gradient-text">חיבור וניתוק בקליק</h1>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={onMarkRead}
+                    className="flex items-center justify-center min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-bold rounded-full px-1 animate-bounce shadow-sm hover:bg-red-600 transition"
+                    title={`${unreadCount} הודעות חדשות שלא נקראו`}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </button>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                 השוואת מחירים חכמה
                 <span className="bg-gradient-to-r from-secondary to-primary text-white px-1.5 py-0.5 rounded text-[10px] font-semibold">AI</span>

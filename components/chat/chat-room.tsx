@@ -90,6 +90,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     sendAnnouncement,
     banUser,
     upvoteMessage,
+    markMessagesRead,
+    unreadCount: dbUnreadCount,
     onlineCount
   } = useChat(currentUser)
 
@@ -179,8 +181,11 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     if (!container) return
     const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80
     setIsAtBottom(atBottom)
-    if (atBottom) setUnreadSinceScroll(0)
-  }, [])
+    if (atBottom) {
+      setUnreadSinceScroll(0)
+      markMessagesRead()
+    }
+  }, [markMessagesRead])
 
   useEffect(() => {
     const container = messagesContainerRef.current
@@ -205,6 +210,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     setUnreadSinceScroll(0)
     setIsAtBottom(true)
+    markMessagesRead()
   }
 
   // Play sound on new message (not own) and track prev length
@@ -445,6 +451,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         onAvatarColorChange={() => setTimeout(() => window.location.reload(), 500)}
         onShowOnboarding={currentUser.messages_count < 20 ? () => setShowOnboarding(true) : undefined}
         onShowSmartSettings={() => setShowSmartSettings(true)}
+        unreadCount={dbUnreadCount}
+        onMarkRead={markMessagesRead}
       />
 
       {/* Main content */}

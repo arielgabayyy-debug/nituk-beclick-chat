@@ -14,6 +14,8 @@ export function useChat(currentUser: ChatUser | null) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const lastReadTimestampRef = useRef<string | null>(null)
   const [bannedWords, setBannedWords] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('banned_words')
@@ -21,6 +23,7 @@ export function useChat(currentUser: ChatUser | null) {
     }
     return []
   })
+  const isPageVisibleRef = useRef(true)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const presenceChannelRef = useRef<RealtimeChannel | null>(null)
   const typingChannelRef = useRef<RealtimeChannel | null>(null)
@@ -462,6 +465,10 @@ export function useChat(currentUser: ChatUser | null) {
 
           if (data) {
             setMessages(prev => [...prev, { ...data, reactions: [] }])
+            // Count as unread if page is hidden or not the sender
+            if (!isPageVisibleRef.current && data.user_id !== currentUser?.id) {
+              setUnreadCount(c => c + 1)
+            }
           }
         }
       )
@@ -669,6 +676,30 @@ export function useChat(currentUser: ChatUser | null) {
     }
   }, [currentUser])
 
+  // Mark all messages as read — updates Supabase last_seen and clears unread count
+  const markMessagesRead = useCallback(async () => {
+    setUnreadCount(0)
+    if (!currentUser) return
+    try {
+      await supabase
+        .from('chat_users')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('id', currentUser.id)
+    } catch {
+      // non-critical, ignore
+    }
+  }, [currentUser])
+
+  // Track page visibility for unread counting
+  useEffect(() => {
+    const onVis = () => {
+      isPageVisibleRef.current = document.visibilityState === 'visible'
+      if (isPageVisibleRef.current) markMessagesRead()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [markMessagesRead])
+
   // Quick ban user (admin only)
   const banUser = useCallback(async (userId: string, userName: string) => {
     if (currentUser?.user_type !== 'admin') return
@@ -705,6 +736,8 @@ export function useChat(currentUser: ChatUser | null) {
     sendAnnouncement,
     banUser,
     upvoteMessage,
+    markMessagesRead,
+    unreadCount,
     onlineCount: onlineUsers.length
   }
 }
