@@ -200,7 +200,7 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
       const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }
-      onSend(`[voice:${data.url}:${duration}]`, duration)
+      onSend(data.url, duration)
       setAudioBlob(null)
       setAudioUrl(null)
       setDuration(0)

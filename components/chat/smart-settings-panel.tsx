@@ -483,8 +483,16 @@ export function useKeywordAlerts(userId: string, soundEnabled: boolean) {
 
     // Increment triggered count
     supabase.from('user_keyword_alerts')
-      .update({ triggered_count: supabase.rpc as never })
-      .eq('user_id', userId).eq('keyword', hit)
+      .select('triggered_count')
+      .eq('user_id', userId).eq('keyword', hit).single()
+      .then(({ data }) => {
+        if (data) {
+          supabase.from('user_keyword_alerts')
+            .update({ triggered_count: (data.triggered_count || 0) + 1 })
+            .eq('user_id', userId).eq('keyword', hit)
+            .then(() => {})
+        }
+      })
 
     if (soundEnabled) {
       try {

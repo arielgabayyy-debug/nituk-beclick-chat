@@ -179,7 +179,7 @@ export function Leaderboard({ users, currentUserId }: LeaderboardProps) {
                 )}>
                   {sortBy === 'messages' ? formatNumber(user.messages_count || 0)
                   : sortBy === 'helpful' ? formatNumber(user.helpful_count || 0)
-                  : formatNumber(user.weekly_points)}
+                  : formatNumber(period === 'week' ? (user.weekly_points || 0) : (user.points || 0))}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {sortBy === 'messages' ? 'הודעות' : sortBy === 'helpful' ? 'עזרה' : 'נקודות'}
