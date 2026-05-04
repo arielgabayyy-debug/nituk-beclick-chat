@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useSwipe } from '@/hooks/use-swipe'
 import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock, Settings } from 'lucide-react'
 import { ChatHeader } from './chat-header'
+import { SmartSettingsPanel } from './smart-settings-panel'
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
 import { OnlineUsers } from './online-users'
@@ -160,6 +161,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showScheduled, setShowScheduled] = useState(false)
   const [showMobileTools, setShowMobileTools] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showSmartSettings, setShowSmartSettings] = useState(false)
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
   const { scheduled, schedule: scheduleMessage, cancel: cancelScheduled, pendingCount: scheduledCount } = useScheduledMessages(useCallback((content: string) => sendMessageRef.current(content), []))
@@ -442,6 +444,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
         onToggleSearch={() => { setShowSearch(prev => !prev); setSearchQuery('') }}
         onAvatarColorChange={() => setTimeout(() => window.location.reload(), 500)}
         onShowOnboarding={currentUser.messages_count < 20 ? () => setShowOnboarding(true) : undefined}
+        onShowSmartSettings={() => setShowSmartSettings(true)}
       />
 
       {/* Main content */}
@@ -1271,6 +1274,15 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       {/* Price alerts panel */}
       {showPriceAlerts && (
         <PriceAlertsPanel onClose={() => setShowPriceAlerts(false)} />
+      )}
+
+      {/* Smart settings panel */}
+      {showSmartSettings && (
+        <SmartSettingsPanel
+          currentUser={currentUser}
+          messages={messages}
+          onClose={() => setShowSmartSettings(false)}
+        />
       )}
 
       {/* Pinboard */}

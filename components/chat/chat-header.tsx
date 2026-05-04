@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette, ChevronDown, Settings, X, CheckSquare } from 'lucide-react'
+import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette, ChevronDown, Settings, X, CheckSquare, Brain } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
 import { NotificationBell } from './notification-bell'
@@ -21,9 +21,10 @@ interface ChatHeaderProps {
   onToggleSearch?: () => void
   onAvatarColorChange?: (color: string) => void
   onShowOnboarding?: () => void
+  onShowSmartSettings?: () => void
 }
 
-export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange, onShowOnboarding }: ChatHeaderProps) {
+export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch, onAvatarColorChange, onShowOnboarding, onShowSmartSettings }: ChatHeaderProps) {
   const [isDark, setIsDark] = useState(false)
   const [showStatusEditor, setShowStatusEditor] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
@@ -196,6 +197,11 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
                 <Search className="w-4 h-4" />
               </Button>
               {currentUser && <NotificationBell currentUserId={currentUser.id} currentUserName={currentUser.name} />}
+              {onShowSmartSettings && (
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onShowSmartSettings} aria-label="הגדרות חכמות">
+                  <Brain className="w-4 h-4 text-primary/70" />
+                </Button>
+              )}
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowMobileSettings(true)} aria-label="הגדרות">
                 <Settings className="w-4 h-4" />
               </Button>
