@@ -51,20 +51,9 @@ export async function GET(request: NextRequest) {
     const avatarUrl = meta.avatar_url || meta.picture || null
     const avatarColor = meta.avatar_color || '#06b6d4'
 
-    // Try to read intended_type from the OAuth state param (set by login-form.tsx)
-    // Fall back to user_metadata.intended_type, then default to 'subscriber'
-    let intendedType = (meta.intended_type as string) || 'subscriber'
-    const stateParam = searchParams.get('state')
-    if (stateParam) {
-      try {
-        const stateObj = JSON.parse(stateParam)
-        if (stateObj.intended_type) {
-          intendedType = stateObj.intended_type
-        }
-      } catch {
-        // ignore malformed state
-      }
-    }
+    // intended_type is stored in localStorage by login-form.tsx before OAuth redirect.
+    // page.tsx reads it after ?oauth=success. Here we just default to 'subscriber'.
+    const intendedType = (meta.intended_type as string) || 'subscriber'
 
     const { data: existingRows } = await supabase
       .from('chat_users')

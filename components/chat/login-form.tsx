@@ -89,8 +89,6 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
-            // Pass intended_type in state so auth/callback can also read it
-            state: JSON.stringify({ intended_type: mode, name: name.trim() }),
           },
         },
       })
