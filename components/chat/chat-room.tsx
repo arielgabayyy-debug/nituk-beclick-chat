@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useSwipe } from '@/hooks/use-swipe'
-import { Volume2, VolumeX, Bell, BarChart3, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock, Settings } from 'lucide-react'
+import { Volume2, VolumeX, Bell, Users, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock, Settings, Globe } from 'lucide-react'
 import { ChatHeader } from './chat-header'
 import { SmartSettingsPanel } from './smart-settings-panel'
 import { ChatMessageComponent } from './chat-message'
@@ -21,34 +21,21 @@ import { WelcomeToast } from './welcome-toast'
 import { Confetti } from './confetti'
 import { useBookmarks, useMutedUsers, BookmarksPanel } from './message-bookmarks'
 import { OfflineIndicator } from './offline-indicator'
-import { ChatStats } from './chat-stats'
-import { ReactionLeaderboard } from './reaction-leaderboard'
-import { Icebreaker } from './icebreaker'
-import { ProviderComparison } from './provider-comparison'
 import { ChatExport } from './chat-export'
 import { CelebrationButton } from './celebration-button'
 import { useNotificationCenter, NotificationCenter } from './notification-center'
 import { PointsShop } from './points-shop'
 import { AdvancedSearch } from './advanced-search'
 import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messages'
-import { ActivityFeed } from './activity-feed'
-import { UserOfWeekWidget } from './user-of-week'
-import { MyStats } from './my-stats'
-import { SavingsCalculator } from './savings-calculator'
 import { PriceAlertsPanel } from './price-alerts'
 import { OnboardingChecklist } from './onboarding-checklist'
 import { PWAInstallBanner } from './pwa-install'
 import { MessageThread } from './message-thread'
-import { AdminTemplates } from './admin-templates'
-import { SuccessStoriesFeed } from './success-stories-feed'
 import { DirectMessages } from './direct-messages'
 import { Pinboard } from './pinboard'
 import { ChatRulesCard } from './chat-rules'
-import { HotMessages } from './hot-messages'
 import { QuickDeal } from './quick-deal'
-import { CommunityFAQ } from './community-faq'
-import { TrendingKeywords } from './trending-keywords'
-import { CommunityChallenge } from './community-challenge'
+import { CommunityPanel } from './community-panel'
 import { trackMessageActivity } from './streak-calendar'
 import { AnnouncementBar } from './announcement-bar'
 import { AchievementToast } from './achievement-toast'
@@ -69,6 +56,7 @@ interface ChatRoomProps {
 
 type SidebarTab = 'users' | 'leaderboard' | 'polls' | 'deals'
 const MOBILE_PANELS_ORDER: Array<SidebarTab | null> = [null, 'leaderboard', 'deals', 'users']
+type MobileTab = 'chat' | 'community' | 'deals' | 'profile'
 const CHAT_PAGE_SIZE = 80
 
 export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
@@ -164,6 +152,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const [showMobileTools, setShowMobileTools] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showSmartSettings, setShowSmartSettings] = useState(false)
+  const [showCommunityPanel, setShowCommunityPanel] = useState(false)
+  const [mobileTab, setMobileTab] = useState<MobileTab>('chat')
   const { notifications, addNotification, markRead, markAllRead, clearAll: clearNotifications, unreadCount } = useNotificationCenter()
   const sendMessageRef = useRef<(content: string) => void>(() => {})
   const { scheduled, schedule: scheduleMessage, cancel: cancelScheduled, pendingCount: scheduledCount } = useScheduledMessages(useCallback((content: string) => sendMessageRef.current(content), []))
@@ -465,7 +455,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Daily widgets */}
           <DailyQuestionCard question={dailyQuestion} />
           <DailyTipCard tip={dailyTip} />
-          
+
           {/* Polls */}
           {polls.length > 0 && (
             <div className="space-y-3">
@@ -497,7 +487,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                   onClick={() => setShowCreatePoll(true)}
                   className="w-full border-dashed border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
                 >
-                  <BarChart3 className="h-4 w-4 ml-2" />
+                  <Globe className="h-4 w-4 ml-2" />
                   צור סקר חדש
                 </Button>
               )}
@@ -507,66 +497,15 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
           {/* Upcoming events */}
           <UpcomingEventsCard events={upcomingEvents} />
 
-          {/* Weekly challenge */}
-          <CommunityChallenge
-            userMessagesThisWeek={messages.filter(m => {
-              const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-              return m.user_id === currentUser.id && new Date(m.created_at).getTime() > weekAgo
-            }).length}
-          />
-
-          {/* Trending keywords */}
-          <TrendingKeywords
-            messages={messages}
-            onSearch={(kw) => { setSearchQuery(kw); setShowSearch(true) }}
-          />
-
-          {/* Hot messages */}
-          <HotMessages messages={messages} onJumpToMessage={jumpToMessage} />
-
-          {/* Community FAQ */}
-          <CommunityFAQ />
-
-          {/* Chat statistics */}
-          <ChatStats messages={messages} onlineUsers={onlineUsers} />
-
-          {/* Reaction leaderboard */}
-          <ReactionLeaderboard messages={messages} onJumpToMessage={jumpToMessage} />
-
-          {/* Provider comparison */}
-          <ProviderComparison onShareDeal={(text) => sendMessage(text)} />
-
-          {/* Icebreaker question */}
-          <Icebreaker onAsk={(q) => sendMessage(q)} />
-
-          {/* Activity feed */}
-          <ActivityFeed messages={messages} onlineUsers={onlineUsers} />
-
-          {/* Success stories */}
-          <SuccessStoriesFeed messages={messages} onShareStory={handleSendMessage} />
-
-          {/* My personal stats */}
-          <MyStats messages={messages} currentUser={currentUser} />
-
-          {/* Savings calculator */}
-          <SavingsCalculator onShareSaving={handleSendMessage} />
-
-          {/* Price alerts */}
+          {/* Community button — opens full panel */}
           <button
-            onClick={() => setShowPriceAlerts(true)}
-            className="w-full flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 bg-amber-500/10 border border-amber-400/20 rounded-xl px-4 py-2.5 transition hover:bg-amber-500/15"
+            onClick={() => setShowCommunityPanel(true)}
+            className="w-full flex items-center gap-2 text-sm font-medium bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 transition text-primary"
           >
-            🔔 <span className="font-medium">התראות מחיר</span>
-            <span className="mr-auto text-muted-foreground">קבל עדכון על עסקאות →</span>
+            <Globe className="w-4 h-4" />
+            קהילה — כלים ותוכן נוסף
+            <ChevronRight className="w-4 h-4 mr-auto" />
           </button>
-
-          {/* User of the week voting */}
-          <UserOfWeekWidget
-            messages={messages}
-            onlineUsers={onlineUsers}
-            currentUser={currentUser}
-            onViewProfile={handleUserClick}
-          />
         </div>
 
         {/* Collapse toggle */}
@@ -1118,32 +1057,41 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
             <HotDeals deals={hotDeals} currentUser={currentUser} onVote={voteDeal} onShare={shareDeal} />
           )}
 
-          {/* Admin templates (admins only) */}
-          {currentUser.user_type === 'admin' && (
-            <AdminTemplates onSend={handleSendMessage} />
-          )}
+          {/* Admin templates moved to announcement bar area */}
         </div>
       </div>
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-border/30 z-40" aria-label="ניווט תחתון" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)' }}>
         <div className="flex">
-          <button onClick={() => setMobilePanel(null)} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", !mobilePanel ? "text-primary" : "text-muted-foreground")}>
+          <button
+            onClick={() => { setMobileTab('chat'); setMobilePanel(null); setShowCommunityPanel(false) }}
+            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobileTab === 'chat' && !showCommunityPanel ? "text-primary" : "text-muted-foreground")}
+          >
             <MessageCircle className="w-5 h-5" /><span>צ׳אט</span>
           </button>
-          <button onClick={() => setMobilePanel(p => p === 'leaderboard' ? null : 'leaderboard')} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'leaderboard' ? "text-primary" : "text-muted-foreground")}>
-            <Trophy className="w-5 h-5" /><span>מובילים</span>
+          <button
+            onClick={() => { setMobileTab('community'); setShowCommunityPanel(true); setMobilePanel(null) }}
+            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", showCommunityPanel ? "text-primary" : "text-muted-foreground")}
+          >
+            <Globe className="w-5 h-5" /><span>קהילה</span>
           </button>
-          <button onClick={() => setMobilePanel(p => p === 'deals' ? null : 'deals')} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'deals' ? "text-primary" : "text-muted-foreground")}>
+          <button
+            onClick={() => { setMobileTab('deals'); setMobilePanel(p => p === 'deals' ? null : 'deals'); setShowCommunityPanel(false) }}
+            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'deals' ? "text-primary" : "text-muted-foreground")}
+          >
             <Flame className="w-5 h-5" /><span>עסקאות</span>
           </button>
-          <button onClick={() => setMobilePanel(p => p === 'users' ? null : 'users')} className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobilePanel === 'users' ? "text-primary" : "text-muted-foreground")}>
-            <BarChart3 className="w-5 h-5" /><span>מחוברים</span>
+          <button
+            onClick={() => { setMobileTab('profile'); setShowUserProfile(currentUser); setMobilePanel(null); setShowCommunityPanel(false) }}
+            className={cn("flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition", mobileTab === 'profile' && !showCommunityPanel && !mobilePanel ? "text-primary" : "text-muted-foreground")}
+          >
+            <Users className="w-5 h-5" /><span>פרופיל</span>
           </button>
         </div>
       </nav>
 
-      {/* Mobile panel sheet */}
+      {/* Mobile panel sheet (deals only now) */}
       {mobilePanel && (
         <div
           className="lg:hidden fixed inset-x-0 z-30 bg-white dark:bg-gray-900 border-t border-border/30 shadow-2xl rounded-t-2xl max-h-[60vh] overflow-y-auto p-3 animate-in slide-in-from-bottom-4 duration-300"
@@ -1282,6 +1230,22 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       {/* Price alerts panel */}
       {showPriceAlerts && (
         <PriceAlertsPanel onClose={() => setShowPriceAlerts(false)} />
+      )}
+
+      {/* Community panel */}
+      {showCommunityPanel && (
+        <CommunityPanel
+          messages={messages}
+          onlineUsers={onlineUsers}
+          currentUser={currentUser}
+          onClose={() => { setShowCommunityPanel(false); setMobileTab('chat') }}
+          onSearch={(kw) => { setSearchQuery(kw); setShowSearch(true) }}
+          onJumpToMessage={jumpToMessage}
+          onSendMessage={handleSendMessage}
+          onShareDeal={(text) => sendMessage(text)}
+          onViewProfile={handleUserClick}
+          onShowPriceAlerts={() => setShowPriceAlerts(true)}
+        />
       )}
 
       {/* Smart settings panel */}
