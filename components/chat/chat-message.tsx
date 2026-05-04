@@ -165,8 +165,14 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
           src={videoMatch[1]}
           controls
           playsInline
+          crossOrigin="anonymous"
+          preload="metadata"
           className="w-full max-h-[200px] object-cover bg-black"
           style={{ maxWidth: 280 }}
+          onError={(e) => {
+            const vid = e.currentTarget
+            if (vid.crossOrigin) { vid.crossOrigin = ''; vid.load() }
+          }}
         />
         <div className={`absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded-full ${isOwn ? 'bg-black/40 text-white' : 'bg-white/80 text-gray-700'}`}>
           🎥 {Math.floor(parseInt(videoMatch[2]) / 60)}:{String(parseInt(videoMatch[2]) % 60).padStart(2, '0')}

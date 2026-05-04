@@ -23,9 +23,12 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
 
   const toggle = () => {
     if (!audioRef.current) return
-    if (playing) { audioRef.current.pause() }
-    else { audioRef.current.play() }
-    setPlaying(!playing)
+    if (playing) {
+      audioRef.current.pause()
+      setPlaying(false)
+    } else {
+      audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    }
   }
 
   const cycleSpeed = () => {
@@ -50,12 +53,22 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
       <audio
         ref={audioRef}
         src={url}
+        crossOrigin="anonymous"
+        preload="metadata"
         onTimeUpdate={() => {
           if (!audioRef.current) return
           setCurrentTime(audioRef.current.currentTime)
           setProgress((audioRef.current.currentTime / (audioRef.current.duration || 1)) * 100)
         }}
         onEnded={() => { setPlaying(false); setProgress(0); setCurrentTime(0) }}
+        onError={(e) => {
+          // Fallback: retry without crossOrigin if CORS fails
+          const audio = e.currentTarget
+          if (audio.crossOrigin) {
+            audio.crossOrigin = ''
+            audio.load()
+          }
+        }}
       />
       <button
         onClick={toggle}

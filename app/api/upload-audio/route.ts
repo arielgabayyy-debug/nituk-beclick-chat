@@ -13,7 +13,16 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
     const t = file.type
-    const ext = t.includes('webm') ? 'webm' : t.includes('ogg') ? 'ogg' : t.includes('mp4') || t.includes('m4a') ? 'mp4' : t.includes('video') ? 'webm' : 'mp4'
+    // Derive extension from MIME type, falling back to the original filename extension
+    const origExt = file.name.split('.').pop()?.toLowerCase() || ''
+    const ext = t.includes('webm') ? 'webm'
+      : t.includes('ogg') ? 'ogg'
+      : t.includes('mp4') || t.includes('m4a') ? 'mp4'
+      : t.includes('quicktime') || origExt === 'mov' ? 'mov'
+      : t.includes('avi') || origExt === 'avi' ? 'avi'
+      : t.includes('video') ? 'webm'
+      : t.includes('audio') ? 'mp4'
+      : origExt || 'mp4'
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const bytes = await file.arrayBuffer()
     const { error } = await supabase.storage.from('chat-audio').upload(path, bytes, {
@@ -22,7 +31,12 @@ export async function POST(request: Request) {
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     const { data: { publicUrl } } = supabase.storage.from('chat-audio').getPublicUrl(path)
-    return NextResponse.json({ url: publicUrl })
+    return NextResponse.json({ url: publicUrl }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      }
+    })
   } catch (e) {
     console.error(e)
     return NextResponse.json({ error: 'שגיאה' }, { status: 500 })
