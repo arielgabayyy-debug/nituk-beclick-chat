@@ -9,7 +9,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
 
 // Sender email — must be verified in Brevo (Settings → Senders)
-const SENDER_EMAIL = 'nitukbeclick@gmail.com'
+const SENDER_EMAIL = 'arielgabayyy@gmail.com'
 const SENDER_NAME = 'ניתוק בקליק'
 
 export async function POST(request: Request) {
