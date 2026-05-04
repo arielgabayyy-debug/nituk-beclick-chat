@@ -11,11 +11,17 @@ interface VoiceRecorderProps {
 
 const BAR_COUNT = 24
 
-// Detect iOS synchronously (needed before any async call)
+// Detect iOS
 function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false
   return /iPad|iPhone|iPod/.test(navigator.userAgent) &&
     !(window as typeof window & { MSStream?: unknown }).MSStream
+}
+
+// Detect mobile (iOS or Android)
+function isMobile(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
 }
 
 // Detect if we're inside an iframe
@@ -74,16 +80,15 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
 
   // ── Main entry point (called synchronously from onClick) ────────────────
   const handleMicClick = () => {
-    const ios = isIOS()
-
-    if (ios) {
-      // iOS → native file picker (sync, user-gesture safe)
+    // On all mobile devices (iOS + Android) use native file picker
+    // This guarantees the user-gesture is preserved and avoids
+    // iframe microphone permission issues on Android WebView
+    if (isMobile() || isIOS()) {
       openNativeFilePicker()
       return
     }
 
-    // Desktop (iframe or standalone) → getUserMedia flow
-    // iframe has allow="microphone" so getUserMedia works directly
+    // Desktop → getUserMedia (allow="microphone" on the iframe handles it)
     startGetUserMedia()
   }
 
@@ -267,8 +272,10 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
         onClick={handleMicClick}
         disabled={disabled}
         className={cn(
-          "p-2.5 rounded-xl transition-all hover:bg-red-50 hover:text-red-500 text-muted-foreground",
-          disabled && "opacity-50"
+          "flex items-center justify-center min-h-[44px] min-w-[44px] p-2.5 rounded-xl transition-all",
+          "hover:bg-red-50 hover:text-red-500 active:bg-red-100 active:scale-95 text-muted-foreground",
+          "touch-manipulation select-none",
+          disabled && "opacity-50 pointer-events-none"
         )}
         title="הקלט הודעה קולית"
         aria-label="הקלט הודעה קולית"
