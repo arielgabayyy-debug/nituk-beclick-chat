@@ -253,11 +253,19 @@ export function useChat(currentUser: ChatUser | null) {
   // Edit message (own messages only)
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!newContent.trim()) return
-    await supabase
+    // Try with updated_at first; fall back to content-only if column not yet migrated
+    const { error } = await supabase
       .from('chat_messages')
       .update({ content: newContent.trim(), updated_at: new Date().toISOString() })
       .eq('id', messageId)
       .eq('user_id', currentUser?.id ?? '')
+    if (error?.code === '42703') {
+      await supabase
+        .from('chat_messages')
+        .update({ content: newContent.trim() })
+        .eq('id', messageId)
+        .eq('user_id', currentUser?.id ?? '')
+    }
   }, [currentUser])
 
   // Delete message (admin only)
@@ -665,13 +673,17 @@ export function useChat(currentUser: ChatUser | null) {
     // Update upvotes_count in DB — try RPC first, fallback to raw select+update
     if (!already) {
       try {
-        await supabase.rpc('increment_upvotes', { message_id: messageId })
-      } catch {
-        // RPC might not exist — get current count and increment
-        const { data } = await supabase.from('chat_messages').select('upvotes_count').eq('id', messageId).single()
-        if (data) {
-          await supabase.from('chat_messages').update({ upvotes_count: (data.upvotes_count || 0) + 1 }).eq('id', messageId)
+        const { error: rpcErr } = await supabase.rpc('increment_upvotes', { message_id: messageId })
+        if (rpcErr) {
+          // RPC might not exist — get current count and increment
+          const { data, error: selErr } = await supabase.from('chat_messages').select('upvotes_count').eq('id', messageId).single()
+          // Only update if column exists (selErr?.code '42703' means column missing — skip silently)
+          if (!selErr && data) {
+            await supabase.from('chat_messages').update({ upvotes_count: (data.upvotes_count || 0) + 1 }).eq('id', messageId)
+          }
         }
+      } catch {
+        // Non-critical — upvote is tracked locally anyway
       }
     }
   }, [currentUser])

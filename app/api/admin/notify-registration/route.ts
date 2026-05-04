@@ -1,100 +1,169 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import nodemailer from 'nodemailer'
 
 const ADMIN_EMAIL = 'nitukbeclick@gmail.com'
 
 const USER_TYPE_LABEL: Record<string, string> = {
-  subscriber: 'מנוי פרימיום',
-  newsletter: 'מנוי ניוזלטר',
-  guest: 'אורח',
-  admin: 'מנהל',
+  subscriber:  'מנוי פרימיום ⭐',
+  newsletter:  'מנוי ניוזלטר 📰',
+  guest:       'אורח 👤',
+  admin:       'מנהל 👑',
+}
+
+function buildHtml(name: string, email: string | undefined, typeLabel: string, now: string) {
+  return `
+    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8fafc;">
+      <div style="background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="display:inline-block; background: linear-gradient(135deg, #0891b2, #8b5cf6); padding: 12px 24px; border-radius: 12px; margin-bottom: 10px;">
+            <h1 style="margin: 0; font-size: 20px; color: white; letter-spacing: -0.5px;">ניתוק בקליק</h1>
+          </div>
+          <p style="color: #64748b; margin: 4px 0 0 0; font-size: 13px;">התראת הרשמה חדשה</p>
+        </div>
+
+        <div style="background: linear-gradient(135deg, #f0f9ff, #f5f3ff); border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid #e0e7ff;">
+          <div style="font-size: 48px; text-align: center; margin-bottom: 12px;">🎉</div>
+          <h2 style="text-align: center; margin: 0 0 4px 0; color: #0f172a; font-size: 20px;">משתמש חדש נרשם!</h2>
+          <p style="text-align: center; color: #64748b; margin: 0 0 20px 0; font-size: 14px;">${now}</p>
+
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 12px 0; color: #64748b; font-size: 14px; width: 30%;">👤 שם</td>
+              <td style="padding: 12px 0; font-weight: bold; color: #0f172a; font-size: 16px;">${name}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 12px 0; color: #64748b; font-size: 14px;">📧 אימייל</td>
+              <td style="padding: 12px 0; color: #0891b2; font-size: 14px;" dir="ltr">${email || '<em style="color:#94a3b8">לא הוזן</em>'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; color: #64748b; font-size: 14px;">🏷️ סוג</td>
+              <td style="padding: 12px 0;">
+                <span style="background: #dbeafe; color: #1d4ed8; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;">${typeLabel}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px;">
+          <a href="https://nituk-beclick-chat.vercel.app/admin"
+             style="display: inline-block; background: linear-gradient(135deg, #0891b2, #8b5cf6); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px;">
+            🔑 פתח דאשבורד מנהל
+          </a>
+        </div>
+
+        <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0; padding-top: 16px; border-top: 1px solid #f1f5f9;">
+          ניתוק בקליק — מערכת ניהול קהילה | מייל אוטומטי, אין צורך להשיב
+        </p>
+      </div>
+    </div>
+  `
 }
 
 export async function POST(request: Request) {
   try {
-    const { name, email, userType } = await request.json()
+    const body = await request.json()
+    const { name, email, userType } = body as {
+      name: string
+      email?: string
+      userType: string
+    }
 
-    const typeLabel = USER_TYPE_LABEL[userType] || userType
-    const subject = `🎉 נרשם משתמש חדש: ${name}`
-    const now = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })
+    if (!name || !userType) {
+      return NextResponse.json({ error: 'חסרים שדות' }, { status: 400 })
+    }
 
-    const html = `
-      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8fafc;">
-        <div style="background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+    // Skip guests
+    if (userType === 'guest') {
+      return NextResponse.json({ success: true, method: 'skipped_guest' })
+    }
 
-          <div style="text-align: center; margin-bottom: 24px;">
-            <h1 style="margin: 0; font-size: 24px; background: linear-gradient(135deg, #0891b2, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-              חיבור וניתוק בקליק
-            </h1>
-            <p style="color: #64748b; margin: 4px 0 0 0; font-size: 14px;">דאשבורד מנהל — התראת הרשמה</p>
-          </div>
+    const fromTrigger = request.headers.get('x-trigger-source') === 'supabase'
+    const typeLabel   = USER_TYPE_LABEL[userType] || userType
+    const now         = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })
+    const subject     = `🎉 נרשם משתמש חדש: ${name} (${typeLabel})`
+    const html        = buildHtml(name, email, typeLabel, now)
 
-          <div style="background: linear-gradient(135deg, #f0f9ff, #f5f3ff); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-            <div style="font-size: 40px; text-align: center; margin-bottom: 12px;">🎉</div>
-            <h2 style="text-align: center; margin: 0 0 8px 0; color: #0f172a;">משתמש חדש נרשם!</h2>
+    // ── 1. Log to DB (only when called from frontend — trigger logs itself) ─
+    if (!fromTrigger) {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        )
+        await supabase.from('admin_notifications').insert({
+          type:       'new_registration',
+          user_name:  name,
+          user_email: email || null,
+          user_type:  userType,
+        })
+      } catch (dbErr) {
+        console.warn('[notify] DB log failed:', dbErr)
+      }
+    }
 
-            <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 10px 0; color: #64748b; font-size: 14px; width: 30%;">שם</td>
-                <td style="padding: 10px 0; font-weight: bold; color: #0f172a;">${name}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 10px 0; color: #64748b; font-size: 14px;">אימייל</td>
-                <td style="padding: 10px 0; color: #0891b2;" dir="ltr">${email || 'לא הוזן'}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 10px 0; color: #64748b; font-size: 14px;">סוג חשבון</td>
-                <td style="padding: 10px 0;">
-                  <span style="background: #dbeafe; color: #1d4ed8; padding: 2px 10px; border-radius: 20px; font-size: 13px;">${typeLabel}</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 10px 0; color: #64748b; font-size: 14px;">זמן הרשמה</td>
-                <td style="padding: 10px 0; font-size: 13px; color: #475569;">${now}</td>
-              </tr>
-            </table>
-          </div>
+    // ── 2. Gmail SMTP via Nodemailer (primary) ────────────────────────────
+    if (process.env.GMAIL_APP_PASSWORD) {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.GMAIL_USER || ADMIN_EMAIL,
+          pass: process.env.GMAIL_APP_PASSWORD,
+        },
+      })
 
-          <div style="text-align: center;">
-            <a href="https://nituk-beclick-chat.vercel.app/admin"
-               style="display: inline-block; background: linear-gradient(135deg, #0891b2, #8b5cf6); color: white; padding: 12px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px;">
-              פתח דאשבורד מנהל
-            </a>
-          </div>
+      await transporter.sendMail({
+        from:    `"ניתוק בקליק 🔔" <${process.env.GMAIL_USER || ADMIN_EMAIL}>`,
+        to:      ADMIN_EMAIL,
+        subject,
+        html,
+      })
 
-          <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 24px;">
-            ניתוק בקליק — מערכת ניהול קהילה
-          </p>
-        </div>
-      </div>
-    `
+      console.log(`[notify] Email sent via Gmail — ${name} (${userType})`)
+      return NextResponse.json({ success: true, method: 'gmail' })
+    }
 
-    // ── Try Resend ────────────────────────────────────────────────────────
+    // ── 3. Resend fallback ────────────────────────────────────────────────
     if (process.env.RESEND_API_KEY) {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
+          'Content-Type':  'application/json',
         },
         body: JSON.stringify({
-          from: process.env.RESEND_FROM_EMAIL || 'ניתוק בקליק <onboarding@resend.dev>',
-          to: ADMIN_EMAIL,
+          from:    process.env.RESEND_FROM_EMAIL || 'ניתוק בקליק <onboarding@resend.dev>',
+          to:      ADMIN_EMAIL,
           subject,
           html,
         }),
       })
 
       if (res.ok) {
-        return NextResponse.json({ success: true, method: 'resend' })
+        const data = await res.json()
+        console.log(`[notify] Email sent via Resend — ${name} (id: ${data.id})`)
+        return NextResponse.json({ success: true, method: 'resend', emailId: data.id })
       }
-      console.error('Resend error:', await res.text())
+      console.error('[notify] Resend error:', await res.text())
     }
 
-    // ── No email provider — still return success (notification logged on client) ─
-    return NextResponse.json({ success: true, method: 'none' })
+    // ── 4. No email provider configured — just DB log ────────────────────
+    console.log(`[notify] No email provider — DB logged only. User: ${name} (${userType})`)
+    return NextResponse.json({ success: true, method: 'db_logged' })
 
   } catch (err) {
-    console.error('notify-registration error:', err)
-    return NextResponse.json({ error: 'שגיאה' }, { status: 500 })
+    console.error('[notify] error:', err)
+    return NextResponse.json({ error: 'שגיאה פנימית' }, { status: 500 })
   }
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin':  '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-trigger-source',
+    },
+  })
 }

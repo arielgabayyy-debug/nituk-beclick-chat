@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from 'react'
-import { Video, Square, Send, X, Play, Pause, Loader2 } from 'lucide-react'
+import { Video, Square, Send, X, Play, Pause, Loader2, Clapperboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MAX_DURATION = 15
@@ -9,6 +9,8 @@ const MAX_DURATION = 15
 interface VideoRecorderProps {
   onSend: (content: string) => void
   disabled?: boolean
+  /** Render the idle trigger as a menu-item row (for the "+" more menu) */
+  asMenuItem?: boolean
 }
 
 // ── Device detection (same pattern as voice-recorder) ─────────────────────
@@ -33,7 +35,7 @@ async function checkPermission(kind: 'microphone' | 'camera'): Promise<Permissio
   }
 }
 
-export function VideoRecorder({ onSend, disabled }: VideoRecorderProps) {
+export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderProps) {
   const [phase, setPhase] = useState<'idle' | 'preview' | 'recording' | 'review' | 'uploading'>('idle')
   const [duration, setDuration] = useState(0)
   const [playback, setPlayback] = useState(false)
@@ -184,26 +186,41 @@ export function VideoRecorder({ onSend, disabled }: VideoRecorderProps) {
           className="hidden"
           onChange={handleNativeFile}
         />
-        <div className="flex flex-col items-center gap-1">
+
+        {/* ── Menu-item style (inside "+" more menu) ── */}
+        {asMenuItem ? (
           <button
             type="button"
             onClick={startCamera}
             disabled={disabled}
-            className={cn(
-              "flex items-center justify-center min-h-[44px] min-w-[44px] p-2.5 rounded-xl transition-all",
-              "hover:bg-purple-50 hover:text-purple-500 active:bg-purple-100 active:scale-95 text-muted-foreground",
-              "touch-manipulation select-none",
-              disabled && "opacity-50 pointer-events-none"
-            )}
-            title="הקלטת וידאו קצר (15 שניות)"
-            aria-label="הקלטת וידאו קצר"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition text-sm touch-manipulation"
           >
-            <Video className="w-5 h-5" />
+            <Clapperboard className="w-4 h-4 shrink-0 text-purple-500" />
+            <span>{'וידאו'}</span>
           </button>
-          {permError && (
-            <p className="text-[10px] text-destructive text-center max-w-[120px] leading-tight">{permError}</p>
-          )}
-        </div>
+        ) : (
+          /* ── Standalone icon button (original) ── */
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              onClick={startCamera}
+              disabled={disabled}
+              className={cn(
+                "flex items-center justify-center min-h-[44px] min-w-[44px] p-2.5 rounded-xl transition-all",
+                "hover:bg-purple-50 hover:text-purple-500 active:bg-purple-100 active:scale-95 text-muted-foreground",
+                "touch-manipulation select-none",
+                disabled && "opacity-50 pointer-events-none"
+              )}
+              title="הקלטת וידאו קצר (15 שניות)"
+              aria-label="הקלטת וידאו קצר"
+            >
+              <Video className="w-5 h-5" />
+            </button>
+            {permError && (
+              <p className="text-[10px] text-destructive text-center max-w-[120px] leading-tight">{permError}</p>
+            )}
+          </div>
+        )}
       </>
     )
   }

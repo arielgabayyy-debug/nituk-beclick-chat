@@ -19,6 +19,13 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Ensure bucket exists and is public (no-op if already set up)
+    await supabase.storage.createBucket(BUCKET, {
+      public: true,
+      fileSizeLimit: MAX_SIZE,
+      allowedMimeTypes: ALLOWED,
+    }).catch(() => { /* already exists — ignore */ })
+
     // Unique path per upload
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
     const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
@@ -39,9 +46,22 @@ export async function POST(request: Request) {
 
     const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path)
 
-    return NextResponse.json({ url: publicUrl })
+    return NextResponse.json(
+      { url: publicUrl },
+      { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS' } }
+    )
   } catch (err) {
     console.error('upload-image error:', err)
     return NextResponse.json({ error: 'שגיאה בשרת' }, { status: 500 })
   }
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }

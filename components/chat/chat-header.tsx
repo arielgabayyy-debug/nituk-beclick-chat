@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Users, LogOut, Search, Moon, Sun, Smile, LayoutDashboard, UserPlus, Palette, ChevronDown, Settings, X, CheckSquare, Brain } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundPicker } from './background-picker'
+import { CommunityLogo } from './community-logo'
 import { NotificationBell } from './notification-bell'
 import { StreakBadge, useStreak } from './streak-badge'
 import { UserStatusEditor, useUserStatus } from './user-status'
@@ -96,12 +97,7 @@ export function ChatHeader({ currentUser, onlineCount, onLogout, onToggleSearch,
           {/* Logo */}
           <div className="flex items-center gap-3 select-none">
             <div className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/attachments/gen-images/vercel/share/v0-project/public/community-logo-v2-rWt6MTkHzsU1rzhKMX9iaY3puwHh2U.jpg"
-                alt="חיבור וניתוק בקליק"
-                className="w-12 h-12 rounded-xl shadow-lg"
-              />
+              <CommunityLogo size={48} animated={false} />
             </div>
             <div>
               <div className="flex items-center gap-2">

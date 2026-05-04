@@ -72,11 +72,10 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      avatar_url: base64,
-      message: 'התמונה הועלתה בהצלחה!'
-    })
+    return NextResponse.json(
+      { success: true, avatar_url: base64, message: 'התמונה הועלתה בהצלחה!' },
+      { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS' } }
+    )
 
   } catch (error) {
     console.error('[v0] Upload error:', error)

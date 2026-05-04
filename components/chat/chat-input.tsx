@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer, Zap, Film } from 'lucide-react'
+import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer, Plus, Film, BookOpen, Zap, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { QUICK_EMOJIS } from '@/lib/chat-types'
@@ -59,11 +59,11 @@ export const SPEED_DIAL_MESSAGES = [
 ]
 
 const SLASH_COMMANDS = [
-  { cmd: '/shrug', desc: '¯\\_(ツ)_/¯' },
+  { cmd: '/shrug', desc: '\xaf\\_(ツ)_/\xaf' },
   { cmd: '/flip', desc: 'הפוך שולחן' },
   { cmd: '/unflip', desc: 'החזר שולחן' },
-  { cmd: '/lenny', desc: '( ͡° ͜ʖ ͡°)' },
-  { cmd: '/bear', desc: 'ʕ•ᴥ•ʔ' },
+  { cmd: '/lenny', desc: '( ͡\xb0 ͜ʖ ͡\xb0)' },
+  { cmd: '/bear', desc: '˕•ᴥ•˔' },
   { cmd: '/hi', desc: 'ברכה לכולם' },
   { cmd: '/deal', desc: 'הודעת עסקה' },
   { cmd: '/thanks', desc: 'תודה לכולם' },
@@ -121,6 +121,8 @@ export function ChatInput({
   const [showTemplates, setShowTemplates] = useState(false)
   const [showSavedReplies, setShowSavedReplies] = useState(false)
   const [showSpeedDialEditor, setShowSpeedDialEditor] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
   const { dials: customDials } = useSpeedDials()
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
   const [modWarning, setModWarning] = useState<string | null>(null)
@@ -192,7 +194,6 @@ export function ChatInput({
   const uploadImageFile = async (file: File) => {
     setIsUploading(true)
     try {
-      // Compress large images before upload
       const compressed = file.type.startsWith('image/') && file.size > 500 * 1024
         ? await compressImage(file)
         : file
@@ -227,13 +228,11 @@ export function ChatInput({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  // ─────────────────────────────────────────────────────────────────────────
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!message.trim() || disabled || slowModeRemaining > 0) return
 
-    // Auto-moderation check
     const modResult = checkMessage(message)
     if (!modResult.allowed) {
       setModWarning(modResult.reason || 'ההודעה נחסמה')
@@ -243,7 +242,6 @@ export function ChatInput({
     if (modResult.severity === 'warn' && modResult.reason) {
       setModWarning(modResult.reason)
       setTimeout(() => setModWarning(null), 3000)
-      // Still allow sending after warning
     }
 
     const finalMessage = replyTo
@@ -253,12 +251,12 @@ export function ChatInput({
     setMessage('')
     setShowEmojis(false)
     setShowGifPicker(false)
+    setShowMoreMenu(false)
     setMentionQuery(null)
     setMentionResults([])
     onTypingStop?.()
     onCancelReply?.()
     localStorage.removeItem(DRAFT_KEY)
-    // Record send time for slow mode
     localStorage.setItem('slow_mode_last_sent', Date.now().toString())
     checkSlowMode()
   }
@@ -287,7 +285,6 @@ export function ChatInput({
     const cursorPos = textarea.selectionStart
     const before = message.slice(0, cursorPos)
     const after = message.slice(cursorPos)
-    // Replace @query with @name + space
     const newBefore = before.replace(/@\w*$/, `@${user.name} `)
     setMessage(newBefore + after)
     setMentionQuery(null)
@@ -300,7 +297,6 @@ export function ChatInput({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Emoji shortcode navigation
     if (emojiResults.length > 0) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedEmojiIndex(i => Math.min(i + 1, emojiResults.length - 1)); return }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedEmojiIndex(i => Math.max(i - 1, 0)); return }
@@ -309,29 +305,12 @@ export function ChatInput({
     }
 
     if (mentionResults.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setSelectedMentionIndex(i => Math.min(i + 1, mentionResults.length - 1))
-        return
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setSelectedMentionIndex(i => Math.max(i - 1, 0))
-        return
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        selectMention(mentionResults[selectedMentionIndex])
-        return
-      }
-      if (e.key === 'Escape') {
-        setMentionQuery(null)
-        setMentionResults([])
-        return
-      }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedMentionIndex(i => Math.min(i + 1, mentionResults.length - 1)); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedMentionIndex(i => Math.max(i - 1, 0)); return }
+      if (e.key === 'Enter') { e.preventDefault(); selectMention(mentionResults[selectedMentionIndex]); return }
+      if (e.key === 'Escape') { setMentionQuery(null); setMentionResults([]); return }
     }
 
-    // Ctrl+B → bold, Ctrl+I → italic, Ctrl+` → code
     if ((e.ctrlKey || e.metaKey) && ['b', 'i'].includes(e.key.toLowerCase())) {
       e.preventDefault()
       const ta = textareaRef.current
@@ -345,13 +324,8 @@ export function ChatInput({
       return
     }
 
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
-    }
-    if (e.key === 'Escape' && replyTo) {
-      onCancelReply?.()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e) }
+    if (e.key === 'Escape' && replyTo) onCancelReply?.()
   }
 
   const getEmojiQuery = (text: string, cursorPos: number): string | null => {
@@ -374,13 +348,10 @@ export function ChatInput({
 
     const cursorPos = e.target.selectionStart
 
-    // Mention autocomplete
     const query = getMentionQuery(val, cursorPos)
     if (query !== null) {
       setMentionQuery(query)
-      const filtered = onlineUsers
-        .filter(u => u.name.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 5)
+      const filtered = onlineUsers.filter(u => u.name.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
       setMentionResults(filtered)
       setSelectedMentionIndex(0)
     } else {
@@ -388,13 +359,9 @@ export function ChatInput({
       setMentionResults([])
     }
 
-    // Emoji shortcode autocomplete
     const eQuery = getEmojiQuery(val, cursorPos)
     if (eQuery && eQuery.length >= 2) {
-      const matches = Object.entries(EMOJI_MAP)
-        .filter(([name]) => name.includes(eQuery.toLowerCase()))
-        .slice(0, 6)
-        .map(([name, emoji]) => ({ name, emoji }))
+      const matches = Object.entries(EMOJI_MAP).filter(([name]) => name.includes(eQuery.toLowerCase())).slice(0, 6).map(([name, emoji]) => ({ name, emoji }))
       setEmojiQuery(eQuery)
       setEmojiResults(matches)
       setSelectedEmojiIndex(0)
@@ -403,23 +370,18 @@ export function ChatInput({
       setEmojiResults([])
     }
 
-    // Slash command hints
     const sQuery = getSlashQuery(val)
     if (sQuery) {
-      const hints = SLASH_COMMANDS.filter(c => c.cmd.startsWith(sQuery)).slice(0, 5)
-      setSlashHints(hints)
+      setSlashHints(SLASH_COMMANDS.filter(c => c.cmd.startsWith(sQuery)).slice(0, 5))
     } else {
       setSlashHints([])
     }
 
-    // Smart emoji suggestions
     if (val.length > 3) {
       const lowerVal = val.toLowerCase()
-      const suggested = SMART_EMOJI_TRIGGERS
-        .filter(({ keywords }) => keywords.some(kw => lowerVal.includes(kw)))
-        .map(({ emoji }) => emoji)
-        .slice(0, 4)
-      setSmartEmojis(suggested)
+      setSmartEmojis(
+        SMART_EMOJI_TRIGGERS.filter(({ keywords }) => keywords.some(kw => lowerVal.includes(kw))).map(({ emoji }) => emoji).slice(0, 4)
+      )
     } else {
       setSmartEmojis([])
     }
@@ -441,12 +403,19 @@ export function ChatInput({
     return () => { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current) }
   }, [])
 
-  // Focus on reply
+  // Close more menu on outside click
   useEffect(() => {
-    if (replyTo) textareaRef.current?.focus()
-  }, [replyTo])
+    const handler = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false)
+      }
+    }
+    if (showMoreMenu) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showMoreMenu])
 
-  // Pre-fill on forward
+  useEffect(() => { if (replyTo) textareaRef.current?.focus() }, [replyTo])
+
   useEffect(() => {
     if (forwardedContent) {
       setMessage(forwardedContent)
@@ -454,18 +423,14 @@ export function ChatInput({
     }
   }, [forwardedContent])
 
-  // Auto-save draft
   const DRAFT_KEY = 'chat_input_draft'
   useEffect(() => {
     const saved = localStorage.getItem(DRAFT_KEY)
     if (saved && !forwardedContent) setMessage(saved)
   }, [])
   useEffect(() => {
-    if (message) {
-      localStorage.setItem(DRAFT_KEY, message)
-    } else {
-      localStorage.removeItem(DRAFT_KEY)
-    }
+    if (message) localStorage.setItem(DRAFT_KEY, message)
+    else localStorage.removeItem(DRAFT_KEY)
   }, [message])
 
   return (
@@ -476,20 +441,17 @@ export function ChatInput({
           <Reply className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-primary mb-0.5">
-              תגובה ל-{replyTo.user?.name || 'משתמש'}
+              {'תגובה ל-'}{replyTo.user?.name || 'משתמש'}
             </p>
             <p className="text-xs text-muted-foreground truncate">{replyTo.content}</p>
           </div>
-          <button
-            onClick={onCancelReply}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          >
+          <button onClick={onCancelReply} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Speed dial - quick messages when input is empty (desktop only) */}
+      {/* Speed dial — desktop only, when input is empty */}
       {!message && !replyTo && (
         <div className="hidden sm:flex items-center gap-1 mb-1.5 overflow-x-auto">
           {customDials.slice(0, 5).map((text, i) => (
@@ -508,7 +470,7 @@ export function ChatInput({
             className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground transition px-1.5"
             title="ערוך חיוג מהיר"
           >
-            ✏️
+            {'✏️'}
           </button>
         </div>
       )}
@@ -516,29 +478,26 @@ export function ChatInput({
       {/* Smart emoji suggestions */}
       {smartEmojis.length > 0 && !showEmojis && (
         <div className="flex items-center gap-1 mb-1.5 animate-in fade-in duration-200">
-          <span className="text-[10px] text-muted-foreground">הוסף:</span>
+          <span className="text-[10px] text-muted-foreground">{'הוסף:'}</span>
           {smartEmojis.map(emoji => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => addEmoji(emoji)}
-              className="text-lg hover:scale-125 transition-transform"
-            >
+            <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="text-lg hover:scale-125 transition-transform">
               {emoji}
             </button>
           ))}
         </div>
       )}
 
-      {/* Smart text suggestions - desktop only */}
+      {/* Smart text suggestions — desktop only */}
       {message.length > 3 && !showEmojis && (
-        <div className="hidden sm:block"><SmartSuggestions
-          message={message}
-          onSelect={(suffix) => {
-            setMessage(prev => prev + suffix)
-            setTimeout(() => textareaRef.current?.focus(), 0)
-          }}
-        /></div>
+        <div className="hidden sm:block">
+          <SmartSuggestions
+            message={message}
+            onSelect={(suffix) => {
+              setMessage(prev => prev + suffix)
+              setTimeout(() => textareaRef.current?.focus(), 0)
+            }}
+          />
+        </div>
       )}
 
       {/* Full Emoji picker */}
@@ -549,36 +508,21 @@ export function ChatInput({
         />
       )}
 
-      {/* Mention autocomplete dropdown */}
+      {/* Mention autocomplete */}
       {mentionResults.length > 0 && mentionQuery !== null && (
         <div className="absolute bottom-full mb-2 right-0 left-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
-          <div
-            className="rounded-2xl border border-border/60 shadow-2xl overflow-hidden"
-            style={{
-              background: 'oklch(1 0 0 / 0.85)',
-              backdropFilter: 'blur(16px)',
-            }}
-          >
+          <div className="rounded-2xl border border-border/60 shadow-2xl overflow-hidden" style={{ background: 'oklch(1 0 0 / 0.85)', backdropFilter: 'blur(16px)' }}>
             <div className="px-3 pt-2 pb-1">
-              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">אזכור משתמש</span>
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{'אזכור משתמש'}</span>
             </div>
             {mentionResults.map((user, idx) => (
               <button
                 key={user.id}
                 type="button"
                 onClick={() => selectMention(user)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors text-right",
-                  idx === selectedMentionIndex
-                    ? "bg-primary/10 text-primary"
-                    : "hover:bg-muted/60 text-foreground"
-                )}
+                className={cn("w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors text-right", idx === selectedMentionIndex ? "bg-primary/10 text-primary" : "hover:bg-muted/60 text-foreground")}
               >
-                {/* Avatar circle */}
-                <div
-                  className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold shadow"
-                  style={{ backgroundColor: user.avatar_color }}
-                >
+                <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold shadow" style={{ backgroundColor: user.avatar_color }}>
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="font-medium">@{user.name}</span>
@@ -592,18 +536,13 @@ export function ChatInput({
       {emojiResults.length > 0 && emojiQuery && (
         <div className="absolute bottom-full mb-2 right-0 left-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="rounded-2xl border border-border/60 shadow-2xl overflow-hidden bg-white dark:bg-muted backdrop-blur-lg">
-            <div className="px-3 pt-2 pb-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-              :{emojiQuery} — אימוג׳י
-            </div>
+            <div className="px-3 pt-2 pb-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">:{emojiQuery} — {'אימוג׳י'}</div>
             {emojiResults.map((r, idx) => (
               <button
                 key={r.name}
                 type="button"
                 onClick={() => selectEmoji(r.name, r.emoji)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors text-right",
-                  idx === selectedEmojiIndex ? "bg-primary/10 text-primary" : "hover:bg-muted/60"
-                )}
+                className={cn("w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors text-right", idx === selectedEmojiIndex ? "bg-primary/10 text-primary" : "hover:bg-muted/60")}
               >
                 <span className="text-lg">{r.emoji}</span>
                 <span className="text-muted-foreground">:{r.name}:</span>
@@ -617,14 +556,9 @@ export function ChatInput({
       {slashHints.length > 0 && (
         <div className="absolute bottom-full mb-2 right-0 left-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="rounded-2xl border border-border/60 shadow-2xl overflow-hidden bg-white dark:bg-muted backdrop-blur-lg">
-            <div className="px-3 pt-2 pb-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">פקודות</div>
+            <div className="px-3 pt-2 pb-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{'פקודות'}</div>
             {slashHints.map(hint => (
-              <button
-                key={hint.cmd}
-                type="button"
-                onClick={() => selectSlashCommand(hint.cmd)}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/60 text-right transition-colors"
-              >
+              <button key={hint.cmd} type="button" onClick={() => selectSlashCommand(hint.cmd)} className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/60 text-right transition-colors">
                 <span className="font-mono font-medium text-primary">{hint.cmd}</span>
                 <span className="text-muted-foreground text-xs">{hint.desc}</span>
               </button>
@@ -633,96 +567,137 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Hidden file input for image/camera */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture={undefined}
-        className="hidden"
-        onChange={handleImageSelect}
-      />
+      {/* Hidden file input for images */}
+      <input ref={fileInputRef} type="file" accept="image/*" capture={undefined} className="hidden" onChange={handleImageSelect} />
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2">
-        {/* Emoji */}
+      {/* ── Main input row ─────────────────────────────────────────────────── */}
+      <form onSubmit={handleSubmit} className="flex items-end gap-1.5">
+
+        {/* "+" More menu */}
+        <div ref={moreMenuRef} className="relative shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn("h-11 w-11 rounded-xl transition-all duration-200", showMoreMenu && "bg-primary/10 text-primary")}
+            onClick={() => { setShowMoreMenu(v => !v); setShowEmojis(false); setShowGifPicker(false) }}
+            title="עוד אפשרויות"
+          >
+            <Plus className={cn("w-5 h-5 transition-transform duration-200", showMoreMenu && "rotate-45")} />
+          </Button>
+
+          {showMoreMenu && (
+            <div className="absolute bottom-full mb-2 right-0 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <div className="bg-white dark:bg-muted border border-border/60 rounded-2xl shadow-2xl p-2 min-w-[190px]" dir="rtl">
+                <p className="text-[10px] text-muted-foreground font-semibold px-2 py-1 uppercase tracking-wider">{'שלח מדיה'}</p>
+
+                {/* Image */}
+                <button
+                  type="button"
+                  onClick={() => { fileInputRef.current?.click(); setShowMoreMenu(false) }}
+                  disabled={disabled || isUploading}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition text-sm"
+                >
+                  {isUploading
+                    ? <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                    : <ImagePlus className="w-4 h-4 shrink-0 text-blue-500" />}
+                  <span>{'תמונה'}</span>
+                </button>
+
+                {/* GIF */}
+                <button
+                  type="button"
+                  onClick={() => { setShowGifPicker(v => !v); setShowMoreMenu(false) }}
+                  disabled={disabled}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition text-sm"
+                >
+                  <Film className="w-4 h-4 shrink-0 text-pink-500" />
+                  <span>GIF</span>
+                </button>
+
+                {/* Video */}
+                <VideoRecorder
+                  onSend={(content) => { onSend(content); setShowMoreMenu(false) }}
+                  disabled={disabled}
+                  asMenuItem
+                />
+
+                <div className="my-1.5 border-t border-border/40" />
+                <p className="text-[10px] text-muted-foreground font-semibold px-2 py-1 uppercase tracking-wider">{'כלים'}</p>
+
+                {/* Templates */}
+                <button
+                  type="button"
+                  onClick={() => { setShowTemplates(v => !v); setShowMoreMenu(false) }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition text-sm"
+                >
+                  <BookOpen className="w-4 h-4 shrink-0 text-amber-500" />
+                  <span>{'תבניות הודעה'}</span>
+                </button>
+
+                {/* Saved replies */}
+                <button
+                  type="button"
+                  onClick={() => { setShowSavedReplies(v => !v); setShowMoreMenu(false) }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition text-sm"
+                >
+                  <Zap className="w-4 h-4 shrink-0 text-yellow-500" />
+                  <span>{'תשובות שמורות'}</span>
+                </button>
+
+                {/* Markdown preview (only when text exists) */}
+                {message.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowMarkdownPreview(v => !v); setShowMoreMenu(false) }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition text-sm"
+                  >
+                    <Eye className="w-4 h-4 shrink-0 text-teal-500" />
+                    <span>{'תצוגה מקדימה'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Emoji button */}
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className={cn("h-11 w-11 shrink-0 rounded-xl", showEmojis && "bg-primary/10 text-primary")}
-          onClick={() => { setShowEmojis(v => !v); setShowGifPicker(false) }}
+          onClick={() => { setShowEmojis(v => !v); setShowGifPicker(false); setShowMoreMenu(false) }}
+          title="אמוג׳י"
         >
           <Smile className="w-5 h-5" />
         </Button>
 
-        {/* Image upload */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-11 w-11 shrink-0 rounded-xl"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={disabled || isUploading}
-          title="שלח תמונה מהגלריה או מצלמה"
-        >
-          {isUploading
-            ? <Loader2 className="w-5 h-5 animate-spin text-primary" />
-            : <ImagePlus className="w-5 h-5" />
-          }
-        </Button>
-
-        {/* GIF picker button */}
-        <div className="relative shrink-0">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={cn("h-11 w-11 rounded-xl", showGifPicker && "bg-primary/10 text-primary")}
-            onClick={() => { setShowGifPicker(v => !v); setShowEmojis(false) }}
-            disabled={disabled}
-            title="שלח GIF"
-          >
-            <Film className="w-5 h-5" />
-          </Button>
-          {showGifPicker && (
+        {/* GIF picker (floating) */}
+        {showGifPicker && (
+          <div className="absolute bottom-full mb-2 right-0 left-0 z-50">
             <GifPicker
               onSelect={(url) => { onSend(url); setShowGifPicker(false) }}
               onClose={() => setShowGifPicker(false)}
             />
-          )}
-        </div>
-
-        {/* Voice recorder - always show on mobile, show when empty on desktop */}
-        <div className={!message ? 'block' : 'hidden sm:block'}>
-          <VoiceRecorder onSend={handleVoiceSend} disabled={disabled} />
-        </div>
-        {/* Video recorder - desktop only when empty */}
-        {!message && (
-          <div className="hidden sm:block">
-            <VideoRecorder onSend={(content) => { onSend(content) }} disabled={disabled} />
           </div>
         )}
 
+        {/* Textarea + overlays */}
         <div className="flex-1 relative">
-          {/* Formatting toolbar - shown when message has content */}
+
+          {/* Compact B / I / ` formatting bar — only while typing */}
           {message.length > 0 && (
             <div className="absolute -top-8 right-0 flex items-center gap-0.5 bg-white dark:bg-muted border border-border/50 rounded-lg px-1 py-0.5 shadow-sm z-10">
               {[
-                { label: 'B', wrap: '**', title: 'מודגש (Ctrl+B)' },
-                { label: 'I', wrap: '_', title: 'נטוי' },
-                { label: '`', wrap: '`', title: 'קוד' },
-                { label: '📋', wrap: '', title: 'תבניות שמורות', isTemplate: true },
-                { label: '⚡', wrap: '', title: 'תשובות שמורות', isSavedReply: true },
-                { label: '👁', wrap: '', title: 'תצוגה מקדימה', isPreview: true },
-              ].map(({ label, wrap, title, isTemplate, isSavedReply, isPreview }) => (
+                { label: 'B', wrap: '**', cls: 'font-black' },
+                { label: 'I', wrap: '_',  cls: 'italic font-medium' },
+                { label: '`', wrap: '`',  cls: 'font-mono' },
+              ].map(({ label, wrap, cls }) => (
                 <button
                   key={label}
                   type="button"
-                  title={title}
                   onClick={() => {
-                    if (isTemplate) { setShowTemplates(t => !t); return }
-                    if (isSavedReply) { setShowSavedReplies(t => !t); return }
-                    if (isPreview) { setShowMarkdownPreview(t => !t); return }
                     const ta = textareaRef.current
                     if (!ta) return
                     const start = ta.selectionStart; const end = ta.selectionEnd
@@ -731,17 +706,21 @@ export function ChatInput({
                     setMessage(newMsg)
                     setTimeout(() => { ta.focus(); const p = start + wrap.length; ta.setSelectionRange(p, p + (sel || 'טקסט').length) }, 0)
                   }}
-                  className={`w-6 h-6 text-[11px] hover:bg-muted rounded flex items-center justify-center transition ${label === 'B' ? 'font-black' : label === 'I' ? 'italic font-medium' : label === '📋' || label === '⚡' ? 'text-base' : 'font-mono'}`}
+                  className={`w-6 h-6 text-[11px] hover:bg-muted rounded flex items-center justify-center transition ${cls}`}
                 >
                   {label}
                 </button>
               ))}
             </div>
           )}
+
           {/* Templates dropdown */}
           {showTemplates && (
-            <div className="absolute -top-36 right-0 z-50 bg-white dark:bg-muted border border-border/50 rounded-xl shadow-xl p-2 w-56 animate-in fade-in slide-in-from-top-2 duration-150">
-              <p className="text-[10px] text-muted-foreground font-semibold px-2 mb-1.5 uppercase">תבניות הודעה</p>
+            <div className="absolute bottom-full mb-12 right-0 z-50 bg-white dark:bg-muted border border-border/50 rounded-xl shadow-xl p-2 w-64 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <div className="flex items-center justify-between px-2 mb-1.5">
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase">{'תבניות הודעה'}</p>
+                <button onClick={() => setShowTemplates(false)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+              </div>
               {templates.map((t, i) => (
                 <button
                   key={i}
@@ -754,18 +733,21 @@ export function ChatInput({
               ))}
             </div>
           )}
+
           {/* Markdown preview */}
           {showMarkdownPreview && message.length > 0 && (
-            <div className="absolute -top-28 right-0 left-0 z-50">
+            <div className="absolute bottom-full mb-12 right-0 left-0 z-50">
               <MarkdownPreview content={message} onClose={() => setShowMarkdownPreview(false)} />
             </div>
           )}
+
           {/* Auto-mod warning */}
           {modWarning && (
             <div className="absolute -top-10 right-0 left-0 z-50 bg-red-500 text-white text-xs rounded-lg px-3 py-2 flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
-              ⚠️ {modWarning}
+              {'⚠️'} {modWarning}
             </div>
           )}
+
           <textarea
             ref={textareaRef}
             value={message}
@@ -773,7 +755,7 @@ export function ChatInput({
             onKeyDown={handleKeyDown}
             onBlur={() => onTypingStop?.()}
             onPaste={handlePaste}
-            dir={/^[֐-׿יִ-ﭏ\s\d!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(message.slice(0, 3)) ? 'rtl' : message.length > 2 ? 'ltr' : 'auto'}
+            dir="auto"
             placeholder={replyTo ? `השב ל-${replyTo.user?.name}...` : placeholder}
             disabled={disabled}
             rows={1}
@@ -793,7 +775,7 @@ export function ChatInput({
               message.length > 800 && "border-orange-300 focus:border-orange-400"
             )}
           />
-          {/* Character counter */}
+
           {message.length > 200 && (
             <span className={cn(
               "absolute bottom-2 left-3 text-[10px] font-mono transition-colors",
@@ -804,6 +786,12 @@ export function ChatInput({
           )}
         </div>
 
+        {/* Voice recorder — show when input is empty */}
+        {!message && (
+          <VoiceRecorder onSend={handleVoiceSend} disabled={disabled} />
+        )}
+
+        {/* Send / Slow-mode */}
         {slowModeRemaining > 0 ? (
           <div className="h-11 w-11 shrink-0 rounded-xl bg-orange-100 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 flex flex-col items-center justify-center" title={`מצב איטי: המתן ${slowModeRemaining} שניות`}>
             <Timer className="w-3.5 h-3.5 text-orange-500 mb-0.5" />
@@ -825,6 +813,7 @@ export function ChatInput({
           </Button>
         )}
       </form>
+
       {showSavedReplies && (
         <SavedRepliesPanel
           onInsert={(content) => { setMessage(content); setTimeout(() => textareaRef.current?.focus(), 50) }}

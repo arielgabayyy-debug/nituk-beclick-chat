@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Users, MessageCircle, Crown, Mail, Sparkles, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { CommunityLogo } from './community-logo'
 
 interface LandingScreenProps {
   onSelectMode: (mode: 'guest' | 'subscriber' | 'newsletter') => void
@@ -55,15 +56,12 @@ export function LandingScreen({ onSelectMode, onlineCount }: LandingScreenProps)
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/attachments/gen-images/vercel/share/v0-project/public/community-logo-v2-rWt6MTkHzsU1rzhKMX9iaY3puwHh2U.jpg"
-            alt="חיבור וניתוק בקליק"
-            className="w-24 h-24 rounded-2xl mx-auto mb-4 shadow-xl"
-          />
-          <h1 className="text-3xl font-bold gradient-text mb-2">חיבור וניתוק בקליק</h1>
+          <div className="flex justify-center mb-4">
+            <CommunityLogo size={88} animated showText={false} />
+          </div>
+          <h1 className="text-3xl font-bold gradient-text mb-2">ניתוק בקליק</h1>
           <p className="text-muted-foreground flex items-center justify-center gap-2">
-            השוואת מחירים חכמה
+            השוואת מחירי סלולר חכמה
             <span className="bg-gradient-to-r from-secondary to-primary text-white px-2 py-0.5 rounded-full text-xs font-semibold">AI</span>
           </p>
         </div>

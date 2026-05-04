@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
 import { VoiceMessage } from './voice-message'
+import { VideoPlayer } from './video-player'
 import { LinkPreview } from './link-preview'
 import { ImageLightbox } from './image-lightbox'
 import { YoutubeEmbed, isYoutubeUrl } from './youtube-embed'
@@ -160,24 +161,11 @@ function renderMessageContent(content: string, searchQuery?: string, isOwn?: boo
   const videoMatch = content.match(/^\[video:(https?:\/\/[^\]]+):(\d+)\]$/)
   if (videoMatch) {
     return (
-      <div className="relative rounded-xl overflow-hidden max-w-[280px] border border-border/40 shadow-sm">
-        <video
-          src={videoMatch[1]}
-          controls
-          playsInline
-          crossOrigin="anonymous"
-          preload="metadata"
-          className="w-full max-h-[200px] object-cover bg-black"
-          style={{ maxWidth: 280 }}
-          onError={(e) => {
-            const vid = e.currentTarget
-            if (vid.crossOrigin) { vid.crossOrigin = ''; vid.load() }
-          }}
-        />
-        <div className={`absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded-full ${isOwn ? 'bg-black/40 text-white' : 'bg-white/80 text-gray-700'}`}>
-          🎥 {Math.floor(parseInt(videoMatch[2]) / 60)}:{String(parseInt(videoMatch[2]) % 60).padStart(2, '0')}
-        </div>
-      </div>
+      <VideoPlayer
+        url={videoMatch[1]}
+        duration={parseInt(videoMatch[2])}
+        isOwn={!!isOwn}
+      />
     )
   }
 

@@ -243,24 +243,201 @@ export const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '
 
 export const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
+// ── GIF Categories — 16 categories, 8 GIFs each ────────────────────────────
+// All URLs are from GIPHY CDN (free, no auth for display)
 export const GIF_CATEGORIES = [
-  { id: 'celebrate', name: 'חגיגה', gifs: [
-    'https://media.giphy.com/media/g9582DNuQppxC/giphy.gif',
-    'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif',
-    'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif',
-  ]},
-  { id: 'thanks', name: 'תודה', gifs: [
-    'https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif',
-    'https://media.giphy.com/media/ZfK4cXKJTTay1Ava29/giphy.gif',
-  ]},
-  { id: 'happy', name: 'שמח', gifs: [
-    'https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif',
-    'https://media.giphy.com/media/BlVnrxJgTGsUw/giphy.gif',
-  ]},
-  { id: 'thinking', name: 'חושב', gifs: [
-    'https://media.giphy.com/media/a5viI92PAF89q/giphy.gif',
-    'https://media.giphy.com/media/TPl5N4Ci49ZQY/giphy.gif',
-  ]},
+  {
+    id: 'celebrate', name: '🎉 חגיגה', gifs: [
+      'https://media.giphy.com/media/g9582DNuQppxC/giphy.gif',
+      'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif',
+      'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif',
+      'https://media.giphy.com/media/3oz8xRF0v9WMAUVLNK/giphy.gif',
+      'https://media.giphy.com/media/YTbZzCkRQCEJa/giphy.gif',
+      'https://media.giphy.com/media/kaBU6pgv0OsPHz2yxy/giphy.gif',
+      'https://media.giphy.com/media/l4JyOs9bCIAFVHUpq/giphy.gif',
+      'https://media.giphy.com/media/3ohhwF34cGDoFFhRfy/giphy.gif',
+    ],
+  },
+  {
+    id: 'happy', name: '😊 שמח', gifs: [
+      'https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif',
+      'https://media.giphy.com/media/BlVnrxJgTGsUw/giphy.gif',
+      'https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif',
+      'https://media.giphy.com/media/XR9Dp54ZC4dji/giphy.gif',
+      'https://media.giphy.com/media/l3q2wJsC23ikJg9xe/giphy.gif',
+      'https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif',
+      'https://media.giphy.com/media/GStLeae4F7VIs/giphy.gif',
+      'https://media.giphy.com/media/ely3apij36BJhoZ234/giphy.gif',
+    ],
+  },
+  {
+    id: 'thanks', name: '🙏 תודה', gifs: [
+      'https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif',
+      'https://media.giphy.com/media/ZfK4cXKJTTay1Ava29/giphy.gif',
+      'https://media.giphy.com/media/l4Jz3a8jO92crUlWM/giphy.gif',
+      'https://media.giphy.com/media/26FPy3QZQqGtDcrja/giphy.gif',
+      'https://media.giphy.com/media/7rj2ZgttvgomY/giphy.gif',
+      'https://media.giphy.com/media/3oEjHI7SkzZBL1FnHi/giphy.gif',
+      'https://media.giphy.com/media/KJ1f5iTl4Oo7u/giphy.gif',
+      'https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif',
+    ],
+  },
+  {
+    id: 'lol', name: '😂 מצחיק', gifs: [
+      'https://media.giphy.com/media/oYtVHSxngR3lC/giphy.gif',
+      'https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif',
+      'https://media.giphy.com/media/3oKIPCSX4UHmuS41TG/giphy.gif',
+      'https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif',
+      'https://media.giphy.com/media/SvFocn0wNMx0iv2rYz/giphy.gif',
+      'https://media.giphy.com/media/l41lFw057lAJQMwg0/giphy.gif',
+      'https://media.giphy.com/media/h4OGa0npayrJX2NYOR/giphy.gif',
+      'https://media.giphy.com/media/ylyUQkj19AYDaGMvie/giphy.gif',
+    ],
+  },
+  {
+    id: 'wow', name: '🤯 וואו', gifs: [
+      'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif',
+      'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif',
+      'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+      'https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif',
+      'https://media.giphy.com/media/l0Exk8EUzSLsrErEQ/giphy.gif',
+      'https://media.giphy.com/media/l46Cy1rHbQ92uuLXa/giphy.gif',
+      'https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif',
+      'https://media.giphy.com/media/ToMjGpjpXMFPshSYGLm/giphy.gif',
+    ],
+  },
+  {
+    id: 'fire', name: '🔥 מעולה', gifs: [
+      'https://media.giphy.com/media/3o7aTLkyh3yAhQmBmE/giphy.gif',
+      'https://media.giphy.com/media/26tknCqiJrBQG6bxC/giphy.gif',
+      'https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif',
+      'https://media.giphy.com/media/BpGWitbFZflfSUYuZ9/giphy.gif',
+      'https://media.giphy.com/media/Xx2Z4TYbMCNHq/giphy.gif',
+      'https://media.giphy.com/media/2A6ND13YqHIOFAn8e0/giphy.gif',
+      'https://media.giphy.com/media/5VKbvrjxpVJCM/giphy.gif',
+      'https://media.giphy.com/media/j2pWZpr5RlpCodOB0d/giphy.gif',
+    ],
+  },
+  {
+    id: 'money', name: '💰 עסקאות', gifs: [
+      'https://media.giphy.com/media/dQHBToMtA3TKyhXoYr/giphy.gif',
+      'https://media.giphy.com/media/3o6ZtpxSZbQRRnwCKQ/giphy.gif',
+      'https://media.giphy.com/media/67ThRZlYBvibtdF9JH/giphy.gif',
+      'https://media.giphy.com/media/l0MYM98IwMwhqhjss/giphy.gif',
+      'https://media.giphy.com/media/3o7TKSx0g7RqRniGFG/giphy.gif',
+      'https://media.giphy.com/media/xUPGcEliCc7bETyfO8/giphy.gif',
+      'https://media.giphy.com/media/ZEkSRqSUNxiZBTt7TF/giphy.gif',
+      'https://media.giphy.com/media/l3vRhblMlMOZn3BVm/giphy.gif',
+    ],
+  },
+  {
+    id: 'love', name: '❤️ אהבה', gifs: [
+      'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
+      'https://media.giphy.com/media/l1J9wJ2GKBA8nzjlm/giphy.gif',
+      'https://media.giphy.com/media/26BRv0ThflsHCqDrG/giphy.gif',
+      'https://media.giphy.com/media/3oEjHAUOqG3lSS0f1C/giphy.gif',
+      'https://media.giphy.com/media/YWf50NNii3r4k/giphy.gif',
+      'https://media.giphy.com/media/bLWPFuGkVZ5FkXUeZO/giphy.gif',
+      'https://media.giphy.com/media/26BRBupa6nRXMGBQs/giphy.gif',
+      'https://media.giphy.com/media/xT9IgG50Lg7rusNZ6A/giphy.gif',
+    ],
+  },
+  {
+    id: 'thinking', name: '🤔 חושב', gifs: [
+      'https://media.giphy.com/media/a5viI92PAF89q/giphy.gif',
+      'https://media.giphy.com/media/TPl5N4Ci49ZQY/giphy.gif',
+      'https://media.giphy.com/media/3o7TKTDn976rzVgky4/giphy.gif',
+      'https://media.giphy.com/media/l46Cy1rHbQ92uuLXa/giphy.gif',
+      'https://media.giphy.com/media/3oEduOnl5IHM5NRodO/giphy.gif',
+      'https://media.giphy.com/media/3oEjI5VtIhAfQv8pza/giphy.gif',
+      'https://media.giphy.com/media/xUPGcz59f5YtDaHKLm/giphy.gif',
+      'https://media.giphy.com/media/3oEjHSbF9rEpXCOSEU/giphy.gif',
+    ],
+  },
+  {
+    id: 'deal', name: '🤝 סגרנו', gifs: [
+      'https://media.giphy.com/media/XreQmk7ETCak0/giphy.gif',
+      'https://media.giphy.com/media/l0ExncehJzexFpRHq/giphy.gif',
+      'https://media.giphy.com/media/111ebonMs90YLu/giphy.gif',
+      'https://media.giphy.com/media/1wqqlaQ7IX7dYlVDlT/giphy.gif',
+      'https://media.giphy.com/media/l3q2QmluNoXLnYGIM/giphy.gif',
+      'https://media.giphy.com/media/26BRzozg4TCBXv6QU/giphy.gif',
+      'https://media.giphy.com/media/3oriO04qxVReM5rJEA/giphy.gif',
+      'https://media.giphy.com/media/QAcRMEUzWOiF4wLpL5/giphy.gif',
+    ],
+  },
+  {
+    id: 'nope', name: '🙅 לא', gifs: [
+      'https://media.giphy.com/media/3og0INyCmHlNylks9O/giphy.gif',
+      'https://media.giphy.com/media/CF4nMIQkA8pAA/giphy.gif',
+      'https://media.giphy.com/media/d2ZcfODrNWlA5Gg0/giphy.gif',
+      'https://media.giphy.com/media/3oFzmtYCMbpqWTgF0A/giphy.gif',
+      'https://media.giphy.com/media/ToMjGpx9dUfL2LJv1sm/giphy.gif',
+      'https://media.giphy.com/media/l2SpUoAPo0CBnXjO8/giphy.gif',
+      'https://media.giphy.com/media/3o6Zt6ML6BklcajjsA/giphy.gif',
+      'https://media.giphy.com/media/WRQBXSCnEFJIuxktnw/giphy.gif',
+    ],
+  },
+  {
+    id: 'run', name: '🏃 מהר', gifs: [
+      'https://media.giphy.com/media/CjmvTCZf2U3p09Cn0h/giphy.gif',
+      'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif',
+      'https://media.giphy.com/media/iigDJjPirYKTe/giphy.gif',
+      'https://media.giphy.com/media/l4FGBrGvFGWYxsKxO/giphy.gif',
+      'https://media.giphy.com/media/4No8JxHkq8E5q/giphy.gif',
+      'https://media.giphy.com/media/26uflBNKwHiNqFqJq/giphy.gif',
+      'https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif',
+      'https://media.giphy.com/media/l0HlHFRbmaZtBRhXG/giphy.gif',
+    ],
+  },
+  {
+    id: 'dance', name: '💃 ריקוד', gifs: [
+      'https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif',
+      'https://media.giphy.com/media/5xaOcLGvzHxDKjufnLW/giphy.gif',
+      'https://media.giphy.com/media/blSTtZehjAZ8I/giphy.gif',
+      'https://media.giphy.com/media/4bWWKmUnn5E4M/giphy.gif',
+      'https://media.giphy.com/media/26DNioenMF55ocuaA/giphy.gif',
+      'https://media.giphy.com/media/l0HlOBZcl7sbV6LnO/giphy.gif',
+      'https://media.giphy.com/media/RkDTsaWFDxwQE/giphy.gif',
+      'https://media.giphy.com/media/KIFUMLePt83kI/giphy.gif',
+    ],
+  },
+  {
+    id: 'facepalm', name: '🤦 אוף', gifs: [
+      'https://media.giphy.com/media/XsUtdIeJ0MWMo/giphy.gif',
+      'https://media.giphy.com/media/14aUO0Mf7dWDXW/giphy.gif',
+      'https://media.giphy.com/media/5ZZSYqvcH6QppFQnx5/giphy.gif',
+      'https://media.giphy.com/media/l1J9EdzfOSgfyueLm/giphy.gif',
+      'https://media.giphy.com/media/ISOckXUybVfQ4/giphy.gif',
+      'https://media.giphy.com/media/6uGhT1O4sxpi8/giphy.gif',
+      'https://media.giphy.com/media/sDcfxFDozb3bO/giphy.gif',
+      'https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif',
+    ],
+  },
+  {
+    id: 'clap', name: '👏 כל הכבוד', gifs: [
+      'https://media.giphy.com/media/7rj2ZgttvgomY/giphy.gif',
+      'https://media.giphy.com/media/l3q2zbskZp2j8wniE/giphy.gif',
+      'https://media.giphy.com/media/3oEduLztanCdSSdVd2/giphy.gif',
+      'https://media.giphy.com/media/GlFy5PNQHt5mI/giphy.gif',
+      'https://media.giphy.com/media/6tHy8UAbv3zgs/giphy.gif',
+      'https://media.giphy.com/media/26AHAw0aMmWwRI4Hm/giphy.gif',
+      'https://media.giphy.com/media/xT1XH3yj7ujmm6sE1i/giphy.gif',
+      'https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif',
+    ],
+  },
+  {
+    id: 'help', name: '🆘 עזרה', gifs: [
+      'https://media.giphy.com/media/phJ6eMRFYI6CQ/giphy.gif',
+      'https://media.giphy.com/media/3o7TKoWXm3okO1kgHC/giphy.gif',
+      'https://media.giphy.com/media/l0HlHFRbmaZtBRhXG/giphy.gif',
+      'https://media.giphy.com/media/3oEdv9R0cMkMkkJRLq/giphy.gif',
+      'https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif',
+      'https://media.giphy.com/media/3oKIPCSX4UHmuS41TG/giphy.gif',
+      'https://media.giphy.com/media/bFgbL0YFkZeIY/giphy.gif',
+      'https://media.giphy.com/media/1BXa2alBjrCXC/giphy.gif',
+    ],
+  },
 ]
 
 export function getRandomAvatarColor(): string {
