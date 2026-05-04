@@ -3,10 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY!
+const BREVO_API_KEY = process.env.BREVO_API_KEY!
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
+
+// Sender email — must be verified in Brevo (Settings → Senders)
+const SENDER_EMAIL = 'nitukbeclick@gmail.com'
+const SENDER_NAME = 'ניתוק בקליק'
 
 export async function POST(request: Request) {
   try {
@@ -56,24 +60,27 @@ export async function POST(request: Request) {
     }
 
     const magicLink = linkData.properties.action_link
+    const isReturning = !!existingUser
 
-    // ── Send via Resend REST API (no SMTP, no rate limits) ─────────────────
-    const resendRes = await fetch('https://api.resend.com/emails', {
+    // ── Send via Brevo API (no domain verification needed) ─────────────────
+    const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'api-key': BREVO_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'ניתוק בקליק <onboarding@resend.dev>',
-        to: [trimmedEmail],
+        sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+        to: [{ email: trimmedEmail, name: finalName }],
         subject: 'הקישור שלך לכניסה — ניתוק בקליק',
-        html: `
+        htmlContent: `
           <div dir="rtl" style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#0f172a;color:#f8fafc;border-radius:12px;">
             <h2 style="color:#06b6d4;margin-bottom:8px;">ניתוק בקליק 🔌</h2>
             <p style="color:#94a3b8;margin-bottom:4px;">שלום ${finalName},</p>
             <p style="margin-bottom:24px;">
-              ${existingUser ? 'ברוך הבא בחזרה! לחץ כדי להיכנס לצ׳אט הקהילתי:' : 'ברוך הבא! לחץ כדי להיכנס ולהצטרף לצ׳אט הקהילתי:'}
+              ${isReturning
+                ? 'ברוך הבא בחזרה! לחץ כדי להיכנס לצ׳אט הקהילתי:'
+                : 'ברוך הבא! לחץ כדי להצטרף לצ׳אט הקהילתי:'}
             </p>
             <a href="${magicLink}"
                style="display:inline-block;background:linear-gradient(135deg,#06b6d4,#8b5cf6);color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:16px;margin-bottom:24px;">
@@ -86,17 +93,13 @@ export async function POST(request: Request) {
       }),
     })
 
-    if (!resendRes.ok) {
-      const resendErr = await resendRes.json().catch(() => ({}))
-      console.error('Resend error:', resendErr)
+    if (!brevoRes.ok) {
+      const brevoErr = await brevoRes.json().catch(() => ({}))
+      console.error('Brevo error:', JSON.stringify(brevoErr))
       return NextResponse.json({ error: 'שגיאה בשליחת המייל' }, { status: 500 })
     }
 
-    return NextResponse.json({
-      success: true,
-      isReturning: !!existingUser,
-      name: finalName,
-    })
+    return NextResponse.json({ success: true, isReturning, name: finalName })
   } catch (err) {
     console.error('send-magic-link error:', err)
     return NextResponse.json({ error: 'שגיאת שרת' }, { status: 500 })
