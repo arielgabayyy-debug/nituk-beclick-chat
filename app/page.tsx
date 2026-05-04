@@ -42,6 +42,7 @@ export default function ChatApp() {
       const urlParams = new URLSearchParams(window.location.search)
       const code = urlParams.get('code')
       const oauthSuccess = urlParams.get('oauth') === 'success'
+      const oauthMagic = urlParams.get('oauth') === 'magic'
       const authError = urlParams.get('auth_error')
 
       // If there's a code at root (Supabase didn't redirect to /auth/callback),
@@ -49,6 +50,24 @@ export default function ChatApp() {
       if (code) {
         window.location.replace(`/auth/callback?code=${encodeURIComponent(code)}`)
         return
+      }
+
+      // ── Handle hash-based magic link tokens (from admin.generateLink) ──
+      if (oauthMagic) {
+        window.history.replaceState({}, '', '/')
+        try {
+          const raw = sessionStorage.getItem('sb_magic_tokens')
+          if (raw) {
+            sessionStorage.removeItem('sb_magic_tokens')
+            const { access_token, refresh_token } = JSON.parse(raw)
+            setLoadingMessage('מתחבר...')
+            const { data: sessionData } = await supabase.auth.setSession({ access_token, refresh_token })
+            if (sessionData?.user) {
+              await syncAuthUser(sessionData.user)
+              return
+            }
+          }
+        } catch { /* fall through to normal session check */ }
       }
 
       // Clean up URL

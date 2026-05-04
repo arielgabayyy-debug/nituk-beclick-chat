@@ -8,8 +8,28 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
 
   if (!code) {
-    // No code — redirect to home, let client handle
-    return NextResponse.redirect(`${origin}/`)
+    // No ?code= param — magic link may have sent tokens as hash fragment (#access_token=...)
+    // Hash fragments are not visible server-side, so we return a small HTML page
+    // that reads the hash client-side and forwards the tokens to page.tsx
+    return new Response(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>מתחבר...</title></head>
+      <body><p style="font-family:sans-serif;text-align:center;padding:40px">מתחבר...</p>
+      <script>
+        try {
+          var hash = window.location.hash.substring(1);
+          var params = new URLSearchParams(hash);
+          var at = params.get('access_token');
+          var rt = params.get('refresh_token') || '';
+          if (at) {
+            sessionStorage.setItem('sb_magic_tokens', JSON.stringify({ access_token: at, refresh_token: rt }));
+            window.location.replace('/?oauth=magic');
+          } else {
+            window.location.replace('/');
+          }
+        } catch(e) { window.location.replace('/'); }
+      </script></body></html>`,
+      { headers: { 'Content-Type': 'text/html' } }
+    )
   }
 
   const supabase = await createClient()
