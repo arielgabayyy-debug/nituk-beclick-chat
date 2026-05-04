@@ -14,8 +14,6 @@ import type { UserType, ChatUser } from '@/lib/chat-types'
 type Screen = 'loading' | 'landing' | 'login' | 'chat'
 type LoginMode = 'guest' | 'subscriber' | 'newsletter'
 
-const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com']
-
 export default function ChatApp() {
   const [screen, setScreen] = useState<Screen>('loading')
   const [loginMode, setLoginMode] = useState<LoginMode>('guest')
@@ -24,18 +22,22 @@ export default function ChatApp() {
   const [loadingMessage, setLoadingMessage] = useState('הצ׳אט הקהילתי טוען...')
   const { currentUser, isLoading, registerUser, logout } = useChatUser()
 
-  // Handle OAuth auth state changes
   useEffect(() => {
     const supabase = createClient()
 
-    // Handle all sign-ins including magic link (email provider)
+    // Handle all Supabase Auth sign-ins (magic link + Google + Facebook)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        setLoadingMessage('מתחבר עם הפרופיל שלך...')
-        await syncOAuthUser(session.user)
+        setLoadingMessage('מתחבר...')
+        await syncAuthUser(session.user)
+      }
+      if (event === 'SIGNED_OUT') {
+        setOauthUser(null)
+        setScreen('landing')
       }
     })
 
+    // Check existing session on load
     const checkSession = async () => {
       const urlParams = new URLSearchParams(window.location.search)
       if (urlParams.get('oauth') === 'success') {
@@ -44,16 +46,10 @@ export default function ChatApp() {
 
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        const email = session.user.email || ''
-        // Admin with active session → go straight to dashboard
-        if (ADMIN_EMAILS.includes(email.toLowerCase())) {
-          window.location.replace('/admin')
-          return
-        }
-        setLoadingMessage('מתחבר עם הפרופיל שלך...')
-        await syncOAuthUser(session.user)
+        setLoadingMessage('מתחבר...')
+        await syncAuthUser(session.user)
       } else if (!currentUser) {
-        setTimeout(() => setScreen('landing'), 800)
+        setTimeout(() => setScreen('landing'), 600)
       }
     }
 
@@ -65,23 +61,12 @@ export default function ChatApp() {
     if (currentUser && !oauthUser) setScreen('chat')
   }, [currentUser, oauthUser])
 
-  const syncOAuthUser = async (authUser: { email?: string; user_metadata?: Record<string, string> }) => {
-    const email = authUser.email
+  // Sync Supabase Auth user → chat_users table
+  const syncAuthUser = async (authUser: { email?: string; user_metadata?: Record<string, string> }) => {
+    const email = authUser.email?.toLowerCase()
     if (!email) { setScreen('landing'); return }
 
-    // ── Admin: immediate redirect — no waiting, no DB ops needed ─────────
-    if (ADMIN_EMAILS.includes(email.toLowerCase())) {
-      window.location.replace('/admin')
-      return
-    }
-    // ─────────────────────────────────────────────────────────────────────
-
     const supabase = createClient()
-    const name = authUser.user_metadata?.full_name ||
-                 authUser.user_metadata?.name ||
-                 email.split('@')[0] || 'משתמש'
-    const avatarUrl = authUser.user_metadata?.avatar_url ||
-                      authUser.user_metadata?.picture || null
 
     try {
       const { data: existingUser } = await supabase
@@ -91,33 +76,32 @@ export default function ChatApp() {
         .maybeSingle()
 
       if (existingUser) {
+        // Mark online
         await supabase.from('chat_users').update({
           is_online: true,
-          avatar_url: avatarUrl,
-          last_seen: new Date().toISOString()
+          last_seen: new Date().toISOString(),
         }).eq('id', existingUser.id)
 
         localStorage.setItem('chat_user_id', existingUser.id)
-        setOauthUser({ ...existingUser, is_online: true, avatar_url: avatarUrl })
+        setOauthUser({ ...existingUser, is_online: true })
+        setScreen('chat')
       } else {
+        // New user — auth/callback already created the record, fetch it
         const { data: newUser } = await supabase
           .from('chat_users')
-          .insert({
-            name, email,
-            user_type: 'subscriber',
-            avatar_color: '#06b6d4',
-            avatar_url: avatarUrl,
-            is_online: true,
-          })
-          .select()
-          .single()
+          .select('*')
+          .eq('email', email)
+          .maybeSingle()
 
         if (newUser) {
           localStorage.setItem('chat_user_id', newUser.id)
           setOauthUser(newUser)
+          setScreen('chat')
+        } else {
+          // User not in chat_users yet (callback not run) — show landing
+          setScreen('landing')
         }
       }
-      setScreen('chat')
     } catch {
       setScreen('landing')
     }
@@ -143,12 +127,8 @@ export default function ChatApp() {
     setScreen('login')
   }
 
+  // Guest login — no Supabase Auth needed
   const handleLogin = async (name: string, email: string | null, userType: UserType, avatarColor: string) => {
-    // Admin email detected via OTP → redirect to dashboard
-    if (email && ADMIN_EMAILS.includes(email.toLowerCase())) {
-      window.location.href = '/admin'
-      return
-    }
     const user = await registerUser(name, email, userType, avatarColor)
     if (user) setScreen('chat')
   }

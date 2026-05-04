@@ -473,29 +473,10 @@ export default function AdminDashboard() {
             כניסה עם Google
           </button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400">או</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          {/* Password fallback */}
-          <input
-            type="password"
-            placeholder="סיסמת מנהל"
-            value={adminPassword}
-            onChange={e => setAdminPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            className="w-full border rounded-xl px-4 py-3 text-right mb-3 focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm"
-          />
-          {authError && <p className="text-red-500 text-sm text-center mb-3">{authError}</p>}
-          <button
-            onClick={handleLogin}
-            className="w-full bg-purple-600 text-white rounded-xl py-3 font-semibold hover:bg-purple-700 transition text-sm"
-          >
-            כניסה עם סיסמה
-          </button>
+          {authError && <p className="text-red-500 text-sm text-center mt-2">{authError}</p>}
+          <p className="text-xs text-gray-400 text-center mt-4">
+            כניסה דרך Google בלבד — האימייל חייב להיות ברשימת המנהלים
+          </p>
         </div>
       </div>
     )
