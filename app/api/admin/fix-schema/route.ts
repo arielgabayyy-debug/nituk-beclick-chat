@@ -11,8 +11,9 @@ import { createClient } from '@supabase/supabase-js'
  *   user_achievements: (check schema)
  */
 export async function POST(request: Request) {
-  const secret = request.headers.get('x-admin-secret')
-  if (secret !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const secret = request.headers.get('x-admin-secret')?.trim()
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!secret || !svcKey || secret !== svcKey) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -92,8 +93,9 @@ export async function POST(request: Request) {
 
 // GET: health-check — also returns what SQL to run
 export async function GET(request: Request) {
-  const secret = request.headers.get('x-admin-secret')
-  if (secret !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const secret = request.headers.get('x-admin-secret')?.trim()
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!secret || !svcKey || secret !== svcKey) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
