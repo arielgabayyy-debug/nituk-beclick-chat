@@ -35,13 +35,18 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     const url = URL.createObjectURL(file)
     setAudioBlob(file)
     setAudioUrl(url)
-    // Get duration from metadata
-    const audio = new Audio(url)
+    // Get duration from metadata.
+    // iOS Safari requires an explicit .load() call on detached Audio objects
+    // before loadedmetadata fires (it doesn't auto-load without a DOM attachment).
+    const audio = new Audio()
+    audio.preload = 'metadata'
     audio.onloadedmetadata = () => {
       if (isFinite(audio.duration) && audio.duration > 0) {
         setDuration(Math.round(audio.duration))
       }
     }
+    audio.src = url   // set src AFTER attaching handler so iOS fires the event
+    audio.load()      // explicit load required on iOS Safari
   }
 
   const cancel = () => {
@@ -80,7 +85,8 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
   if (audioUrl) {
     return (
       <div className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2 border border-border/50">
-        <audio src={audioUrl} controls className="h-8 flex-1" style={{ minWidth: 120 }} />
+        {/* playsInline prevents iOS Safari from hijacking playback into fullscreen */}
+        <audio src={audioUrl} controls playsInline className="h-8 flex-1" style={{ minWidth: 120 }} />
         {duration > 0 && <span className="text-xs text-muted-foreground shrink-0">{fmt(duration)}</span>}
         <button
           onClick={send}

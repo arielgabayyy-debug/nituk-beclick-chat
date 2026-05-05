@@ -57,8 +57,13 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
       await audio.play()
       setPlaying(true)
       setLoadState('ready')
-    } catch {
+    } catch (err) {
+      // play() can be rejected on iOS if audio hasn't buffered yet (NotAllowedError
+      // or NotSupportedError). Surface the error so the user can retry rather than
+      // showing a spinner forever.
+      console.warn('audio.play() rejected:', err)
       setPlaying(false)
+      setLoadState('error')
     }
   }, [playing, loadState])
 
@@ -143,10 +148,12 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
         Without it, the browser plays the file normally from the public URL.
         We use a signed-URL fallback (handleError) for private/expired files.
       */}
+      {/* playsInline: prevents iOS Safari from opening the native fullscreen player */}
       <audio
         ref={audioRef}
         src={activeSrc}
         preload="none"
+        playsInline
         onTimeUpdate={() => {
           const audio = audioRef.current
           if (!audio) return

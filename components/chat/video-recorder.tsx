@@ -88,16 +88,22 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
       // Estimate duration
       const url = URL.createObjectURL(file)
       const vid = document.createElement('video')
-      vid.src = url
+      vid.preload = 'metadata'
+      vid.playsInline = true   // required on iOS to allow background metadata load
+      vid.muted = true
       vid.onloadedmetadata = () => {
+        URL.revokeObjectURL(url)
         const dur = isFinite(vid.duration) ? Math.round(vid.duration) : 0
         onSend(`[video:${data.url}:${dur}]`)
         setPhase('idle')
       }
       vid.onerror = () => {
+        URL.revokeObjectURL(url)
         onSend(`[video:${data.url}:0]`)
         setPhase('idle')
       }
+      vid.src = url   // set src AFTER attaching handlers so iOS fires events
+      vid.load()      // explicit load required on iOS Safari
     } catch {
       alert('שגיאה בהעלאה, נסה שוב.')
       setPhase('idle')

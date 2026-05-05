@@ -50,7 +50,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: blob: https: http:",
               "media-src 'self' blob: https: data:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.brevo.com https://vercel.live https://tenor.googleapis.com https://api.mymemory.translated.net https://libretranslate.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.resend.com https://api.brevo.com https://vercel.live https://tenor.googleapis.com https://api.mymemory.translated.net https://libretranslate.com",
               "worker-src 'self' blob:",
               "object-src 'none'",
               "base-uri 'self'",
