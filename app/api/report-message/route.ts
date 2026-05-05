@@ -29,6 +29,9 @@ const VALID_REASONS = new Set([
   'תוכן פוגעני', 'ספאם', 'הטרדה', 'מידע שקרי', 'פרסום לא רצוי', 'אחר',
 ])
 
+
+export const runtime = 'edge'
+
 export async function POST(request: NextRequest) {
   // Rate limit
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'

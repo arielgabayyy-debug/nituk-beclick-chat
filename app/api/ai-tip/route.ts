@@ -16,6 +16,9 @@ const SYSTEM_PROMPT = `אתה עוזר AI של קהילת "חיבור וניתו
 
 const MAX_QUESTION_LENGTH = 500
 
+
+export const runtime = 'edge'
+
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   const rl = await checkRateLimitDB(ip, 'ai-tip', 10, 60)

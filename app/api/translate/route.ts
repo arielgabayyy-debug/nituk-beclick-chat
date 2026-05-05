@@ -26,6 +26,9 @@ function detectLang(text: string): string {
   return 'en'
 }
 
+
+export const runtime = 'edge'
+
 export async function POST(request: NextRequest) {
   // Rate limit
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'

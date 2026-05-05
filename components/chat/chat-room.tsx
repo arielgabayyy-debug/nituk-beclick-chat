@@ -4,44 +4,50 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useSwipe } from '@/hooks/use-swipe'
 import { Volume2, VolumeX, Bell, Users, Flame, Trophy, X, ChevronLeft, ChevronRight, Search, MessageCircle, ChevronDown, Bookmark, Download, ArrowUp, ArrowDown, Images, Keyboard, Maximize2, Minimize2, Star, Clock, Settings, Globe } from 'lucide-react'
 import { ChatHeader } from './chat-header'
-import { SmartSettingsPanel } from './smart-settings-panel'
+const SmartSettingsPanel = dynamic(() => import('./smart-settings-panel').then(m => ({ default: m.SmartSettingsPanel })))
 import { ChatMessageComponent } from './chat-message'
 import { ChatInput } from './chat-input'
-import { OnlineUsers } from './online-users'
+const OnlineUsers = dynamic(() => import('./online-users').then(m => ({ default: m.OnlineUsers })))
 import { TypingIndicator } from './typing-indicator'
 import { PinnedMessages } from './pinned-messages'
 import { SystemMessageComponent } from './system-message'
-import { Leaderboard } from './leaderboard'
-import { PollCard, CreatePollForm } from './poll-card'
-import { HotDeals } from './hot-deals'
-import { DailyQuestionCard, DailyTipCard, UpcomingEventsCard } from './daily-widgets'
-import { UserProfile } from './user-profile'
+const Leaderboard = dynamic(() => import('./leaderboard').then(m => ({ default: m.Leaderboard })))
+const PollCard = dynamic(() => import('./poll-card').then(m => ({ default: m.PollCard })))
+const CreatePollForm = dynamic(() => import('./poll-card').then(m => ({ default: m.CreatePollForm })))
+const HotDeals = dynamic(() => import('./hot-deals').then(m => ({ default: m.HotDeals })))
+const DailyQuestionCard = dynamic(() => import('./daily-widgets').then(m => ({ default: m.DailyQuestionCard })))
+const DailyTipCard = dynamic(() => import('./daily-widgets').then(m => ({ default: m.DailyTipCard })))
+const UpcomingEventsCard = dynamic(() => import('./daily-widgets').then(m => ({ default: m.UpcomingEventsCard })))
+const UserProfile = dynamic(() => import('./user-profile').then(m => ({ default: m.UserProfile })))
 import { KeyboardShortcuts } from './keyboard-shortcuts'
 import { WelcomeToast } from './welcome-toast'
 import { Confetti } from './confetti'
-import { useBookmarks, useMutedUsers, BookmarksPanel } from './message-bookmarks'
+import { useBookmarks, useMutedUsers } from './message-bookmarks'
+const BookmarksPanel = dynamic(() => import('./message-bookmarks').then(m => ({ default: m.BookmarksPanel })))
 import { OfflineIndicator } from './offline-indicator'
-import { ChatExport } from './chat-export'
+const ChatExport = dynamic(() => import('./chat-export').then(m => ({ default: m.ChatExport })))
 import { CelebrationButton } from './celebration-button'
-import { useNotificationCenter, NotificationCenter } from './notification-center'
-import { PointsShop } from './points-shop'
-import { AdvancedSearch } from './advanced-search'
-import { useScheduledMessages, ScheduledMessagesPanel } from './scheduled-messages'
-import { PriceAlertsPanel } from './price-alerts'
-import { OnboardingChecklist } from './onboarding-checklist'
+import { useNotificationCenter } from './notification-center'
+const NotificationCenter = dynamic(() => import('./notification-center').then(m => ({ default: m.NotificationCenter })))
+const PointsShop = dynamic(() => import('./points-shop').then(m => ({ default: m.PointsShop })))
+const AdvancedSearch = dynamic(() => import('./advanced-search').then(m => ({ default: m.AdvancedSearch })))
+import { useScheduledMessages } from './scheduled-messages'
+const ScheduledMessagesPanel = dynamic(() => import('./scheduled-messages').then(m => ({ default: m.ScheduledMessagesPanel })))
+const PriceAlertsPanel = dynamic(() => import('./price-alerts').then(m => ({ default: m.PriceAlertsPanel })))
+const OnboardingChecklist = dynamic(() => import('./onboarding-checklist').then(m => ({ default: m.OnboardingChecklist })))
 import { PWAInstallBanner } from './pwa-install'
-import { MessageThread } from './message-thread'
-import { DirectMessages } from './direct-messages'
-import { Pinboard } from './pinboard'
+const MessageThread = dynamic(() => import('./message-thread').then(m => ({ default: m.MessageThread })))
+const DirectMessages = dynamic(() => import('./direct-messages').then(m => ({ default: m.DirectMessages })))
+const Pinboard = dynamic(() => import('./pinboard').then(m => ({ default: m.Pinboard })))
 import { ChatRulesCard } from './chat-rules'
-import { QuickDeal } from './quick-deal'
-import { CommunityPanel } from './community-panel'
+const QuickDeal = dynamic(() => import('./quick-deal').then(m => ({ default: m.QuickDeal })))
+const CommunityPanel = dynamic(() => import('./community-panel').then(m => ({ default: m.CommunityPanel })))
 import { trackMessageActivity } from './streak-calendar'
 import { AnnouncementBar } from './announcement-bar'
 import { AchievementToast } from './achievement-toast'
 import { MessageSkeleton } from './message-skeleton'
-import { ImageGallery } from './image-gallery'
-import { ShortcutsModal } from './shortcuts-modal'
+const ImageGallery = dynamic(() => import('./image-gallery').then(m => ({ default: m.ImageGallery })))
+const ShortcutsModal = dynamic(() => import('./shortcuts-modal').then(m => ({ default: m.ShortcutsModal })))
 import { useNotificationPermission, NotificationBanner } from './notification-permission'
 import { useChat } from '@/hooks/use-chat'
 import { useCommunity } from '@/hooks/use-community'
@@ -453,7 +459,7 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
 
   return (
     <div
-      className="h-screen flex flex-col bg-gray-100/80 dark:bg-gray-950 relative overflow-hidden"
+      className="h-dvh flex flex-col bg-gray-100/80 dark:bg-gray-950 relative overflow-hidden"
       onDragOver={e => { e.preventDefault(); setIsDraggingFile(true) }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false) }}
       onDrop={handleDrop}

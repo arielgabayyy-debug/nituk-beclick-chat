@@ -22,6 +22,9 @@ function isPrivateUrl(urlStr: string): boolean {
   } catch { return true }
 }
 
+
+export const runtime = 'edge'
+
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   const rl = await checkRateLimitDB(ip, 'link-preview', 60, 60)

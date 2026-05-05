@@ -178,7 +178,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading, prefilledEmail }:
   // ── Forgot access panel ────────────────────────────────────────────────
   if (showForgotAccess) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="min-h-dvh flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md">
           <Button variant="ghost" onClick={() => { setShowForgotAccess(false); setForgotSent(false); setForgotError(''); setForgotEmail('') }}
             className="mb-6 text-muted-foreground">
@@ -323,7 +323,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading, prefilledEmail }:
   // ── "Magic link sent" step ─────────────────────────────────────────────
   if (step === 'sent') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="min-h-dvh flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md">
           <Button variant="ghost" onClick={() => setStep('details')} className="mb-6 text-muted-foreground">
             <ArrowRight className="w-4 h-4 ml-2" /> שינוי אימייל
@@ -384,7 +384,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading, prefilledEmail }:
 
   // ── Details step ───────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-dvh flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-3xl" />

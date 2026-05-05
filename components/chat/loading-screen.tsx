@@ -62,7 +62,7 @@ export function LoadingScreen({ message = "הצ׳אט הקהילתי טוען...
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden select-none"
+      className="min-h-dvh flex flex-col items-center justify-center relative overflow-hidden select-none"
       style={{ background: '#ffffff' }}
     >
       {/* ── CSS keyframes (injected inline) ─────────────────────────────── */}

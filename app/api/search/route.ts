@@ -15,6 +15,9 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
+
+export const runtime = 'edge'
+
 export async function GET(request: NextRequest) {
   // 1. Rate limit
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'

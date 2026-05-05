@@ -276,12 +276,7 @@
 }
 
 /* Input area: always stick to the bottom of the visible area */
-@supports (height: 100dvh) {
-  .chat-input-wrapper {
-    position: sticky;
-    bottom: 0;
-    bottom: env(keyboard-inset-height, 0px);
-  }
+
 }
 
 /* Prevent iOS rubber-band bounce on the whole page.
@@ -319,11 +314,7 @@ body, #__next {
   height: -webkit-fill-available;
 }
 
-/* h-screen fallback for iframe contexts — 100vh first as fallback, 100dvh second to win */
-.h-screen {
-  height: 100vh;
-  height: 100dvh;
-}
+
 
 /* iOS Safari: prevent body bounce scroll */
 body {
@@ -536,15 +527,7 @@ body {
 }
 
 /* Highlight message animation */
-@keyframes highlight-pulse {
-  0%, 100% { background-color: transparent; }
-  50% { background-color: oklch(0.7 0.15 85 / 0.2); }
-}
 
-.highlight-message {
-  animation: highlight-pulse 2s ease-in-out;
-  border-radius: 12px;
-}
 
 /* Cursor zoom for images */
 .cursor-zoom-in {
@@ -1105,23 +1088,6 @@ body.bg-theme-israel {
   border-color: oklch(0.22 0.01 270);
 }
 
-/* ── Bottom navigation bar ───────────────────────────────────────────────── */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: white;
-  border-top: 1px solid #e2e8f0;
-  display: flex;
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 50;
-}
-.dark .bottom-nav {
-  background: oklch(0.11 0.01 270);
-  border-top-color: oklch(0.22 0.01 270);
-}
 
 /* ── Chat header gradient ────────────────────────────────────────────────── */
 .header-gradient {
@@ -1146,18 +1112,9 @@ body.bg-theme-israel {
 }
 
 /* ── Desktop 3-column layout fix ────────────────────────────────────────── */
-@media (min-width: 1024px) {
-  .chat-layout-desktop {
-    display: grid;
-    grid-template-columns: 280px 1fr 300px;
-    gap: 1rem;
-    height: 100%;
-  }
+
 }
-@media (min-width: 1280px) {
-  .chat-layout-desktop {
-    grid-template-columns: 300px 1fr 320px;
-  }
+
 }
 
 /* ── Active bottom nav tab gradient ─────────────────────────────────────── */

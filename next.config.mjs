@@ -40,6 +40,48 @@ const nextConfig = {
     ],
   },
 
+  // Webpack: split vendor libs and heavy packages into separate named chunks
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      config.optimization.splitChunks = {
+        ...config.optimization.splitChunks,
+        cacheGroups: {
+          ...config.optimization.splitChunks?.cacheGroups,
+          // Supabase in its own chunk (loaded on all screens)
+          supabase: {
+            test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+            name: 'supabase',
+            chunks: 'all',
+            priority: 30,
+          },
+          // Recharts in its own chunk (admin only)
+          recharts: {
+            test: /[\\/]node_modules[\\/]recharts[\\/]/,
+            name: 'recharts',
+            chunks: 'async',
+            priority: 25,
+          },
+          // Radix UI components split out
+          radix: {
+            test: /[\\/]node_modules[\\/]@radix-ui[\\/]/,
+            name: 'radix',
+            chunks: 'async',
+            priority: 20,
+          },
+          // Everything else in node_modules
+          vendors: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'async',
+            priority: 10,
+            reuseExistingChunk: true,
+          },
+        },
+      }
+    }
+    return config
+  },
+
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,   // 24h CDN cache for optimized images

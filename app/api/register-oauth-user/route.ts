@@ -24,6 +24,9 @@ const ADMIN_EMAILS = [
   'hilaoh3263@gmail.com',
 ]
 
+
+export const runtime = 'edge'
+
 export async function POST(request: Request) {
   try {
     // ── Verify caller has a valid Supabase session (prevents email spoofing) ──

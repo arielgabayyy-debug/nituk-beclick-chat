@@ -1,13 +1,28 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { LandingScreen } from '@/components/chat/landing-screen'
-import { LoginForm } from '@/components/chat/login-form'
-import { ChatRoom } from '@/components/chat/chat-room'
-import { LoadingScreen } from '@/components/chat/loading-screen'
-import { AccessibilityPanel } from '@/components/chat/accessibility-panel'
-import { ChatErrorBoundary } from '@/components/chat/error-boundary'
+import dynamic from 'next/dynamic'
+import { LoadingScreen } from '@/components/chat/loading-screen' // shown immediately — keep static
+import { ChatErrorBoundary } from '@/components/chat/error-boundary' // wraps ChatRoom — keep static
 import { useChatUser } from '@/hooks/use-chat'
+
+// Lazy-loaded: these screens/components are only needed AFTER initial render
+const LandingScreen = dynamic(
+  () => import('@/components/chat/landing-screen').then(m => ({ default: m.LandingScreen })),
+  { ssr: false }
+)
+const LoginForm = dynamic(
+  () => import('@/components/chat/login-form').then(m => ({ default: m.LoginForm })),
+  { ssr: false }
+)
+const ChatRoom = dynamic(
+  () => import('@/components/chat/chat-room').then(m => ({ default: m.ChatRoom })),
+  { ssr: false, loading: () => <LoadingScreen message="טוען צ׳אט..." /> }
+)
+const AccessibilityPanel = dynamic(
+  () => import('@/components/chat/accessibility-panel').then(m => ({ default: m.AccessibilityPanel })),
+  { ssr: false }
+)
 import { createClient } from '@/lib/supabase/client'
 import type { UserType, ChatUser } from '@/lib/chat-types'
 
