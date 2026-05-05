@@ -225,12 +225,16 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
                     ))}
                   </div>
 
-                  {/* QR Code */}
+                  {/* QR Code — Supabase returns SVG string */}
                   <div className="flex justify-center mb-4">
-                    <div className="bg-white p-3 rounded-xl">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={qrCode} alt="QR Code" className="w-44 h-44" />
-                    </div>
+                    <div
+                      className="bg-white p-3 rounded-xl w-48 h-48 flex items-center justify-center"
+                      dangerouslySetInnerHTML={{
+                        __html: qrCode.startsWith('<svg')
+                          ? qrCode.replace('<svg ', '<svg width="168" height="168" ')
+                          : `<img src="${qrCode}" width="168" height="168" />`
+                      }}
+                    />
                   </div>
 
                   {/* Manual secret */}
