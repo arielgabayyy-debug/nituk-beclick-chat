@@ -170,11 +170,12 @@ export default function AdminDashboard() {
   const PAGE_SIZE = 50
 
   // ── Auth ──────────────────────────────────────────────────────────────────
+  // Use getUser() (server-verified) rather than getSession() (client-side JWT only)
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const email = session?.user?.email?.toLowerCase()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const email = user?.email?.toLowerCase()
       if (email && ADMIN_EMAILS.includes(email)) {
-        setAuthedEmail(session!.user.email!)
+        setAuthedEmail(user!.email!)
         setIsAuthenticated(true)
       }
       setAuthLoading(false)
@@ -184,6 +185,9 @@ export default function AdminDashboard() {
       if (email && ADMIN_EMAILS.includes(email)) {
         setAuthedEmail(session!.user.email!)
         setIsAuthenticated(true)
+      } else if (!session) {
+        setIsAuthenticated(false)
+        setAuthedEmail(null)
       }
     })
     return () => subscription.unsubscribe()
@@ -192,6 +196,20 @@ export default function AdminDashboard() {
   const handleGoogleLogin = () => {
     window.location.href = `https://nituk-beclick-chat.vercel.app/login?provider=google&return=${encodeURIComponent('https://nituk-beclick-chat.vercel.app/admin')}`
   }
+
+  // ── Auth token helper — attaches Bearer token to admin API calls ──────────
+  const adminFetch = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token || ''
+    return fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+  }, [])
 
   // ── Data fetchers ─────────────────────────────────────────────────────────
   const showToast = (msg: string) => {
@@ -270,10 +288,10 @@ export default function AdminDashboard() {
   }, [])
 
   const fetchReports = useCallback(async (status: 'pending' | 'resolved' | 'dismissed' = 'pending') => {
-    const res = await fetch(`/api/admin/reports?status=${status}`)
+    const res = await adminFetch(`/api/admin/reports?status=${status}`)
     const data = await res.json() as { reports: ReportRow[] }
     setReports(data.reports || [])
-  }, [])
+  }, [adminFetch])
 
   const fetchCharts = useCallback(async () => {
     const days: { date: string; count: number }[] = []
@@ -293,21 +311,21 @@ export default function AdminDashboard() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/settings')
+      const res = await adminFetch('/api/admin/settings')
       const data = await res.json() as Partial<Settings>
       setSettings(s => ({ ...s, ...data }))
       const words = (data.banned_words?.words || []).join(', ')
       setBannedInput(words)
     } catch { /* table may not exist yet */ }
-  }, [])
+  }, [adminFetch])
 
   const fetchStorage = useCallback(async (bucket: 'chat-audio' | 'chat-images') => {
     try {
-      const res = await fetch(`/api/admin/storage?bucket=${bucket}`)
+      const res = await adminFetch(`/api/admin/storage?bucket=${bucket}`)
       const data = await res.json() as { files: StorageFile[] }
       setStorage(s => ({ ...s, [bucket === 'chat-audio' ? 'audio' : 'images']: data.files || [] }))
     } catch {}
-  }, [])
+  }, [adminFetch])
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -355,45 +373,66 @@ export default function AdminDashboard() {
     if (tab === 'storage') { fetchStorage('chat-audio'); fetchStorage('chat-images') }
   }, [tab, isAuthenticated, fetchReports, fetchStorage, reportStatus])
 
-  // ── User actions ──────────────────────────────────────────────────────────
+  // ── User actions — all go through /api/admin/users for audit logging ─────
   const promoteUser = async (id: string, type: string) => {
-    await supabase.from('chat_users').update({ user_type: type }).eq('id', id)
+    const res = await adminFetch('/api/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'promote_user', userId: id, value: type }),
+    })
+    if (!res.ok) { showToast('שגיאה בעדכון'); return }
     setUsers(u => u.map(x => x.id === id ? { ...x, user_type: type } : x))
     fetchStats()
     showToast('סוג משתמש עודכן')
   }
   const blockUser = async (id: string) => {
-    await supabase.from('chat_users').update({ user_type: 'blocked', is_online: false }).eq('id', id)
+    const res = await adminFetch('/api/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'block_user', userId: id }),
+    })
+    if (!res.ok) { showToast('שגיאה בחסימה'); return }
     setUsers(u => u.map(x => x.id === id ? { ...x, user_type: 'blocked', is_online: false } : x))
     fetchStats(); showToast('משתמש נחסם')
   }
   const unblockUser = async (id: string) => {
-    await supabase.from('chat_users').update({ user_type: 'guest' }).eq('id', id)
+    const res = await adminFetch('/api/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'unblock_user', userId: id }),
+    })
+    if (!res.ok) { showToast('שגיאה בביטול חסימה'); return }
     setUsers(u => u.map(x => x.id === id ? { ...x, user_type: 'guest' } : x))
     fetchStats(); showToast('חסימה בוטלה')
   }
   const deleteUser = async (id: string) => {
     if (!confirm('למחוק משתמש זה לצמיתות?')) return
-    await supabase.from('chat_users').delete().eq('id', id)
+    const res = await adminFetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    if (!res.ok) { showToast('שגיאה במחיקה'); return }
     setUsers(u => u.filter(x => x.id !== id))
     fetchStats(); showToast('משתמש נמחק')
   }
   const awardPoints = async (id: string, delta: number) => {
-    const user = users.find(u => u.id === id)
-    if (!user) return
-    const newPts = Math.max(0, user.points + delta)
-    await supabase.from('chat_users').update({ points: newPts }).eq('id', id)
-    setUsers(u => u.map(x => x.id === id ? { ...x, points: newPts } : x))
-    showToast(`נקודות עודכנו: ${newPts}`)
+    const res = await adminFetch('/api/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'award_points', userId: id, value: delta }),
+    })
+    if (!res.ok) { showToast('שגיאה בעדכון נקודות'); return }
+    const d = await res.json() as { newPoints?: number }
+    if (d.newPoints !== undefined) {
+      setUsers(u => u.map(x => x.id === id ? { ...x, points: d.newPoints! } : x))
+    }
+    showToast(`נקודות עודכנו: ${d.newPoints ?? ''}`)
   }
   const setUserOfWeek = async (id: string) => {
-    await supabase.from('chat_users').update({ is_user_of_week: false }).neq('id', id)
-    await supabase.from('chat_users').update({ is_user_of_week: true }).eq('id', id)
+    const res = await adminFetch('/api/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ action: 'set_user_of_week', userId: id }),
+    })
+    if (!res.ok) { showToast('שגיאה בעדכון'); return }
     setUsers(u => u.map(x => ({ ...x, is_user_of_week: x.id === id })))
     showToast('משתמש השבוע עודכן! 🏆')
   }
   const resetWeeklyPoints = async () => {
     if (!confirm('לאפס נקודות שבועיות לכולם?')) return
+    // This one still goes direct — it's a bulk operation on all rows (no single target)
     await supabase.from('chat_users').update({ weekly_points: 0, is_user_of_week: false }).gte('weekly_points', 0)
     setUsers(u => u.map(x => ({ ...x, weekly_points: 0, is_user_of_week: false })))
     showToast('נקודות שבועיות אופסו')
@@ -421,13 +460,12 @@ export default function AdminDashboard() {
     if (!nlSubject || !nlContent) return
     setIsSending(true); setNlResult(null)
     try {
-      const res = await fetch('/api/admin/newsletter', {
+      const res = await adminFetch('/api/admin/newsletter', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject: nlSubject, content: nlContent }),
       })
-      const d = await res.json() as { message?: string }
-      setNlResult(d.message || 'נשלח בהצלחה!')
+      const d = await res.json() as { message?: string; error?: string }
+      setNlResult(d.message || d.error || 'נשלח בהצלחה!')
     } catch { setNlResult('שגיאה בשליחה') }
     finally { setIsSending(false) }
   }
@@ -449,9 +487,8 @@ export default function AdminDashboard() {
       ...settings,
       banned_words: { words: bannedInput.split(',').map(w => w.trim()).filter(Boolean) },
     }
-    await fetch('/api/admin/settings', {
+    await adminFetch('/api/admin/settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated),
     })
     setSavingSettings(false)
@@ -462,11 +499,11 @@ export default function AdminDashboard() {
   const deleteStorageFiles = async () => {
     if (!selectedFiles.size) return
     if (!confirm(`למחוק ${selectedFiles.size} קבצים?`)) return
-    await fetch('/api/admin/storage', {
+    const res = await adminFetch('/api/admin/storage', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bucket: storageBucket, names: Array.from(selectedFiles) }),
     })
+    if (!res.ok) { showToast('שגיאה במחיקת קבצים'); return }
     setSelectedFiles(new Set())
     fetchStorage(storageBucket)
     showToast(`${selectedFiles.size} קבצים נמחקו`)
@@ -480,9 +517,8 @@ export default function AdminDashboard() {
 
   // ── Reports ───────────────────────────────────────────────────────────────
   const resolveReport = async (id: string, status: 'resolved' | 'dismissed') => {
-    await fetch('/api/admin/reports', {
+    await adminFetch('/api/admin/reports', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     })
     setReports(r => r.filter(x => x.id !== id))
@@ -1191,9 +1227,8 @@ export default function AdminDashboard() {
                   <button onClick={() => {
                     const target = (document.querySelector('input[name="bt"]:checked') as HTMLInputElement)?.value || 'all'
                     if (!nlSubject || !nlContent) { showToast('מלא נושא ותוכן בטופס הניוזלטר'); return }
-                    fetch('/api/admin/broadcast', {
+                    adminFetch('/api/admin/broadcast', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ subject: nlSubject, message: nlContent, targetType: target }),
                     }).then(r => r.json()).then((d: { sent?: number }) => showToast(`נשלח! ${d.sent || 0} מיילים`))
                       .catch(() => showToast('שגיאה בשליחה'))
@@ -1289,7 +1324,7 @@ export default function AdminDashboard() {
                                   <Eye className="w-3.5 h-3.5" />
                                 </a>
                                 <button onClick={async () => {
-                                  await fetch('/api/admin/storage', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bucket: storageBucket, names: [f.name] }) })
+                                  await adminFetch('/api/admin/storage', { method: 'DELETE', body: JSON.stringify({ bucket: storageBucket, names: [f.name] }) })
                                   fetchStorage(storageBucket)
                                 }} className="p-1.5 hover:bg-red-50 rounded-lg transition text-red-400" title="מחק">
                                   <Trash2 className="w-3.5 h-3.5" />

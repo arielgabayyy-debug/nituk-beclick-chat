@@ -1,31 +1,48 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { verifyAdminRequest } from '@/lib/admin-auth'
 
 export const runtime = 'edge'
 
-const ADMIN_EMAILS = ['arielgabayyy@gmail.com', 'nitukbeclick@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
-
 const MAX_SUBJECT_LENGTH = 200
-const MAX_MESSAGE_LENGTH = 5000
+const MAX_MESSAGE_LENGTH = 2000
 const VALID_TARGET_TYPES = new Set(['all', 'subscribers', 'newsletter'])
 
+// Simple in-memory rate limit: max 5 broadcasts per hour per admin
+const rateLimitMap = new Map<string, { count: number; reset: number }>()
+function isRateLimited(email: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(email)
+  if (!entry || now > entry.reset) {
+    rateLimitMap.set(email, { count: 1, reset: now + 3_600_000 })
+    return false
+  }
+  if (entry.count >= 5) return true
+  entry.count++
+  return false
+}
+
 export async function POST(request: Request) {
+  // Server-side admin verification via Authorization header token (not body email)
+  const auth = await verifyAdminRequest(request)
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  // Rate limit per admin email
+  if (isRateLimited(auth.email)) {
+    return NextResponse.json({ error: 'גבול שליחה הושג — מקסימום 5 שידורים לשעה' }, { status: 429 })
+  }
+
   let body: unknown
   try { body = await request.json() } catch { return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 }) }
-  const { subject, message, targetType, senderEmail } = body as {
+  const { subject, message, targetType } = body as {
     subject?: unknown
     message?: unknown
     targetType?: unknown
-    senderEmail?: unknown
   }
 
   // ── Input validation ──────────────────────────────────────────────────
-  if (!senderEmail || typeof senderEmail !== 'string') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
-  if (!ADMIN_EMAILS.includes(senderEmail)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
   if (!subject || typeof subject !== 'string' || !subject.trim()) {
     return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 })
   }
@@ -43,22 +60,10 @@ export async function POST(request: Request) {
   const safeMessage = message.trim()
   const safeTarget = targetType as 'all' | 'subscribers' | 'newsletter'
 
-  // ── Server-side admin verification — DB check ─────────────────────────
-  const supabaseCheck = createClient(
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-  const { data: adminCheck } = await supabaseCheck
-    .from('chat_users')
-    .select('user_type')
-    .eq('email', senderEmail.toLowerCase())
-    .single()
-
-  if (adminCheck?.user_type !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized — not an admin in DB' }, { status: 403 })
-  }
-
-  const supabase = supabaseCheck
 
   // Get target users
   let query = supabase.from('chat_users').select('email, name').not('email', 'is', null)
@@ -124,6 +129,22 @@ export async function POST(request: Request) {
       failed += batch.length
     }
   }
+
+  // Audit log
+  try {
+    await supabase.from('admin_audit_log').insert({
+      action: 'broadcast_email',
+      target_type: 'broadcast',
+      details: {
+        subject: safeSubject,
+        target_type: safeTarget,
+        total_recipients: emails.length,
+        sent,
+        failed,
+        admin_email: auth.email,
+      },
+    })
+  } catch { /* non-fatal */ }
 
   return NextResponse.json({ success: true, sent, failed, total: emails.length })
 }

@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { verifyAdminRequest } from '@/lib/admin-auth'
 
 export const runtime = 'edge'
 
 export async function GET(request: Request) {
+  // Server-side admin verification (defense in depth beyond middleware)
+  const auth = await verifyAdminRequest(request)
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
   const { searchParams } = new URL(request.url)
   const rawDays = parseInt(searchParams.get('days') || '7')
   const days = isNaN(rawDays) ? 7 : Math.min(Math.max(rawDays, 1), 90)

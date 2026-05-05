@@ -1,10 +1,36 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { verifyAdminRequest } from '@/lib/admin-auth'
 
 const MAX_SUBJECT_LENGTH = 200
 const MAX_CONTENT_LENGTH = 5000
 
+// Simple in-memory rate limit: max 2 newsletter sends per hour per admin
+const rateLimitMap = new Map<string, { count: number; reset: number }>()
+function isRateLimited(email: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(email)
+  if (!entry || now > entry.reset) {
+    rateLimitMap.set(email, { count: 1, reset: now + 3_600_000 })
+    return false
+  }
+  if (entry.count >= 2) return true
+  entry.count++
+  return false
+}
+
 export async function POST(request: Request) {
+  // Server-side admin verification (defense in depth beyond middleware)
+  const auth = await verifyAdminRequest(request)
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  // Rate limit per admin email
+  if (isRateLimited(auth.email)) {
+    return NextResponse.json({ error: 'גבול שליחה הושג — מקסימום 2 ניוזלטרים לשעה' }, { status: 429 })
+  }
+
   try {
     let body: unknown
     try { body = await request.json() } catch { return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 }) }
@@ -23,7 +49,10 @@ export async function POST(request: Request) {
     const safeSubject = subject.trim()
     const safeContent = content.trim()
 
-    const supabase = await createClient()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // Get all subscribers and newsletter users with email
     const { data: users, error } = await supabase
@@ -104,6 +133,21 @@ export async function POST(request: Request) {
         devMode: true
       })
     }
+
+    // Audit log
+    try {
+      await supabase.from('admin_audit_log').insert({
+        action: 'send_newsletter',
+        target_type: 'newsletter',
+        details: {
+          subject: safeSubject,
+          recipient_count: recipients.length,
+          sent: sentCount,
+          errors,
+          admin_email: auth.email,
+        },
+      })
+    } catch { /* non-fatal */ }
 
     return NextResponse.json({
       message: `נשלח בהצלחה ל-${sentCount} נמענים${errors > 0 ? ` (${errors} שגיאות)` : ''}`,
