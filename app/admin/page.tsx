@@ -175,29 +175,22 @@ export default function AdminDashboard() {
   // Use getUser() (server-verified) rather than getSession() (client-side JWT only)
   // Also check AAL level on mount so page refresh restores mfaVerified state.
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    // Only check identity — NOT MFA level.
+    // AdminMFA component is the sole authority on mfaVerified.
+    supabase.auth.getUser().then(({ data: { user } }) => {
       const email = user?.email?.toLowerCase()
       if (email && ADMIN_EMAILS.includes(email)) {
         setAuthedEmail(user!.email!)
         setIsAuthenticated(true)
-        // Check if session is already at aal2 (e.g. after page refresh)
-        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-        if (aal?.currentLevel === 'aal2') {
-          setMfaVerified(true)
-        }
       }
       setAuthLoading(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       const email = session?.user?.email?.toLowerCase()
       if (email && ADMIN_EMAILS.includes(email)) {
         setAuthedEmail(session!.user.email!)
         setIsAuthenticated(true)
-        // Re-check AAL on auth state change (e.g. after MFA verify upgrades session)
-        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-        if (aal?.currentLevel === 'aal2') {
-          setMfaVerified(true)
-        }
       } else if (!session) {
         setIsAuthenticated(false)
         setMfaVerified(false)
