@@ -303,18 +303,27 @@ export default function AdminDashboard() {
   }, [adminFetch])
 
   const fetchCharts = useCallback(async () => {
+    // Build all 14 date ranges upfront
+    const ranges = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (13 - i)); d.setHours(0, 0, 0, 0)
+      const next = new Date(d); next.setDate(next.getDate() + 1)
+      return { date: d.toISOString(), from: d.toISOString(), to: next.toISOString() }
+    })
+
+    // Fire all 28 queries in parallel (was sequential — 14× slower)
+    const results = await Promise.all(
+      ranges.flatMap(r => [
+        supabase.from('chat_users').select('*', { count: 'exact', head: true }).gte('created_at', r.from).lt('created_at', r.to),
+        supabase.from('chat_messages').select('*', { count: 'exact', head: true }).gte('created_at', r.from).lt('created_at', r.to),
+      ])
+    )
+
     const days: { date: string; count: number }[] = []
     const msgDays: { date: string; count: number }[] = []
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0)
-      const next = new Date(d); next.setDate(next.getDate() + 1)
-      const [{ count: uc }, { count: mc }] = await Promise.all([
-        supabase.from('chat_users').select('*', { count: 'exact', head: true }).gte('created_at', d.toISOString()).lt('created_at', next.toISOString()),
-        supabase.from('chat_messages').select('*', { count: 'exact', head: true }).gte('created_at', d.toISOString()).lt('created_at', next.toISOString()),
-      ])
-      days.push({ date: d.toISOString(), count: uc || 0 })
-      msgDays.push({ date: d.toISOString(), count: mc || 0 })
-    }
+    ranges.forEach((r, i) => {
+      days.push({ date: r.date, count: (results[i * 2].count) || 0 })
+      msgDays.push({ date: r.date, count: (results[i * 2 + 1].count) || 0 })
+    })
     setRegChart(days); setMsgChart(msgDays)
   }, [])
 
@@ -337,12 +346,19 @@ export default function AdminDashboard() {
   }, [adminFetch])
 
   // ── Initial load — only after both auth AND MFA are verified ─────────────
+  // fetchCharts is intentionally NOT in the blocking Promise.all:
+  //   it fires 28 parallel DB queries and can take a few seconds.
+  //   Dashboard content appears immediately; charts fill in right after.
   useEffect(() => {
     if (!isAuthenticated || !mfaVerified) return
     setIsLoading(true)
     Promise.all([
-      fetchStats(), fetchUsers(), fetchMessages(), fetchCharts(), fetchSettings(),
-    ]).finally(() => setIsLoading(false))
+      fetchStats(), fetchUsers(), fetchMessages(), fetchSettings(),
+    ]).finally(() => {
+      setIsLoading(false)
+      // Load charts in background — won't block main content
+      fetchCharts()
+    })
   }, [isAuthenticated, mfaVerified, fetchStats, fetchUsers, fetchMessages, fetchCharts, fetchSettings])
 
   // ── Real-time: new registrations + live activity ──────────────────────────
@@ -481,9 +497,15 @@ export default function AdminDashboard() {
 
   const sendAnnouncement = async () => {
     if (!announcement.trim()) return
+    const { data: { user } } = await supabase.auth.getUser()
+    // Look up admin's chat_users row (required for system_messages.user_id FK)
+    const { data: adminUser } = user
+      ? await supabase.from('chat_users').select('id').eq('email', user.email!.toLowerCase()).maybeSingle()
+      : { data: null }
     await supabase.from('system_messages').insert({
       message_type: 'announcement',
       content: `📢 ${announcement}`,
+      user_id: adminUser?.id ?? null,
     })
     setAnnouncement('')
     showToast('הכרזה נשלחה לצ\'אט!')
@@ -651,14 +673,14 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Tab bar ────────────────────────────────────────────────────── */}
-      <div className="bg-white border-b px-2 md:px-4 overflow-x-auto">
-        <div className="flex min-w-max">
+      <div className="bg-white border-b overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex min-w-max px-1 md:px-4">
           {TABS.map(t => (
             <button key={t.id}
               onClick={() => { setTab(t.id); if (t.id === 'registrations') setNewRegCount(0) }}
-              className={`relative flex items-center gap-1.5 px-3 md:px-4 py-3 text-xs md:text-sm font-medium border-b-2 whitespace-nowrap transition ${tab === t.id ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <t.icon className="w-4 h-4 shrink-0" />
-              <span className="hidden sm:inline">{t.label}</span>
+              className={`relative flex items-center gap-1 px-2.5 md:px-4 py-3 text-[11px] md:text-sm font-medium border-b-2 whitespace-nowrap transition touch-manipulation ${tab === t.id ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <t.icon className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
+              <span>{t.label}</span>
               {(t.badge ?? 0) > 0 && (
                 <span className="absolute -top-0.5 right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                   {t.badge}
