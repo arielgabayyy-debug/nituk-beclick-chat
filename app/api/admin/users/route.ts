@@ -9,10 +9,18 @@ const MIN_POINTS_DELTA = -10000
 const MAX_POINTS_DELTA = 10000
 const MAX_ABSOLUTE_POINTS = 999999
 
-const admin = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Module-level singleton — avoids creating a new client on every request
+let _adminClient: ReturnType<typeof createClient> | null = null
+const admin = () => {
+  if (!_adminClient) {
+    _adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+  }
+  return _adminClient
+}
 
 async function logAudit(
   supabase: ReturnType<typeof admin>,

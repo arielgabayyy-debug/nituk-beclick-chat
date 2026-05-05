@@ -80,7 +80,10 @@ export async function GET(req: NextRequest) {
     const image = getMeta('image') || ''
     const siteName = getMeta('site_name') || new URL(url).hostname
 
-    return NextResponse.json({ title, description, image, siteName, url })
+    return NextResponse.json(
+      { title, description, image, siteName, url },
+      { headers: { 'Cache-Control': 's-maxage=3600, stale-while-revalidate=86400' } }
+    )
   } catch {
     return NextResponse.json({ error: 'fetch failed' }, { status: 400 })
   }

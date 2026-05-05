@@ -49,9 +49,12 @@ export async function POST(request: Request) {
     const safeSubject = subject.trim()
     const safeContent = content.trim()
 
+    // Module-level singleton would be ideal but newsletter sends are infrequent;
+    // single-instance approach here for simplicity
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
     // Get all subscribers and newsletter users with email who have consented

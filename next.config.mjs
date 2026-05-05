@@ -9,14 +9,34 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: [
       'lucide-react',
+      '@radix-ui/react-accordion',
+      '@radix-ui/react-alert-dialog',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-collapsible',
+      '@radix-ui/react-context-menu',
       '@radix-ui/react-dialog',
       '@radix-ui/react-dropdown-menu',
-      '@radix-ui/react-tooltip',
+      '@radix-ui/react-hover-card',
+      '@radix-ui/react-label',
+      '@radix-ui/react-menubar',
+      '@radix-ui/react-navigation-menu',
       '@radix-ui/react-popover',
+      '@radix-ui/react-progress',
+      '@radix-ui/react-radio-group',
+      '@radix-ui/react-scroll-area',
       '@radix-ui/react-select',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-slider',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-switch',
       '@radix-ui/react-tabs',
-      '@radix-ui/react-avatar',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-toggle',
+      '@radix-ui/react-toggle-group',
+      '@radix-ui/react-tooltip',
       'date-fns',
+      'recharts',
     ],
   },
 
@@ -86,12 +106,33 @@ const nextConfig = {
           { key: 'Referrer-Policy',              value: 'strict-origin-when-cross-origin' },
         ],
       },
-      // API routes: never cache
+      // API routes: never cache by default (mutations, auth-sensitive data)
+      // NOTE: individual read-only routes (link-preview, translate, gifs) set their
+      //       own Cache-Control headers which take precedence over this rule.
       {
         source: '/api/(.*)',
         headers: [
           { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+        ],
+      },
+      // Read-only, public, cacheable API routes — override the no-store above
+      {
+        source: '/api/link-preview',
+        headers: [
+          { key: 'Cache-Control', value: 's-maxage=3600, stale-while-revalidate=86400' },
+        ],
+      },
+      {
+        source: '/api/translate',
+        headers: [
+          { key: 'Cache-Control', value: 's-maxage=3600, stale-while-revalidate=86400' },
+        ],
+      },
+      {
+        source: '/api/gifs',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=300, stale-while-revalidate=600' },
         ],
       },
       // Static JS/CSS bundles: immutable (hash in filename → safe to cache forever)

@@ -4,6 +4,20 @@ import { verifyAdminRequest } from '@/lib/admin-auth'
 
 export const runtime = 'edge'
 
+// Module-level singleton — avoids creating a new client on every request
+// Note: edge runtime keeps the module warm between requests in the same isolate
+let _adminClient: ReturnType<typeof createClient> | null = null
+function getAdminClient() {
+  if (!_adminClient) {
+    _adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+  }
+  return _adminClient
+}
+
 export async function GET(request: Request) {
   // Server-side admin verification (defense in depth beyond middleware)
   const auth = await verifyAdminRequest(request)
@@ -15,10 +29,7 @@ export async function GET(request: Request) {
   const rawDays = parseInt(searchParams.get('days') || '7')
   const days = isNaN(rawDays) ? 7 : Math.min(Math.max(rawDays, 1), 90)
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabase = getAdminClient()
 
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 

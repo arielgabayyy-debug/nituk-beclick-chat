@@ -26,119 +26,114 @@ export function useCommunity(currentUser: ChatUser | null) {
   const fetchCommunityData = useCallback(async () => {
     setIsLoading(true)
     try {
-      // Fetch active polls
-      const { data: pollsData } = await supabase
-        .from('polls')
-        .select(`
-          *,
-          options:poll_options(*),
-          creator:chat_users(*)
-        `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
+      const now = new Date().toISOString()
+
+      // ── Parallelise all independent fetches in one round-trip batch ──────
+      const [
+        { data: pollsData },
+        { data: dealsData },
+        // Fetch user-specific data only when logged in
+        { data: userPollVotes },
+        { data: userDealVotes },
+        { data: questionData },
+        { data: tipData },
+        { data: storiesData },
+        { data: eventsData },
+        { data: leaderboardData },
+        { data: achievementsData },
+      ] = await Promise.all([
+        supabase
+          .from('polls')
+          .select(`id, question, is_active, created_at, created_by, options:poll_options(id, poll_id, option_text, votes_count), creator:chat_users(id, name, avatar_color)`)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(10),
+
+        supabase
+          .from('hot_deals')
+          .select('id, title, description, provider, savings_amount, upvotes, created_at, user_id, user:chat_users(id, name, avatar_color)')
+          .order('upvotes', { ascending: false })
+          .limit(10),
+
+        // Single query for ALL user poll votes (not one per poll)
+        currentUser
+          ? supabase.from('poll_votes').select('poll_id, option_id').eq('user_id', currentUser.id)
+          : Promise.resolve({ data: [] as Array<{ poll_id: string; option_id: string }> }),
+
+        currentUser
+          ? supabase.from('deal_votes').select('deal_id, vote_type').eq('user_id', currentUser.id)
+          : Promise.resolve({ data: [] as Array<{ deal_id: string; vote_type: string }> }),
+
+        supabase.from('daily_questions').select('id, question, is_active, created_at').eq('is_active', true).single(),
+
+        supabase.from('daily_tips').select('id, tip, category, is_active, created_at').eq('is_active', true).single(),
+
+        supabase
+          .from('success_stories')
+          .select('id, title, description, savings_amount, likes_count, created_at, user_id, user:chat_users(id, name, avatar_color)')
+          .order('likes_count', { ascending: false })
+          .limit(5),
+
+        supabase
+          .from('community_events')
+          .select('id, title, description, starts_at, is_active')
+          .eq('is_active', true)
+          .gte('starts_at', now)
+          .order('starts_at', { ascending: true })
+          .limit(3),
+
+        // Narrow columns — avatar_url excluded (large base64)
+        supabase
+          .from('chat_users')
+          .select('id, name, avatar_color, user_type, level, points, weekly_points, messages_count, helpful_count, is_user_of_week, is_online, created_at, last_seen')
+          .order('weekly_points', { ascending: false })
+          .limit(10),
+
+        currentUser
+          ? supabase.from('user_achievements').select('id, user_id, achievement_type, unlocked_at').eq('user_id', currentUser.id)
+          : Promise.resolve({ data: [] as Array<{ id: string; user_id: string; achievement_type: string; unlocked_at: string }> }),
+      ])
+
+      // ── Build poll vote lookup map (O(1) per poll) ────────────────────
+      const pollVoteMap = new Map<string, string>()
+      for (const v of (userPollVotes || [])) pollVoteMap.set(v.poll_id, v.option_id)
 
       if (pollsData) {
-        // Calculate total votes and check if user voted
-        const pollsWithVotes = await Promise.all(pollsData.map(async (poll) => {
+        const pollsWithVotes = pollsData.map(poll => {
           const totalVotes = poll.options?.reduce((sum: number, opt: PollOption) => sum + opt.votes_count, 0) || 0
-          
-          let userVotedOption = null
-          if (currentUser) {
-            const { data: voteData } = await supabase
-              .from('poll_votes')
-              .select('option_id')
-              .eq('poll_id', poll.id)
-              .eq('user_id', currentUser.id)
-              .single()
-            userVotedOption = voteData?.option_id || null
-          }
-
           return {
             ...poll,
             total_votes: totalVotes,
-            user_voted_option: userVotedOption,
+            user_voted_option: pollVoteMap.get(poll.id) || null,
             options: poll.options?.map((opt: PollOption) => ({
               ...opt,
-              percentage: totalVotes > 0 ? (opt.votes_count / totalVotes) * 100 : 0
-            }))
+              percentage: totalVotes > 0 ? (opt.votes_count / totalVotes) * 100 : 0,
+            })),
           }
-        }))
+        })
         setPolls(pollsWithVotes)
       }
 
-      // Fetch hot deals
-      const { data: dealsData } = await supabase
-        .from('hot_deals')
-        .select(`*, user:chat_users(*)`)
-        .order('upvotes', { ascending: false })
-        .limit(10)
+      // ── Build deal vote lookup map ─────────────────────────────────────
+      const dealVoteMap = new Map<string, string>()
+      for (const v of (userDealVotes || [])) dealVoteMap.set(v.deal_id, v.vote_type)
 
-      if (dealsData && currentUser) {
-        // Check user votes
-        const { data: userVotes } = await supabase
-          .from('deal_votes')
-          .select('deal_id, vote_type')
-          .eq('user_id', currentUser.id)
-
+      if (dealsData) {
         const dealsWithVotes = dealsData.map(deal => ({
           ...deal,
-          user_voted: userVotes?.find(v => v.deal_id === deal.id)?.vote_type || null
+          user_voted: dealVoteMap.get(deal.id) || null,
         }))
         setHotDeals(dealsWithVotes)
-      } else {
-        setHotDeals(dealsData || [])
       }
 
-      // Fetch daily question
-      const { data: questionData } = await supabase
-        .from('daily_questions')
-        .select('*')
-        .eq('is_active', true)
-        .single()
       setDailyQuestion(questionData)
-
-      // Fetch daily tip
-      const { data: tipData } = await supabase
-        .from('daily_tips')
-        .select('*')
-        .eq('is_active', true)
-        .single()
       setDailyTip(tipData)
-
-      // Fetch success stories
-      const { data: storiesData } = await supabase
-        .from('success_stories')
-        .select(`*, user:chat_users(*)`)
-        .order('likes_count', { ascending: false })
-        .limit(5)
       setSuccessStories(storiesData || [])
-
-      // Fetch upcoming events
-      const { data: eventsData } = await supabase
-        .from('community_events')
-        .select('*')
-        .eq('is_active', true)
-        .gte('starts_at', new Date().toISOString())
-        .order('starts_at', { ascending: true })
-        .limit(3)
       setUpcomingEvents(eventsData || [])
-
-      // Fetch leaderboard (top 10 by weekly points)
-      const { data: leaderboardData } = await supabase
-        .from('chat_users')
-        .select('*')
-        .order('weekly_points', { ascending: false })
-        .limit(10)
-      setLeaderboard(leaderboardData || [])
-
-      // Fetch user achievements
-      if (currentUser) {
-        const { data: achievementsData } = await supabase
-          .from('user_achievements')
-          .select('*')
-          .eq('user_id', currentUser.id)
-        setUserAchievements(achievementsData || [])
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setLeaderboard((leaderboardData || []) as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (currentUser) setUserAchievements((achievementsData || []) as any)
 
     } catch (err) {
       console.error('Error fetching community data:', err)
@@ -292,21 +287,25 @@ export function useCommunity(currentUser: ChatUser | null) {
             .from('hot_deals').select('upvotes, user_id').eq('id', dealId).single()
 
           if (deal) {
-            await supabase.from('hot_deals')
-              .update({ upvotes: deal.upvotes + 1 }).eq('id', dealId)
-
-            // Add helpful points to deal creator
+            // Parallel: update deal upvotes + creator points in one round-trip pair
+            const updates: Promise<unknown>[] = [
+              supabase.from('hot_deals')
+                .update({ upvotes: deal.upvotes + 1 }).eq('id', dealId),
+            ]
             if (deal.user_id !== currentUser.id) {
               const { data: creator } = await supabase
                 .from('chat_users').select('helpful_count, points').eq('id', deal.user_id).single()
               if (creator) {
-                await supabase.from('chat_users')
-                  .update({
-                    helpful_count: creator.helpful_count + 1,
-                    points: creator.points + 5
-                  }).eq('id', deal.user_id)
+                updates.push(
+                  supabase.from('chat_users')
+                    .update({
+                      helpful_count: creator.helpful_count + 1,
+                      points: creator.points + 5
+                    }).eq('id', deal.user_id)
+                )
               }
             }
+            await Promise.all(updates)
           }
         }
       }
@@ -555,32 +554,36 @@ export function useCommunity(currentUser: ChatUser | null) {
     }
   }, [currentUser, fetchCommunityData])
 
-  // Set up realtime subscriptions
+  // Keep a stable ref to fetchCommunityData so subscriptions don't need to
+  // re-subscribe every time currentUser changes (which would re-run this effect)
+  const fetchCommunityDataRef = useRef(fetchCommunityData)
+  useEffect(() => { fetchCommunityDataRef.current = fetchCommunityData }, [fetchCommunityData])
+
+  // Set up realtime subscriptions — runs once on mount only (stable ref)
+  // Debounce re-fetches to prevent stampede when many events arrive at once
   useEffect(() => {
-    fetchCommunityData()
+    fetchCommunityDataRef.current()
 
-    const pollsChannel = supabase
-      .channel('polls_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, fetchCommunityData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, fetchCommunityData)
-      .subscribe()
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    const debouncedRefetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => fetchCommunityDataRef.current(), 1000)
+    }
 
-    const dealsChannel = supabase
-      .channel('deals_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'hot_deals' }, fetchCommunityData)
-      .subscribe()
-
-    const eventsChannel = supabase
-      .channel('events_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_events' }, fetchCommunityData)
+    const communityChannel = supabase
+      .channel('community_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, debouncedRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, debouncedRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hot_deals' }, debouncedRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_events' }, debouncedRefetch)
       .subscribe()
 
     return () => {
-      supabase.removeChannel(pollsChannel)
-      supabase.removeChannel(dealsChannel)
-      supabase.removeChannel(eventsChannel)
+      if (debounceTimer) clearTimeout(debounceTimer)
+      supabase.removeChannel(communityChannel)
     }
-  }, [fetchCommunityData])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // empty deps — stable ref handles updates
 
   return {
     polls,

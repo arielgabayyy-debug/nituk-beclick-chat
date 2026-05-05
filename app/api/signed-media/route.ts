@@ -9,6 +9,19 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 
+// Module-level singleton — avoids creating a new client on every request
+let _serviceClient: ReturnType<typeof createClient> | null = null
+function getServiceClient() {
+  if (!_serviceClient) {
+    _serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+  }
+  return _serviceClient
+}
+
 // Extract bucket + object path from a Supabase public URL
 function parseSupabaseUrl(raw: string): { bucket: string; path: string } | null {
   try {
@@ -42,10 +55,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Could not parse storage path' }, { status: 400 })
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = getServiceClient()
 
     // First try: public URL (works if bucket is public)
     const { data: { publicUrl } } = supabase.storage

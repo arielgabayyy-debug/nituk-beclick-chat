@@ -10,10 +10,18 @@ const ALLOWED_SETTING_KEYS = new Set([
   'registration',
 ])
 
-const admin = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Module-level singleton — avoids creating a new client on every request
+let _adminClient: ReturnType<typeof createClient> | null = null
+const admin = () => {
+  if (!_adminClient) {
+    _adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+  }
+  return _adminClient
+}
 
 export async function GET(request: Request) {
   // Server-side admin verification (defense in depth beyond middleware)

@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 
+// Module-level service-role singleton — avoids creating a new client on every request
+let _serviceClient: ReturnType<typeof createClient> | null = null
+function getServiceClient() {
+  if (!_serviceClient) {
+    _serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+  }
+  return _serviceClient
+}
+
 // Per-IP rate limit: 5 reports / 60s (prevent spam reports)
 const reportRateMap = new Map<string, { count: number; reset: number }>()
 function checkReportRate(ip: string): boolean {
@@ -54,10 +67,7 @@ export async function POST(request: NextRequest) {
   }
   const cleanReason = reason.trim().slice(0, 500)
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabase = getServiceClient()
 
   // Verify the message exists
   const { data: message, error: msgErr } = await supabase

@@ -74,7 +74,10 @@ export async function POST(request: NextRequest) {
           const translated = data.responseData.translatedText
           // MyMemory sometimes returns the original on failure
           if (translated !== cleanText && !translated.includes('MYMEMORY WARNING')) {
-            return NextResponse.json({ translated, from, to, source: 'mymemory' })
+            return NextResponse.json(
+              { translated, from, to, source: 'mymemory' },
+              { headers: { 'Cache-Control': 's-maxage=3600, stale-while-revalidate=86400' } }
+            )
           }
         }
       }
@@ -92,7 +95,10 @@ export async function POST(request: NextRequest) {
       if (res.ok) {
         const data = await res.json() as { translatedText?: string }
         if (data.translatedText) {
-          return NextResponse.json({ translated: data.translatedText, from, to, source: 'libretranslate' })
+          return NextResponse.json(
+            { translated: data.translatedText, from, to, source: 'libretranslate' },
+            { headers: { 'Cache-Control': 's-maxage=3600, stale-while-revalidate=86400' } }
+          )
         }
       }
     } catch { /* fall through */ }

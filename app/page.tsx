@@ -147,7 +147,7 @@ export default function ChatApp() {
     try {
       const { data: rows, error: fetchError } = await supabase
         .from('chat_users')
-        .select('*')
+        .select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at')
         .eq('email', email)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -264,7 +264,7 @@ export default function ChatApp() {
 
           // Final fallback — check if user somehow got created
           const { data: refetch } = await supabase
-            .from('chat_users').select('*').eq('email', email).limit(1)
+            .from('chat_users').select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at').eq('email', email).limit(1)
           const found = refetch?.[0]
           if (found) {
             localStorage.setItem('chat_user_id', found.id)
@@ -288,16 +288,18 @@ export default function ChatApp() {
 
   // ── Fetch online count ─────────────────────────────────────────────────
   useEffect(() => {
+    // Use module-level singleton — no new client on each tick
+    const supabase = createClient()
     const fetchOnlineCount = async () => {
-      const supabase = createClient()
       const { count } = await supabase
         .from('chat_users')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('is_online', true)
       setOnlineCount(count || 0)
     }
     fetchOnlineCount()
-    const interval = setInterval(fetchOnlineCount, 10000)
+    // 30s is plenty — use-chat's presence channel already reflects live changes
+    const interval = setInterval(fetchOnlineCount, 30000)
     return () => clearInterval(interval)
   }, [])
 

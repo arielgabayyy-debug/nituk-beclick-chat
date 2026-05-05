@@ -382,26 +382,28 @@ export function useChat(currentUser: ChatUser | null) {
     }
   }, [currentUser])
 
-  // Add reaction to message
+  // Add reaction to message — optimistic toggle (no SELECT round-trip first)
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!currentUser) return
 
     try {
-      // Check if already reacted with this emoji
-      const { data: existing } = await supabase
-        .from('message_reactions')
-        .select('id')
-        .eq('message_id', messageId)
-        .eq('user_id', currentUser.id)
-        .eq('emoji', emoji)
-        .single()
+      // Check local state first (zero DB queries for the read)
+      const currentMsg = messages.find(m => m.id === messageId)
+      const existingReaction = currentMsg?.reactions?.find(
+        r => r.user_id === currentUser.id && r.emoji === emoji
+      )
 
-      if (existing) {
-        // Remove reaction
+      if (existingReaction) {
+        // Remove reaction — optimistic update first
+        setMessages(prev => prev.map(m =>
+          m.id === messageId
+            ? { ...m, reactions: (m.reactions || []).filter(r => r.id !== existingReaction.id) }
+            : m
+        ))
         await supabase
           .from('message_reactions')
           .delete()
-          .eq('id', existing.id)
+          .eq('id', existingReaction.id)
       } else {
         // Add reaction
         await supabase
@@ -411,11 +413,12 @@ export function useChat(currentUser: ChatUser | null) {
             user_id: currentUser.id,
             emoji
           })
+        // Realtime will push the new reaction back via postgres_changes
       }
     } catch (err) {
       console.error('Error toggling reaction:', err)
     }
-  }, [currentUser])
+  }, [currentUser, messages])
 
   // ── Typing indicators via Broadcast (~20ms) instead of DB (~200ms) ────────
   const startTyping = useCallback(() => {
@@ -461,31 +464,26 @@ export function useChat(currentUser: ChatUser | null) {
   // Update user online status
   const setUserOnline = useCallback(async (userId: string, isOnline: boolean) => {
     try {
-      await supabase
+      // Use RETURNING to get name in the same round-trip — eliminates the extra SELECT
+      const { data: updated } = await supabase
         .from('chat_users')
-        .update({ 
+        .update({
           is_online: isOnline,
           last_seen: new Date().toISOString()
         })
         .eq('id', userId)
+        .select('name')
+        .single()
 
-      // Add system message for join/leave
-      if (isOnline) {
-        const { data: userData } = await supabase
-          .from('chat_users')
-          .select('name')
-          .eq('id', userId)
-          .single()
-
-        if (userData) {
-          await supabase
-            .from('system_messages')
-            .insert({
-              user_id: userId,
-              message_type: isOnline ? 'join' : 'leave',
-              content: isOnline ? `${userData.name} הצטרף/ה לצ׳אט` : `${userData.name} עזב/ה את הצ׳אט`
-            })
-        }
+      // Add system message for join/leave (only on joining, skip leave to reduce noise)
+      if (isOnline && updated?.name) {
+        await supabase
+          .from('system_messages')
+          .insert({
+            user_id: userId,
+            message_type: 'join',
+            content: `${updated.name} הצטרף/ה לצ׳אט`
+          })
       }
     } catch (err) {
       console.error('Error updating online status:', err)
@@ -892,7 +890,7 @@ export function useChatUser() {
       if (normalizedEmail) {
         const { data: existing } = await supabase
           .from('chat_users')
-          .select('*')
+          .select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at')
           .eq('email', normalizedEmail)
           .maybeSingle()
 
