@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Video, Square, Send, X, Play, Pause, Loader2, Clapperboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { uploadDirectToSupabase } from '@/lib/upload-direct'
 
 const MAX_DURATION = 15
 
@@ -80,15 +81,10 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
     if (!file) return
     setPhase('uploading')
     try {
-      const fd = new FormData()
-      fd.append('file', file, file.name)
-      // Pass chat_user_id so guest users (no Supabase Auth session) can upload
-      const chatUserId = typeof window !== 'undefined' ? localStorage.getItem('chat_user_id') : null
-      const headers: Record<string, string> = {}
-      if (chatUserId) headers['x-chat-user-id'] = chatUserId
-      const res = await fetch('/api/upload-audio', { method: 'POST', body: fd, headers })
-      const data = await res.json() as { url: string; error?: string }
-      if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); setPhase('idle'); return }
+      // Upload directly to Supabase (bypasses Vercel — eliminates 1700ms cold start)
+      const result = await uploadDirectToSupabase(file, file.name)
+      if (result.error) { alert(result.error || 'שגיאה בהעלאה'); setPhase('idle'); return }
+
       // Estimate duration
       const url = URL.createObjectURL(file)
       const vid = document.createElement('video')
@@ -98,12 +94,12 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
       vid.onloadedmetadata = () => {
         URL.revokeObjectURL(url)
         const dur = isFinite(vid.duration) ? Math.round(vid.duration) : 0
-        onSend(`[video:${data.url}:${dur}]`)
+        onSend(`[video:${result.url}:${dur}]`)
         setPhase('idle')
       }
       vid.onerror = () => {
         URL.revokeObjectURL(url)
-        onSend(`[video:${data.url}:0]`)
+        onSend(`[video:${result.url}:0]`)
         setPhase('idle')
       }
       vid.src = url   // set src AFTER attaching handlers so iOS fires events
@@ -172,21 +168,16 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
     if (!blobRef.current) return
     setPhase('uploading')
     try {
-      const fd = new FormData()
       const blobType = blobRef.current.type || ''
       const videoExt = blobType.includes('mp4') ? 'mp4'
         : blobType.includes('quicktime') ? 'mov'
         : blobType.includes('ogg') ? 'ogv'
         : 'webm'
-      fd.append('file', blobRef.current, `video.${videoExt}`)
-      // Pass chat_user_id so guest users (no Supabase Auth session) can upload
-      const chatUserId = typeof window !== 'undefined' ? localStorage.getItem('chat_user_id') : null
-      const headers: Record<string, string> = {}
-      if (chatUserId) headers['x-chat-user-id'] = chatUserId
-      const res = await fetch('/api/upload-audio', { method: 'POST', body: fd, headers })
-      const data = await res.json() as { url: string }
-      if (!res.ok) { alert('שגיאה בהעלאה'); setPhase('review'); return }
-      onSend(`[video:${data.url}:${duration}]`)
+
+      // Upload directly to Supabase (bypasses Vercel — eliminates 1700ms cold start)
+      const result = await uploadDirectToSupabase(blobRef.current, `video.${videoExt}`)
+      if (result.error) { alert('שגיאה בהעלאה'); setPhase('review'); return }
+      onSend(`[video:${result.url}:${duration}]`)
       cancel()
     } catch {
       alert('שגיאה')

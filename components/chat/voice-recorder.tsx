@@ -8,6 +8,7 @@
 import { useState, useRef } from 'react'
 import { Mic, Send, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { uploadDirectToSupabase } from '@/lib/upload-direct'
 
 interface VoiceRecorderProps {
   onSend: (audioUrl: string, duration: number) => void
@@ -67,17 +68,11 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
         : type.includes('webm') ? 'webm'
         : type.includes('wav') ? 'wav'
         : 'm4a'  // safe default for iOS (records as audio/mp4 / audio/m4a)
-      const fd = new FormData()
-      fd.append('file', audioBlob, `voice.${ext}`)
-      // Pass chat_user_id as a header so guest users (no Supabase Auth session)
-      // can also upload audio files.
-      const chatUserId = typeof window !== 'undefined' ? localStorage.getItem('chat_user_id') : null
-      const headers: Record<string, string> = {}
-      if (chatUserId) headers['x-chat-user-id'] = chatUserId
-      const res = await fetch('/api/upload-audio', { method: 'POST', body: fd, headers })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }
-      onSend(data.url, duration)
+
+      // Upload directly to Supabase (bypasses Vercel — eliminates 1700ms cold start)
+      const result = await uploadDirectToSupabase(audioBlob, `voice.${ext}`)
+      if (result.error) { alert(result.error || 'שגיאה בהעלאה'); return }
+      onSend(result.url, duration)
       cancel()
     } catch {
       alert('שגיאה בשליחה, נסה שוב.')

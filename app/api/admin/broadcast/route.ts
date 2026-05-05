@@ -66,8 +66,8 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Get target users
-  let query = supabase.from('chat_users').select('email, name').not('email', 'is', null)
+  // Get target users — only those who have given email consent
+  let query = supabase.from('chat_users').select('email, name').not('email', 'is', null).eq('email_consent', true)
   if (safeTarget === 'subscribers') {
     query = query.eq('user_type', 'subscriber')
   } else if (safeTarget === 'newsletter') {

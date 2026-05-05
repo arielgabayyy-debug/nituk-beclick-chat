@@ -4,17 +4,21 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send, Smile, X, Reply, ImagePlus, Loader2, Timer, Plus, Film, BookOpen, Zap, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { QUICK_EMOJIS } from '@/lib/chat-types'
 import type { ChatMessage } from '@/lib/chat-types'
+import dynamic from 'next/dynamic'
+import { uploadDirectToSupabase } from '@/lib/upload-direct'
 import { VoiceRecorder } from './voice-recorder'
 import { VideoRecorder } from './video-recorder'
-import { SavedRepliesPanel } from './saved-replies'
-import { useSpeedDials, SpeedDialEditor } from './speed-dial-editor'
-import { FullEmojiPicker } from './full-emoji-picker'
-import { GifPicker } from './gif-picker'
-import { SmartSuggestions } from './smart-suggestions'
-import { MarkdownPreview } from './markdown-preview'
+import { useSpeedDials } from './speed-dial-editor'
 import { checkMessage } from '@/hooks/use-auto-mod'
+
+// Heavy UI components — loaded on demand only (not in initial JS bundle)
+const SavedRepliesPanel = dynamic(() => import('./saved-replies').then(m => ({ default: m.SavedRepliesPanel })), { ssr: false })
+const SpeedDialEditor   = dynamic(() => import('./speed-dial-editor').then(m => ({ default: m.SpeedDialEditor })), { ssr: false })
+const FullEmojiPicker   = dynamic(() => import('./full-emoji-picker').then(m => ({ default: m.FullEmojiPicker })), { ssr: false })
+const GifPicker         = dynamic(() => import('./gif-picker').then(m => ({ default: m.GifPicker })), { ssr: false })
+const SmartSuggestions  = dynamic(() => import('./smart-suggestions').then(m => ({ default: m.SmartSuggestions })), { ssr: false })
+const MarkdownPreview   = dynamic(() => import('./markdown-preview').then(m => ({ default: m.MarkdownPreview })), { ssr: false })
 
 // Smart emoji suggestions based on message keywords
 const SMART_EMOJI_TRIGGERS: { keywords: string[]; emoji: string }[] = [
@@ -194,15 +198,14 @@ export function ChatInput({
   const uploadImageFile = async (file: File) => {
     setIsUploading(true)
     try {
+      // Compress large images client-side before upload (5-10x size reduction)
       const compressed = file.type.startsWith('image/') && file.size > 500 * 1024
         ? await compressImage(file)
         : file
-      const fd = new FormData()
-      fd.append('file', compressed)
-      const res = await fetch('/api/upload-image', { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); return }
-      onSend(data.url)
+      // Upload directly to Supabase (bypasses Vercel — eliminates 1700ms cold start)
+      const result = await uploadDirectToSupabase(compressed, compressed.name || file.name || 'image.jpg')
+      if (result.error) { alert(result.error || 'שגיאה בהעלאה'); return }
+      onSend(result.url)
     } catch {
       alert('שגיאה בהעלאת התמונה')
     } finally {

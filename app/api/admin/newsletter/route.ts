@@ -54,12 +54,13 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Get all subscribers and newsletter users with email
+    // Get all subscribers and newsletter users with email who have consented
     const { data: users, error } = await supabase
       .from('chat_users')
       .select('email, name, user_type')
       .in('user_type', ['subscriber', 'newsletter'])
       .not('email', 'is', null)
+      .eq('email_consent', true)
 
     if (error) throw error
 
