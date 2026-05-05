@@ -1231,7 +1231,7 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
                   <h2 className="font-bold text-gray-900 mb-1 flex items-center gap-2"><Mail className="w-5 h-5 text-purple-600" /> שליחת ניוזלטר</h2>
-                  <p className="text-sm text-gray-500 mb-4">יישלח לכל {users.filter(u => (u.user_type === 'newsletter' || u.user_type === 'subscriber') && u.email).length} מנויים עם הסכמה</p>
+                  <p className="text-sm text-gray-500 mb-4">יישלח לכל {users.filter(u => (u.user_type === 'newsletter' || u.user_type === 'subscriber') && u.email && u.email_consent).length} מנויים עם הסכמה</p>
                   <div className="space-y-3">
                     <input value={nlSubject} onChange={e => setNlSubject(e.target.value)} placeholder="נושא המייל"
                       className="w-full border rounded-xl px-4 py-2.5 text-right text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
@@ -1293,13 +1293,13 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                       <Users className="w-4 h-4 text-blue-600" />
-                      נמענים ({users.filter(u => ['newsletter', 'subscriber'].includes(u.user_type) && u.email).length})
+                      נמענים ({users.filter(u => ['newsletter', 'subscriber'].includes(u.user_type) && u.email && u.email_consent).length})
                     </h3>
-                    <button onClick={() => exportCSV([['שם','אימייל','סוג'], ...users.filter(u => u.email && ['newsletter','subscriber'].includes(u.user_type)).map(u => [`"${u.name}"`, u.email || '', userTypeLabel[u.user_type]])], 'subscribers.csv')}
+                    <button onClick={() => exportCSV([['שם','אימייל','סוג'], ...users.filter(u => u.email && u.email_consent && ['newsletter','subscriber'].includes(u.user_type)).map(u => [`"${u.name}"`, u.email || '', userTypeLabel[u.user_type]])], 'subscribers.csv')}
                       className="text-xs text-purple-600 hover:underline flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
                   </div>
                   <div className="space-y-1.5 max-h-52 overflow-y-auto">
-                    {users.filter(u => ['newsletter', 'subscriber'].includes(u.user_type) && u.email).map(u => (
+                    {users.filter(u => ['newsletter', 'subscriber'].includes(u.user_type) && u.email && u.email_consent).map(u => (
                       <div key={u.id} className="flex items-center justify-between text-sm py-1.5 border-b last:border-0">
                         <span className="font-medium">{u.name}</span>
                         <div className="flex items-center gap-2">

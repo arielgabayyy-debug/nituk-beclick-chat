@@ -32,31 +32,40 @@ export function useChat(currentUser: ChatUser | null) {
   // Fetch initial messages with reactions
   const fetchMessages = useCallback(async () => {
     try {
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('chat_messages')
-        .select(`
-          id, user_id, content, created_at, updated_at, is_pinned,
-          upvotes_count, has_gif, gif_url, mentions,
-          user:chat_users(id, name, avatar_color, user_type, is_online, created_at, level)
-        `)
-        // avatar_url intentionally omitted — stored as base64 in DB (can be 200KB+)
-        // Chat messages only need the avatar_color for the colored initials fallback.
-        .order('created_at', { ascending: true })
-        .limit(100)
+      // ── Parallel fetch: messages + reactions in one round-trip pair ────────
+      // reactions fetched by recent timestamp (last 7d) so we don't need message IDs first
+      const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const [
+        { data: messagesData, error: messagesError },
+        { data: reactionsData },
+      ] = await Promise.all([
+        supabase
+          .from('chat_messages')
+          .select(`
+            id, user_id, content, created_at, updated_at, is_pinned,
+            upvotes_count, has_gif, gif_url, mentions,
+            user:chat_users(id, name, avatar_color, user_type, is_online, created_at, level)
+          `)
+          // avatar_url intentionally omitted — stored as base64 in DB (can be 200KB+)
+          .order('created_at', { ascending: true })
+          .limit(100),
+        supabase
+          .from('message_reactions')
+          .select(`id, message_id, user_id, emoji, created_at, user:chat_users(id, name, avatar_color)`)
+          .gte('created_at', since7d)
+          .limit(500),
+      ])
 
       if (messagesError) throw messagesError
 
-      // Fetch reactions for all messages
       if (messagesData && messagesData.length > 0) {
-        const messageIds = messagesData.map(m => m.id)
-        const { data: reactionsData } = await supabase
-          .from('message_reactions')
-          .select(`id, message_id, user_id, emoji, created_at, user:chat_users(id, name, avatar_color)`)
-          .in('message_id', messageIds)
+        // Build a Set of message IDs for O(1) lookup when joining
+        const msgIdSet = new Set(messagesData.map(m => m.id))
+        const relevantReactions = reactionsData?.filter(r => msgIdSet.has(r.message_id)) ?? []
 
         const messagesWithReactions = messagesData.map(msg => ({
           ...msg,
-          reactions: reactionsData?.filter(r => r.message_id === msg.id) || []
+          reactions: relevantReactions.filter(r => r.message_id === msg.id),
         }))
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
