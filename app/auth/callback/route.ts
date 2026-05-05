@@ -57,11 +57,18 @@ export async function GET(request: NextRequest) {
 
     const { data: existingRows } = await supabase
       .from('chat_users')
-      .select('id, user_type')
+      .select('id, user_type, name')
       .eq('email', email)
       .order('created_at', { ascending: true })
       .limit(1)
     const existingUser = existingRows?.[0] ?? null
+
+    // ── Blocked user check ─────────────────────────────────────────────
+    if (existingUser?.user_type === 'blocked') {
+      // Sign the user out and redirect with a blocked error
+      await supabase.auth.signOut()
+      return NextResponse.redirect(`${origin}/?auth_error=blocked`)
+    }
 
     if (existingUser) {
       const finalType = isAdmin ? 'admin' : (existingUser.user_type ?? intendedType)

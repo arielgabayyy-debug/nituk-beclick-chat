@@ -1,18 +1,21 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { ArrowRight, User, Mail, Loader2, Check, Sparkles } from 'lucide-react'
+import { ArrowRight, User, Mail, Loader2, Check, Sparkles, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { UserType } from '@/lib/chat-types'
 import { getRandomAvatarColor, AVATAR_COLORS } from '@/lib/chat-types'
 import { createClient } from '@/lib/supabase/client'
+
 interface LoginFormProps {
   mode: 'guest' | 'subscriber' | 'newsletter'
   onSubmit: (name: string, email: string | null, userType: UserType, avatarColor: string) => Promise<void>
   onBack: () => void
   isLoading: boolean
+  /** If set, the form will pre-fill the email and switch to subscriber login */
+  prefilledEmail?: string
 }
 
 const MODE_CONFIG = {
@@ -36,10 +39,10 @@ const MODE_CONFIG = {
   },
 }
 
-export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps) {
+export function LoginForm({ mode, onSubmit, onBack, isLoading, prefilledEmail }: LoginFormProps) {
   const config = MODE_CONFIG[mode]
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(prefilledEmail || '')
   const [selectedColor, setSelectedColor] = useState(getRandomAvatarColor())
   const [error, setError] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -47,9 +50,18 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
   const [isSending, setIsSending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
-  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [showEmailForm, setShowEmailForm] = useState(!!prefilledEmail)
   const [isReturningUser, setIsReturningUser] = useState(false)
   const [returningName, setReturningName] = useState('')
+  // Registration guard state
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+  const [emailCheckResult, setEmailCheckResult] = useState<null | 'new' | 'existing' | 'blocked'>(null)
+  // Forgot password / magic link for access recovery
+  const [showForgotAccess, setShowForgotAccess] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotError, setForgotError] = useState('')
 
   useEffect(() => {
     const saved = localStorage.getItem(`nituk_remember_${mode}`)
@@ -70,6 +82,71 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
       return () => clearTimeout(t)
     }
   }, [countdown])
+
+  // ── Email validation helper ────────────────────────────────────────────
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim())
+
+  // ── Check if email already exists in chat_users ───────────────────────
+  const checkEmailExists = async (emailToCheck: string) => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('chat_users')
+      .select('id, user_type, name')
+      .eq('email', emailToCheck.toLowerCase().trim())
+      .maybeSingle()
+    return data as { id: string; user_type: string; name: string } | null
+  }
+
+  // ── Send magic link (access recovery) ─────────────────────────────────
+  const sendAccessLink = async () => {
+    if (!isValidEmail(forgotEmail)) { setForgotError('נא להזין אימייל תקין'); return }
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      const supabase = createClient()
+      // Check the user exists in chat_users first
+      const existing = await checkEmailExists(forgotEmail)
+      if (!existing) {
+        setForgotError('האימייל הזה אינו רשום במערכת. נסה להירשם תחילה.')
+        setForgotLoading(false)
+        return
+      }
+      if (existing.user_type === 'blocked') {
+        setForgotError('החשבון שלך חסום. פנה לתמיכה.')
+        setForgotLoading(false)
+        return
+      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: forgotEmail.toLowerCase().trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          shouldCreateUser: false,
+        },
+      })
+      if (error) {
+        // If shouldCreateUser=false and user has no auth account, try with create
+        if (error.message?.includes('Signups not allowed') || error.message?.includes('not found')) {
+          const { error: err2 } = await supabase.auth.signInWithOtp({
+            email: forgotEmail.toLowerCase().trim(),
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+              shouldCreateUser: true,
+            },
+          })
+          if (err2) { setForgotError('שגיאה בשליחת הקישור. נסה שוב.'); setForgotLoading(false); return }
+        } else {
+          setForgotError('שגיאה בשליחת הקישור. נסה שוב.')
+          setForgotLoading(false)
+          return
+        }
+      }
+      setForgotSent(true)
+    } catch {
+      setForgotError('שגיאה בשליחת הקישור. נסה שוב.')
+    } finally {
+      setForgotLoading(false)
+    }
+  }
 
   // ── Google OAuth ───────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
@@ -98,9 +175,67 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
     }
   }
 
+  // ── Forgot access panel ────────────────────────────────────────────────
+  if (showForgotAccess) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Button variant="ghost" onClick={() => { setShowForgotAccess(false); setForgotSent(false); setForgotError(''); setForgotEmail('') }}
+            className="mb-6 text-muted-foreground">
+            <ArrowRight className="w-4 h-4 ml-2" /> חזרה
+          </Button>
+          <div className="glass rounded-2xl p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+              <KeyRound className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">שכחתי גישה לחשבון</h2>
+            {forgotSent ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <Mail className="w-8 h-8 text-emerald-500" />
+                </div>
+                <p className="text-base font-semibold text-emerald-600 mb-2">שלחנו לך קישור כניסה!</p>
+                <p className="text-sm text-muted-foreground mb-4" dir="ltr">{forgotEmail}</p>
+                <p className="text-sm text-muted-foreground">בדוק את תיבת הדואר שלך (כולל ספאם) ולחץ על הקישור כדי להיכנס.</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-5">הזן את האימייל שלך ונשלח לך קישור כניסה</p>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="pr-10"
+                      dir="ltr"
+                      disabled={forgotLoading}
+                      autoFocus
+                      onKeyDown={e => e.key === 'Enter' && sendAccessLink()}
+                    />
+                  </div>
+                  {forgotError && (
+                    <p className="text-sm text-destructive text-center">{forgotError}</p>
+                  )}
+                  <Button onClick={sendAccessLink} disabled={forgotLoading} className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+                    {forgotLoading
+                      ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" />שולח...</>
+                      : <><Mail className="w-4 h-4 ml-2" />שלח קישור כניסה</>}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ── Magic link (via server API → Resend REST, no SMTP) ────────────────
   const sendMagicLink = async () => {
-    if (!email.trim() || !email.includes('@')) { setError('נא להזין אימייל תקין'); return }
+    if (!isValidEmail(email)) { setError('נא להזין אימייל תקין'); return }
 
     setIsSending(true)
     setError('')
@@ -108,6 +243,29 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
     try {
       const trimmedEmail = email.trim().toLowerCase()
       const displayName = name.trim() || trimmedEmail.split('@')[0]
+
+      // ── Registration guard: check if email already exists ──────────────
+      if (mode === 'newsletter') {
+        setIsCheckingEmail(true)
+        const existing = await checkEmailExists(trimmedEmail)
+        setIsCheckingEmail(false)
+
+        if (existing) {
+          if (existing.user_type === 'blocked') {
+            setError('החשבון שלך חסום. פנה לתמיכה.')
+            setIsSending(false)
+            return
+          }
+          // Already registered — switch them to login flow by showing success with returning info
+          setIsReturningUser(true)
+          setReturningName(existing.name || '')
+          setEmailCheckResult('existing')
+          setError('') // clear errors
+          // Still send the magic link so they can login
+        } else {
+          setEmailCheckResult('new')
+        }
+      }
 
       const res = await fetch('/api/send-magic-link', {
         method: 'POST',
@@ -128,9 +286,9 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
         return
       }
 
-      // Update UI with returning user info
-      setIsReturningUser(!!data.isReturning)
-      if (data.name) setReturningName(data.name)
+      // Update UI with returning user info from server response
+      if (!isReturningUser) setIsReturningUser(!!data.isReturning)
+      if (data.name && !returningName) setReturningName(data.name)
 
       if (rememberMe) {
         localStorage.setItem(`nituk_remember_${mode}`, JSON.stringify({
@@ -144,6 +302,7 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
       setError('שגיאה בשליחה, נסה שוב')
     } finally {
       setIsSending(false)
+      setIsCheckingEmail(false)
     }
   }
 
@@ -173,6 +332,14 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
             <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-primary/10 flex items-center justify-center">
               <Mail className="w-10 h-10 text-primary" />
             </div>
+
+            {/* Already-registered notice */}
+            {emailCheckResult === 'existing' && (
+              <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                <p className="font-semibold mb-1">כבר רשום!</p>
+                <p>כתובת המייל הזו כבר רשומה במערכת. שלחנו לך קישור כניסה.</p>
+              </div>
+            )}
 
             {isReturningUser && returningName ? (
               <div className="mb-3 flex items-center justify-center gap-1 text-primary text-sm font-medium">
@@ -312,9 +479,9 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
                 <form onSubmit={handleSubmitDetails} className="space-y-3">
                   <div className="relative">
                     <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    <Input type="email" value={email} onChange={e => { setEmail(e.target.value); setEmailCheckResult(null) }}
                       placeholder="your@email.com" className="pr-10" dir="ltr"
-                      disabled={isSending} autoFocus />
+                      disabled={isSending || isCheckingEmail} autoFocus />
                   </div>
                   {error && (
                     <div className={cn("text-sm text-center p-2 rounded-lg",
@@ -322,9 +489,9 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
                       {error}
                     </div>
                   )}
-                  <Button type="submit" disabled={isSending}
+                  <Button type="submit" disabled={isSending || isCheckingEmail}
                     className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                    {isSending
+                    {(isSending || isCheckingEmail)
                       ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" />בודק ושולח...</>
                       : <><Mail className="w-4 h-4 ml-2" />שלח קישור כניסה</>}
                   </Button>
@@ -334,6 +501,17 @@ export function LoginForm({ mode, onSubmit, onBack, isLoading }: LoginFormProps)
               {error && !showEmailForm && (
                 <p className="text-sm text-destructive text-center">{error}</p>
               )}
+
+              {/* Forgot access link */}
+              <div className="pt-1 text-center">
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotAccess(true); setForgotEmail(email || '') }}
+                  className="text-xs text-muted-foreground hover:text-primary transition underline underline-offset-2"
+                >
+                  שכחתי גישה לחשבון שלי
+                </button>
+              </div>
             </div>
           )}
         </div>

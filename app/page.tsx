@@ -13,6 +13,7 @@ import type { UserType, ChatUser } from '@/lib/chat-types'
 
 type Screen = 'loading' | 'landing' | 'login' | 'chat'
 type LoginMode = 'guest' | 'subscriber' | 'newsletter'
+type AuthError = null | 'blocked' | 'generic'
 
 const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
@@ -22,6 +23,7 @@ export default function ChatApp() {
   const [onlineCount, setOnlineCount] = useState(0)
   const [oauthUser, setOauthUser] = useState<ChatUser | null>(null)
   const [loadingMessage, setLoadingMessage] = useState('הצ׳אט הקהילתי טוען...')
+  const [authError, setAuthError] = useState<AuthError>(null)
   const { currentUser, isLoading, registerUser, logout } = useChatUser()
 
   // Prevent double-calls to syncAuthUser
@@ -96,6 +98,13 @@ export default function ChatApp() {
         if (resolved) localStorage.setItem('nituk_intended_type', resolved)
       }
 
+      // Handle auth errors from callback
+      if (authError === 'blocked') {
+        setAuthError('blocked')
+      } else if (authError) {
+        setAuthError('generic')
+      }
+
       // Clean up URL
       if (oauthSuccess || authError) {
         window.history.replaceState({}, '', '/')
@@ -152,6 +161,15 @@ export default function ChatApp() {
 
       const chatUser = rows?.[0] ?? null
       const isAdmin = ADMIN_EMAILS.includes(email)
+
+      // ── Blocked user check ───────────────────────────────────────────
+      if (chatUser?.user_type === 'blocked') {
+        await supabase.auth.signOut()
+        clearTimeout(timeout)
+        setAuthError('blocked')
+        setScreen('landing')
+        return
+      }
 
       if (chatUser) {
         await supabase.from('chat_users').update({
@@ -304,7 +322,24 @@ export default function ChatApp() {
   const activeUser = oauthUser || currentUser
 
   if (screen === 'loading') return <LoadingScreen message={loadingMessage} />
-  if (screen === 'landing') return <><LandingScreen onSelectMode={handleSelectMode} onlineCount={onlineCount} /><AccessibilityPanel /></>
+  if (screen === 'landing') return (
+    <>
+      {authError === 'blocked' && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium max-w-xs text-center">
+          החשבון שלך חסום. לסיוע פנה לתמיכה.
+          <button className="mr-3 opacity-70 hover:opacity-100" onClick={() => setAuthError(null)}>✕</button>
+        </div>
+      )}
+      {authError === 'generic' && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-destructive text-destructive-foreground px-5 py-3 rounded-xl shadow-lg text-sm font-medium max-w-xs text-center">
+          שגיאה בהתחברות. נסה שוב.
+          <button className="mr-3 opacity-70 hover:opacity-100" onClick={() => setAuthError(null)}>✕</button>
+        </div>
+      )}
+      <LandingScreen onSelectMode={handleSelectMode} onlineCount={onlineCount} />
+      <AccessibilityPanel />
+    </>
+  )
   if (screen === 'login') return <><LoginForm mode={loginMode} onSubmit={handleLogin} onBack={() => setScreen('landing')} isLoading={isLoading} /><AccessibilityPanel /></>
   if (screen === 'chat' && activeUser) return <><ChatErrorBoundary><ChatRoom currentUser={activeUser} onLogout={handleLogout} /></ChatErrorBoundary><AccessibilityPanel /></>
 
