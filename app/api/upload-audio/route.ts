@@ -76,14 +76,40 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   if (!checkUploadRate(ip)) return NextResponse.json({ error: 'יותר מדי העלאות — נסה שוב עוד דקה' }, { status: 429 })
 
-  // ── Auth: require valid Supabase session ────────────────────────────────
+  // ── Auth: accept Supabase session OR a valid chat_user_id header ────────
+  // Subscribers authenticate via Supabase Auth (cookie-based session).
+  // Guest users have no Supabase Auth session but carry a chat_user_id in
+  // localStorage, which they pass as the X-Chat-User-Id request header.
   const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => request.cookies.getAll(), setAll: () => {} } }
   )
   const { data: { user } } = await supabaseAuth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 })
+
+  if (!user) {
+    // Fallback: validate X-Chat-User-Id against our chat_users table
+    const chatUserId = request.headers.get('x-chat-user-id')?.trim()
+    if (!chatUserId) {
+      return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 })
+    }
+    // Use service-role client (this is a public-ish table, just validating existence)
+    const supabaseService = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: chatUser, error: chatUserError } = await supabaseService
+      .from('chat_users')
+      .select('id, user_type')
+      .eq('id', chatUserId)
+      .single()
+    if (chatUserError || !chatUser) {
+      return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 })
+    }
+    if (chatUser.user_type === 'blocked') {
+      return NextResponse.json({ error: 'החשבון חסום' }, { status: 403 })
+    }
+  }
 
   try {
     const formData = await request.formData()

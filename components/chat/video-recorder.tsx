@@ -82,7 +82,11 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
     try {
       const fd = new FormData()
       fd.append('file', file, file.name)
-      const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
+      // Pass chat_user_id so guest users (no Supabase Auth session) can upload
+      const chatUserId = typeof window !== 'undefined' ? localStorage.getItem('chat_user_id') : null
+      const headers: Record<string, string> = {}
+      if (chatUserId) headers['x-chat-user-id'] = chatUserId
+      const res = await fetch('/api/upload-audio', { method: 'POST', body: fd, headers })
       const data = await res.json() as { url: string; error?: string }
       if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); setPhase('idle'); return }
       // Estimate duration
@@ -175,7 +179,11 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
         : blobType.includes('ogg') ? 'ogv'
         : 'webm'
       fd.append('file', blobRef.current, `video.${videoExt}`)
-      const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
+      // Pass chat_user_id so guest users (no Supabase Auth session) can upload
+      const chatUserId = typeof window !== 'undefined' ? localStorage.getItem('chat_user_id') : null
+      const headers: Record<string, string> = {}
+      if (chatUserId) headers['x-chat-user-id'] = chatUserId
+      const res = await fetch('/api/upload-audio', { method: 'POST', body: fd, headers })
       const data = await res.json() as { url: string }
       if (!res.ok) { alert('שגיאה בהעלאה'); setPhase('review'); return }
       onSend(`[video:${data.url}:${duration}]`)
