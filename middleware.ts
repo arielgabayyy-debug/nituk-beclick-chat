@@ -43,6 +43,8 @@ export async function middleware(request: NextRequest) {
       '/api/admin/mfa-verify',          // MFA — auth checked inside route
       '/api/admin/mfa-qr',              // MFA QR — auth checked inside route
       '/api/admin/mfa-status',          // MFA status — auth checked inside route
+      '/api/admin/fix-schema',           // one-shot schema fix — auth via x-admin-secret header
+      '/api/admin/fix-trigger',          // one-shot trigger fix — auth via x-admin-secret header
     ]
 
     if (!selfAuthRoutes.some(r => path.startsWith(r))) {
