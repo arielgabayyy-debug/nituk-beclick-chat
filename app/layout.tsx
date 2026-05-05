@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Heebo } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import Script from 'next/script'
 import './globals.css'
 
 const heebo = Heebo({
@@ -36,31 +37,25 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="he" dir="rtl" className="bg-background">
-      <head>
-        {/* Apply saved theme before first paint to avoid flash */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function() {
-            var saved = localStorage.getItem('theme');
-            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (saved === 'dark' || (!saved && prefersDark)) {
-              document.documentElement.classList.add('dark');
-            }
-          })();
-        ` }} />
-        {/* Service Worker registration */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                console.warn('SW registration failed:', err);
-              });
-            });
-          }
-        ` }} />
-      </head>
+    // suppressHydrationWarning: the theme-init script adds class="dark" before React
+    // hydrates, which would otherwise cause a server/client mismatch warning.
+    <html lang="he" dir="rtl" className="bg-background" suppressHydrationWarning>
+      <head />
       <body className={`${heebo.className} font-sans antialiased`}>
+        {/* Apply saved theme before first paint to avoid flash.
+            Must be outside <head> in App Router — Next.js injects it correctly. */}
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: `(function(){var s=localStorage.getItem('theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(s==='dark'||(!s&&d)){document.documentElement.classList.add('dark');}})();` }}
+        />
         {children}
+        {/* Service Worker registration — runs after page is interactive */}
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{ __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(e){console.warn('SW registration failed:',e);});}` }}
+        />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

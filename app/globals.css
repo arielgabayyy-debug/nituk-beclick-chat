@@ -284,11 +284,11 @@
   }
 }
 
-/* Prevent iOS rubber-band bounce on the whole page */
+/* Prevent iOS rubber-band bounce on the whole page.
+   overflow:hidden on html prevents body bounce; h-dvh on the root div handles sizing. */
 html {
   overflow: hidden;
   height: 100%;
-  height: 100dvh;
 }
 
 /* But allow scrolling inside the messages area */
@@ -311,8 +311,10 @@ html {
   }
 }
 
-/* Ensure full-height in iframe (when embedded in WordPress) */
-html, body, #__next {
+/* Ensure full-height in iframe (when embedded in WordPress).
+   -webkit-fill-available fills the visible area on iOS Safari
+   but must NOT override html since we already set height:100% above. */
+body, #__next {
   height: 100%;
   height: -webkit-fill-available;
 }
@@ -405,10 +407,12 @@ body {
   scroll-behavior: auto;              /* let JS control smooth vs instant */
 }
 
-/* Message items: GPU-composited transforms for animations */
+/* Message items: GPU-composited transforms for animations.
+   Do NOT use contain:layout here — it creates a new containing block that
+   clips position:fixed reaction menus / context menus on mobile. */
 [id^="message-"] {
   will-change: transform;
-  contain: layout style;              /* limit reflow scope to each message */
+  contain: style;                     /* limit style recalc scope, keep layout free */
 }
 
 /* Avatars: GPU decode, no layout thrashing */
@@ -465,9 +469,17 @@ body {
   animation: badge-shine 2s infinite;
 }
 
-/* Smooth transitions for all interactive elements */
-button, a, input, textarea {
-  transition: all 0.2s ease-out;
+/* Smooth transitions for interactive elements — use specific props only.
+   "transition: all" would animate layout-affecting props (height, padding, font-size)
+   causing keyboard popup jank and input-focus glitches on mobile. */
+button, a {
+  transition: color 0.15s ease-out, background-color 0.15s ease-out,
+              border-color 0.15s ease-out, opacity 0.15s ease-out,
+              transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+input, textarea {
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out,
+              background-color 0.15s ease-out;
 }
 
 /* Better text rendering */
@@ -697,8 +709,9 @@ body {
 .chart-bar { transition: opacity 0.15s; }
 .chart-bar:hover { opacity: 1 !important; }
 
-/* Smooth scrollbar for messages */
-.chat-scrollbar { scroll-behavior: smooth; }
+/* scroll-behavior on .chat-scrollbar is intentionally left as auto so JS
+   controls smooth vs instant per-call (see chat-scroll which already sets auto). */
+.chat-scrollbar { scroll-behavior: auto; }
 
 /* Status indicator */
 .status-dot-online  { background: oklch(0.6 0.2 145); }
