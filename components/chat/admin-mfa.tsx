@@ -226,30 +226,52 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
                   </div>
 
                   {/* QR Code — Supabase returns SVG string */}
-                  <div className="flex justify-center mb-4">
+                  <div className="flex justify-center mb-5">
                     <div
-                      className="bg-white p-3 rounded-xl w-48 h-48 flex items-center justify-center"
+                      className="bg-white p-4 rounded-2xl shadow-lg"
+                      style={{ width: 200, height: 200 }}
                       dangerouslySetInnerHTML={{
                         __html: qrCode.startsWith('<svg')
-                          ? qrCode.replace('<svg ', '<svg width="168" height="168" ')
-                          : `<img src="${qrCode}" width="168" height="168" />`
+                          ? qrCode.replace(/width="[^"]*"/, 'width="168"').replace(/height="[^"]*"/, 'height="168"').replace('<svg ', '<svg style="display:block" ')
+                          : `<img src="${qrCode}" width="168" height="168" alt="QR" />`
                       }}
                     />
                   </div>
 
-                  {/* Manual secret */}
-                  <div className="mb-5">
-                    <p className="text-xs text-slate-500 mb-1 text-center">לא יכול לסרוק? הכנס ידנית:</p>
-                    <div className="flex items-center gap-2 bg-slate-900/60 rounded-xl px-3 py-2 border border-slate-700/50">
-                      <code className="flex-1 text-xs text-purple-300 font-mono tracking-wider">
-                        {showSecret ? secret : '•'.repeat(secret.length)}
-                      </code>
-                      <button onClick={() => setShowSecret(v => !v)} className="text-slate-500 hover:text-slate-300 transition">
-                        {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                      <button onClick={copySecret} className="text-slate-500 hover:text-purple-400 transition">
-                        {copied ? <CheckCircle className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
+                  {/* Manual entry — always visible, prominent */}
+                  <div className="mb-5 bg-slate-900/80 rounded-2xl p-4 border border-purple-500/30">
+                    <p className="text-xs text-purple-400 font-semibold mb-3 text-center uppercase tracking-wide">
+                      📋 או הכנס ידנית ב-Google Authenticator
+                    </p>
+
+                    {/* Account name */}
+                    <div className="mb-3">
+                      <p className="text-[11px] text-slate-500 mb-1">שם חשבון</p>
+                      <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5">
+                        <span className="flex-1 text-sm text-white font-medium">ניתוק בקליק Admin</span>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText('ניתוק בקליק Admin') }}
+                          className="text-slate-400 hover:text-purple-400 transition shrink-0"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Secret key — always visible */}
+                    <div>
+                      <p className="text-[11px] text-slate-500 mb-1">מפתח סודי (Secret Key)</p>
+                      <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5">
+                        <code className="flex-1 text-sm text-purple-300 font-mono tracking-widest break-all">
+                          {secret}
+                        </code>
+                        <button onClick={copySecret} className="text-slate-400 hover:text-purple-400 transition shrink-0">
+                          {copied
+                            ? <CheckCircle className="w-4 h-4 text-green-400" />
+                            : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {copied && <p className="text-xs text-green-400 text-center mt-1">✓ הועתק!</p>}
                     </div>
                   </div>
 
