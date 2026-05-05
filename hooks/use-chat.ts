@@ -197,7 +197,7 @@ export function useChat(currentUser: ChatUser | null) {
     const pollResult = processPollCommand(content.trim())
     if (pollResult !== null) {
       // Create a quick poll via community hook — not accessible here, so just send as announcement
-      const supabase = createClient()
+      // Uses module-level supabase singleton — no duplicate createClient()
       const pollParts = pollResult.slice(6, -1).split('::')
       const question = pollParts[0]
       const options = pollParts.slice(1)
@@ -219,20 +219,25 @@ export function useChat(currentUser: ChatUser | null) {
     // Process slash commands
     const processedContent = processSlashCommand(content.trim())
 
+    // Skip banned-words check for voice/video messages (content is a URL token, not user text)
+    const isMediaMessage = processedContent.startsWith('[voice:') || processedContent.startsWith('[video:')
+
     // Check banned words (reload from localStorage each call to stay fresh)
-    const currentBanned = (() => {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('banned_words')
-        return stored ? stored.split(',').map(w => w.trim()).filter(Boolean) : []
+    if (!isMediaMessage) {
+      const currentBanned = (() => {
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('banned_words')
+          return stored ? stored.split(',').map(w => w.trim()).filter(Boolean) : []
+        }
+        return bannedWords
+      })()
+      const lowerContent = processedContent.toLowerCase()
+      const foundBanned = currentBanned.find(w => w && lowerContent.includes(w.toLowerCase()))
+      if (foundBanned) {
+        setError('ההודעה מכילה מילה אסורה ולא ניתן לשלוח אותה.')
+        setTimeout(() => setError(null), 3000)
+        return
       }
-      return bannedWords
-    })()
-    const lowerContent = processedContent.toLowerCase()
-    const foundBanned = currentBanned.find(w => w && lowerContent.includes(w.toLowerCase()))
-    if (foundBanned) {
-      setError('ההודעה מכילה מילה אסורה ולא ניתן לשלוח אותה.')
-      setTimeout(() => setError(null), 3000)
-      return
     }
 
     // ── Client-side pre-checks (fast, before hitting DB) ──────────────────
@@ -622,7 +627,8 @@ export function useChat(currentUser: ChatUser | null) {
       )
       .subscribe()
 
-    // Subscribe to typing changes
+    // Subscribe to typing changes — debounced to avoid stampede on rapid inserts/deletes
+    let typingDebounce: ReturnType<typeof setTimeout> | null = null
     typingChannelRef.current = supabase
       .channel('typing_channel')
       .on(
@@ -633,7 +639,8 @@ export function useChat(currentUser: ChatUser | null) {
           table: 'typing_users'
         },
         () => {
-          fetchTypingUsers()
+          if (typingDebounce) clearTimeout(typingDebounce)
+          typingDebounce = setTimeout(() => fetchTypingUsers(), 300)
         }
       )
       .subscribe()
@@ -690,7 +697,7 @@ export function useChat(currentUser: ChatUser | null) {
   // Upvote/helpful a message
   const upvoteMessage = useCallback(async (messageId: string) => {
     if (!currentUser) return
-    const supabase = createClient()
+    // Module-level supabase singleton — no duplicate createClient()
     // Check if already upvoted (stored locally)
     const upvotedKey = `upvoted_${currentUser.id}`
     const upvoted: string[] = JSON.parse(localStorage.getItem(upvotedKey) || '[]')
@@ -748,7 +755,7 @@ export function useChat(currentUser: ChatUser | null) {
   // Quick ban user (admin only)
   const banUser = useCallback(async (userId: string, userName: string) => {
     if (currentUser?.user_type !== 'admin') return
-    const supabase = createClient()
+    // Module-level supabase singleton — no duplicate createClient()
     const { error } = await supabase
       .from('chat_users')
       .update({ user_type: 'blocked' })
@@ -804,7 +811,8 @@ export function useChatUser() {
     try {
       const { data, error } = await supabase
         .from('chat_users')
-        .select('*')
+        // avatar_url intentionally excluded — stored as base64 (can be 200KB+)
+        .select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at')
         .eq('id', userId)
         .single()
 

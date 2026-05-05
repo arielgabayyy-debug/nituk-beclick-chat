@@ -261,7 +261,10 @@ export default function AdminDashboard() {
   }, [])
 
   const fetchUsers = useCallback(async (page = 0, search = '') => {
-    let q = supabase.from('chat_users').select('*').order('created_at', { ascending: false })
+    // avatar_url excluded — stored as base64 (can be 200KB+ per user), not needed in admin table
+    let q = supabase.from('chat_users')
+      .select('id, name, email, user_type, is_online, points, level, messages_count, created_at, email_consent, avatar_color, weekly_points, is_user_of_week, helpful_count')
+      .order('created_at', { ascending: false })
     if (search) {
       q = q.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
     }
@@ -475,7 +478,8 @@ export default function AdminDashboard() {
     fetchStats()
   }
   const bulkDeleteMessages = async (ids: string[]) => {
-    for (const id of ids) await supabase.from('chat_messages').delete().eq('id', id)
+    // Single query with .in() instead of N sequential round-trips
+    await supabase.from('chat_messages').delete().in('id', ids)
     setMessages(m => m.filter(x => !ids.includes(x.id)))
     showToast(`${ids.length} הודעות נמחקו`)
   }
