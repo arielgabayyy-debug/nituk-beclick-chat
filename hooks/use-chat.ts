@@ -267,13 +267,34 @@ export function useChat(currentUser: ChatUser | null) {
       return
     }
 
+    // ── OPTIMISTIC RENDER: add to UI immediately (0ms — no waiting for DB) ──
+    const tempId = `opt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const optimisticMsg = {
+      id: tempId,
+      user_id: currentUser.id,
+      content: processedContent,
+      created_at: new Date().toISOString(),
+      updated_at: undefined,
+      is_pinned: false,
+      upvotes_count: 0,
+      has_gif: false,
+      gif_url: null,
+      mentions: [],
+      user: currentUser,
+      reactions: [],
+    } as unknown as ChatMessage
+    setMessages(prev => [...prev, optimisticMsg])
+    stopTyping()
+
     try {
       const { error } = await supabase
         .from('chat_messages')
         .insert({ user_id: currentUser.id, content: processedContent })
 
       if (error) {
-        // Map Supabase/PostgreSQL error messages to Hebrew user-friendly text
+        // Remove optimistic message on failure
+        setMessages(prev => prev.filter(m => m.id !== tempId))
+        // Map error to Hebrew
         const msg = error.message || ''
         const spamMessages: Record<string, string> = {
           rate_limit_exceeded: '⏱️ שולח הודעות מהר מדי — המתן רגע',
@@ -288,14 +309,19 @@ export function useChat(currentUser: ChatUser | null) {
           content_too_short:   '📏 ההודעה קצרה מדי',
         }
         const match = Object.keys(spamMessages).find(k => msg.includes(k))
-        const display = match ? spamMessages[match] : 'שגיאה בשליחת ההודעה'
-        setError(display)
+        setError(match ? spamMessages[match] : 'שגיאה בשליחת ההודעה')
         setTimeout(() => setError(null), 4000)
         return
       }
 
-      stopTyping()
+      // ── BROADCAST: fast delivery to other users (~20ms vs ~600ms via postgres_changes) ──
+      channelRef.current?.send({
+        type: 'broadcast',
+        event: 'fast_msg',
+        payload: { ...optimisticMsg },
+      })
     } catch (err) {
+      setMessages(prev => prev.filter(m => m.id !== tempId))
       console.error('Error sending message:', err)
       setError('שגיאה בשליחת ההודעה — נסה שוב')
       setTimeout(() => setError(null), 3000)
@@ -391,44 +417,27 @@ export function useChat(currentUser: ChatUser | null) {
     }
   }, [currentUser])
 
-  // Typing indicators
-  const startTyping = useCallback(async () => {
+  // ── Typing indicators via Broadcast (~20ms) instead of DB (~200ms) ────────
+  const startTyping = useCallback(() => {
     if (!currentUser) return
+    // Broadcast is P2P through Supabase WebSocket — no DB round-trip
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: currentUser.id, name: currentUser.name, avatarColor: currentUser.avatar_color, isTyping: true },
+    })
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => stopTyping(), 3000)
+  }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    try {
-      await supabase
-        .from('typing_users')
-        .upsert({
-          user_id: currentUser.id,
-          started_at: new Date().toISOString()
-        })
-
-      // Auto-stop typing after 3 seconds
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
-      }
-      typingTimeoutRef.current = setTimeout(() => {
-        stopTyping()
-      }, 3000)
-    } catch (err) {
-      console.error('Error starting typing:', err)
-    }
-  }, [currentUser])
-
-  const stopTyping = useCallback(async () => {
+  const stopTyping = useCallback(() => {
     if (!currentUser) return
-
-    try {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
-      }
-      await supabase
-        .from('typing_users')
-        .delete()
-        .eq('user_id', currentUser.id)
-    } catch (err) {
-      console.error('Error stopping typing:', err)
-    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: currentUser.id, name: currentUser.name, avatarColor: currentUser.avatar_color, isTyping: false },
+    })
   }, [currentUser])
 
   // Fetch typing users
@@ -524,10 +533,23 @@ export function useChat(currentUser: ChatUser | null) {
 
           // Try to resolve user from existing messages/online users (zero extra queries)
           setMessages(prev => {
+            // ── Deduplication ─────────────────────────────────────────────
+            // 1. Already in state via broadcast fast_msg → skip
+            if (prev.some(m => m.id === newMsg.id)) return prev
+            // 2. Replace optimistic temp message from same user+content (sender's own message)
+            const isOwnOptimistic = newMsg.user_id === currentUser?.id
+            const withoutTemp = isOwnOptimistic
+              ? prev.filter(m => {
+                  if (!m.id.startsWith('opt-')) return true
+                  // Remove temp msg with same content sent within last 15s
+                  return !(m.content === newMsg.content &&
+                    Math.abs(new Date(newMsg.created_at as string).getTime() - new Date(m.created_at).getTime()) < 15000)
+                })
+              : prev
             const existingUser = prev.find(m => m.user_id === newMsg.user_id)?.user
               || onlineUsers.find(u => u.id === newMsg.user_id) as unknown as ChatUser | undefined
             const composed = { ...newMsg, user: existingUser || null, reactions: [] } as unknown as ChatMessage
-            return [...prev, composed]
+            return [...withoutTemp, composed]
           })
 
           // Background user fetch only if missing
@@ -618,6 +640,36 @@ export function useChat(currentUser: ChatUser | null) {
           ))
         }
       )
+      // ── Broadcast: fast message delivery (~20ms, no DB round-trip) ──────
+      .on('broadcast', { event: 'fast_msg' }, (event) => {
+        const msg = event.payload as ChatMessage
+        // Skip own messages (sender already added optimistically)
+        if (msg.user_id === currentUser?.id) return
+        setMessages(prev => {
+          // Skip if already received via postgres_changes
+          if (prev.some(m => m.id === msg.id)) return prev
+          return [...prev, msg]
+        })
+      })
+      // ── Broadcast: typing indicators (~20ms, no DB round-trip) ──────────
+      .on('broadcast', { event: 'typing' }, (event) => {
+        const { userId, name, avatarColor, isTyping } = event.payload as {
+          userId: string; name: string; avatarColor: string; isTyping: boolean
+        }
+        if (userId === currentUser?.id) return // ignore own typing
+        setTypingUsers(prev => {
+          if (isTyping) {
+            if (prev.some(u => u.user_id === userId)) return prev
+            return [...prev, {
+              user_id: userId,
+              started_at: new Date().toISOString(),
+              user: { id: userId, name, avatar_color: avatarColor } as ChatUser,
+            }]
+          } else {
+            return prev.filter(u => u.user_id !== userId)
+          }
+        })
+      })
       .subscribe()
 
     // Subscribe to user changes — debounce refetch to avoid stampede
@@ -642,29 +694,14 @@ export function useChat(currentUser: ChatUser | null) {
       )
       .subscribe()
 
-    // Subscribe to typing changes — debounced to avoid stampede on rapid inserts/deletes
-    let typingDebounce: ReturnType<typeof setTimeout> | null = null
-    typingChannelRef.current = supabase
-      .channel('typing_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'typing_users'
-        },
-        () => {
-          if (typingDebounce) clearTimeout(typingDebounce)
-          typingDebounce = setTimeout(() => fetchTypingUsers(), 300)
-        }
-      )
-      .subscribe()
+    // Typing is now handled via broadcast (fast_msg channel above) — no separate DB channel needed
+    // typingChannelRef kept for cleanup compatibility but unused
+    typingChannelRef.current = null
 
-    // Fetch initial data
+    // Fetch initial data (typing starts empty — populated via broadcast)
     fetchMessages()
     fetchOnlineUsers()
     fetchSystemMessages()
-    fetchTypingUsers()
 
     // Cleanup on unmount
     return () => {
