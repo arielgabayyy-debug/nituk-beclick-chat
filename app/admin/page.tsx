@@ -173,15 +173,17 @@ export default function AdminDashboard() {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   // Use getUser() (server-verified) rather than getSession() (client-side JWT only)
-  // Also check AAL level on mount so page refresh restores mfaVerified state.
+  // Also check mfa-status on mount so page refresh restores MFA state from cookie
+  // (the admin_mfa cookie is httpOnly and must be read server-side).
   useEffect(() => {
-    // Only check identity — NOT MFA level.
-    // AdminMFA component is the sole authority on mfaVerified.
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       const email = user?.email?.toLowerCase()
       if (email && ADMIN_EMAILS.includes(email)) {
         setAuthedEmail(user!.email!)
         setIsAuthenticated(true)
+        // MFA is ALWAYS required on every page load.
+        // mfaVerified starts false and is only set true by AdminMFA after
+        // a successful /api/admin/mfa-verify call with a valid TOTP code.
       }
       setAuthLoading(false)
     })
@@ -334,18 +336,18 @@ export default function AdminDashboard() {
     } catch {}
   }, [adminFetch])
 
-  // ── Initial load ──────────────────────────────────────────────────────────
+  // ── Initial load — only after both auth AND MFA are verified ─────────────
   useEffect(() => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated || !mfaVerified) return
     setIsLoading(true)
     Promise.all([
       fetchStats(), fetchUsers(), fetchMessages(), fetchCharts(), fetchSettings(),
     ]).finally(() => setIsLoading(false))
-  }, [isAuthenticated, fetchStats, fetchUsers, fetchMessages, fetchCharts, fetchSettings])
+  }, [isAuthenticated, mfaVerified, fetchStats, fetchUsers, fetchMessages, fetchCharts, fetchSettings])
 
   // ── Real-time: new registrations + live activity ──────────────────────────
   useEffect(() => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated || !mfaVerified) return
     const ch = supabase.channel('admin-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_users' }, payload => {
         const u = payload.new as UserRow
@@ -371,14 +373,14 @@ export default function AdminDashboard() {
       })
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [isAuthenticated])
+  }, [isAuthenticated, mfaVerified])
 
   // ── Load tab-specific data ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated || !mfaVerified) return
     if (tab === 'moderation') fetchReports(reportStatus)
     if (tab === 'storage') { fetchStorage('chat-audio'); fetchStorage('chat-images') }
-  }, [tab, isAuthenticated, fetchReports, fetchStorage, reportStatus])
+  }, [tab, isAuthenticated, mfaVerified, fetchReports, fetchStorage, reportStatus])
 
   // ── User actions — all go through /api/admin/users for audit logging ─────
   const promoteUser = async (id: string, type: string) => {
@@ -641,7 +643,7 @@ export default function AdminDashboard() {
             <RefreshCw className="w-4 h-4 text-gray-500" />
           </button>
           {authedEmail && <span className="text-xs text-gray-400 hidden lg:block" dir="ltr">{authedEmail}</span>}
-          <button onClick={async () => { await supabase.auth.signOut(); setIsAuthenticated(false) }}
+          <button onClick={async () => { await supabase.auth.signOut(); setIsAuthenticated(false); setMfaVerified(false) }}
             className="p-2 hover:bg-gray-100 rounded-lg transition text-gray-500" title="יציאה">
             <LogOut className="w-4 h-4" />
           </button>

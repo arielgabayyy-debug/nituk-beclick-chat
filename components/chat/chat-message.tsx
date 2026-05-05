@@ -3,7 +3,7 @@
 import { useState, useRef, memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { UserBadge } from './user-badge'
-import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag, MessageCircle, CheckCheck } from 'lucide-react'
+import { Pin, Trash2, Reply, Copy, Check, Flag, Pencil, Bookmark, Forward, UserX, ThumbsUp, VolumeX, Volume2, Tag, MessageCircle, CheckCheck, Languages } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ChatMessage as ChatMessageType, ChatUser, MessageReaction } from '@/lib/chat-types'
 import { REACTION_EMOJIS, formatTime } from '@/lib/chat-types'
@@ -64,7 +64,7 @@ function UserHoverCard({ user, onOpenProfile, onClose, onDM }: HoverCardProps) {
           style={{ backgroundColor: user.avatar_color || '#06b6d4' }}
         >
           {user.avatar_url ? (
-            <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+            <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <span className="text-sm font-bold text-white">{getInitials(user.name)}</span>
           )}
@@ -692,7 +692,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
           }}
         >
           {user?.avatar_url ? (
-            <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+            <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <span className="flex items-center justify-center w-full h-full text-xs font-bold text-white">
               {user ? getInitials(user.name) : '?'}
@@ -1154,13 +1154,24 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
               <span className="text-sm font-medium">השב</span>
             </button>
 
-            {!message.content.startsWith('[voice:') && (
+            {!message.content.startsWith('[voice:') && !message.content.startsWith('[video:') && (
               <button
                 onClick={() => { navigator.clipboard.writeText(message.content); setShowContextMenu(false) }}
                 className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right"
               >
                 <Copy className="w-5 h-5 text-muted-foreground shrink-0" />
                 <span className="text-sm font-medium">העתק הודעה</span>
+              </button>
+            )}
+
+            {/* Translate — only for text messages */}
+            {!message.content.startsWith('[voice:') && !message.content.startsWith('[video:') && (
+              <button
+                onClick={() => { setShowTranslator(true); setShowContextMenu(false) }}
+                className="w-full flex items-center gap-4 px-5 py-3.5 active:bg-muted/60 transition-colors text-right"
+              >
+                <Languages className="w-5 h-5 text-blue-500 shrink-0" />
+                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">תרגם הודעה</span>
               </button>
             )}
 

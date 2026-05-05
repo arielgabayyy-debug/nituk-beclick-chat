@@ -40,6 +40,9 @@ export async function middleware(request: NextRequest) {
     const selfAuthRoutes = [
       '/api/admin/login',
       '/api/admin/notify-registration', // called by use-chat.ts + Supabase trigger
+      '/api/admin/mfa-verify',          // MFA — auth checked inside route
+      '/api/admin/mfa-qr',              // MFA QR — auth checked inside route
+      '/api/admin/mfa-status',          // MFA status — auth checked inside route
     ]
 
     if (!selfAuthRoutes.some(r => path.startsWith(r))) {

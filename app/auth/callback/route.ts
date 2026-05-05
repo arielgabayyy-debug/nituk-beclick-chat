@@ -107,6 +107,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Always redirect to /?oauth=success so page.tsx knows to check session
+  // Redirect to the return URL if it's on the same origin, otherwise main page
+  const returnTo = searchParams.get('return')
+  if (returnTo && (returnTo.startsWith(origin) || returnTo.startsWith('/'))) {
+    return NextResponse.redirect(returnTo)
+  }
   return NextResponse.redirect(`${origin}/?oauth=success`)
 }

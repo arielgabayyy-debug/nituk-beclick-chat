@@ -395,6 +395,50 @@ body {
   direction: rtl;
 }
 
+/* ── GPU-accelerated performance hints ───────────────────────────────── */
+
+/* Promote scroll container to its own compositor layer */
+.chat-scroll {
+  will-change: scroll-position;
+  transform: translateZ(0);           /* force GPU layer */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;              /* let JS control smooth vs instant */
+}
+
+/* Message items: GPU-composited transforms for animations */
+[id^="message-"] {
+  will-change: transform;
+  contain: layout style;              /* limit reflow scope to each message */
+}
+
+/* Avatars: GPU decode, no layout thrashing */
+.chat-scroll img {
+  content-visibility: auto;          /* skip off-screen image paint */
+}
+
+/* Animations: always use GPU-friendly properties */
+.animate-in {
+  will-change: opacity, transform;
+}
+
+/* Reduce paint area for typing indicator (flashes often) */
+.typing-indicator {
+  contain: strict;
+  will-change: contents;
+}
+
+/* Prevent layout recalculation on hover for reaction buttons */
+.reaction-btn {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* content-visibility for off-screen sidebar sections */
+.sidebar-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 200px;
+}
+
 /* Custom focus styles */
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background;

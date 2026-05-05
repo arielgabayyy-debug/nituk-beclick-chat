@@ -50,7 +50,16 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const getSupportedVideoMime = (): string => {
-    const candidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4', '']
+    // Check mp4 first so Safari/iOS (which don't support webm) get a working codec.
+    // Chrome/Firefox support webm but also accept mp4, so this order is universally safe.
+    const candidates = [
+      'video/mp4;codecs=avc1',        // Safari desktop / iOS
+      'video/mp4',                     // Safari fallback
+      'video/webm;codecs=vp9,opus',   // Chrome/Firefox preferred
+      'video/webm;codecs=vp8,opus',   // Chrome/Firefox fallback
+      'video/webm',                    // Chrome/Firefox generic
+      '',                              // browser default
+    ]
     for (const type of candidates) {
       if (!type) return ''
       if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) return type
@@ -74,8 +83,8 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
       const fd = new FormData()
       fd.append('file', file, file.name)
       const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
-      const data = await res.json() as { url: string }
-      if (!res.ok) { alert(data.url || 'שגיאה בהעלאה'); setPhase('idle'); return }
+      const data = await res.json() as { url: string; error?: string }
+      if (!res.ok) { alert(data.error || 'שגיאה בהעלאה'); setPhase('idle'); return }
       // Estimate duration
       const url = URL.createObjectURL(file)
       const vid = document.createElement('video')
@@ -154,7 +163,12 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
     setPhase('uploading')
     try {
       const fd = new FormData()
-      fd.append('file', blobRef.current, 'video.webm')
+      const blobType = blobRef.current.type || ''
+      const videoExt = blobType.includes('mp4') ? 'mp4'
+        : blobType.includes('quicktime') ? 'mov'
+        : blobType.includes('ogg') ? 'ogv'
+        : 'webm'
+      fd.append('file', blobRef.current, `video.${videoExt}`)
       const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
       const data = await res.json() as { url: string }
       if (!res.ok) { alert('שגיאה בהעלאה'); setPhase('review'); return }
@@ -181,8 +195,7 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*,video/mp4,video/webm,.mp4,.webm,.mov,.avi"
-          capture="user"
+          accept="video/*,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm,.avi"
           className="hidden"
           onChange={handleNativeFile}
         />
@@ -228,7 +241,7 @@ export function VideoRecorder({ onSend, disabled, asMenuItem }: VideoRecorderPro
   if (phase === 'review') {
     return (
       <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl px-3 py-2 border border-purple-200 dark:border-purple-800 min-w-[280px]">
-        <video ref={videoRef} className="h-14 w-20 rounded-lg object-cover shrink-0" playsInline
+        <video ref={videoRef} className="h-14 w-20 rounded-lg object-cover shrink-0" playsInline muted
           onEnded={() => setPlayback(false)} />
         <div className="flex-1">
           <p className="text-xs font-medium text-purple-700 dark:text-purple-300">וידאו {fmt(duration)}</p>

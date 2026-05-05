@@ -99,6 +99,9 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  // Reuse audio object instead of creating new one on every message
+  const notifAudioRef = useRef<HTMLAudioElement | null>(null)
+  const scrollThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Visual Viewport: keep chat above keyboard on mobile ─────────────────
   useEffect(() => {
@@ -180,16 +183,20 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
   const { toggleMute, isMuted } = useMutedUsers()
   const prevMessagesLengthRef = useRef(messages.length)
 
-  // Track scroll position
+  // Track scroll position — throttled to 60fps (16ms) to avoid thrashing
   const handleScroll = useCallback(() => {
-    const container = messagesContainerRef.current
-    if (!container) return
-    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80
-    setIsAtBottom(atBottom)
-    if (atBottom) {
-      setUnreadSinceScroll(0)
-      markMessagesRead()
-    }
+    if (scrollThrottleRef.current) return
+    scrollThrottleRef.current = setTimeout(() => {
+      scrollThrottleRef.current = null
+      const container = messagesContainerRef.current
+      if (!container) return
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80
+      setIsAtBottom(atBottom)
+      if (atBottom) {
+        setUnreadSinceScroll(0)
+        markMessagesRead()
+      }
+    }, 16)
   }, [markMessagesRead])
 
   useEffect(() => {
@@ -199,10 +206,10 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     return () => container.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages — instant (no animation) for auto, smooth for user
   useEffect(() => {
     if (isAtBottom && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      messagesEndRef.current.scrollIntoView({ behavior: 'instant' as ScrollBehavior })
     } else if (messages.length > prevMessagesLengthRef.current && !isAtBottom) {
       const lastMessage = messages[messages.length - 1]
       if (lastMessage && lastMessage.user_id !== currentUser.id) {
@@ -224,7 +231,10 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       const lastMessage = messages[messages.length - 1]
       if (lastMessage && lastMessage.user_id !== currentUser.id) {
         const isMention = lastMessage.content.includes(`@${currentUser.name}`)
-        const audio = new Audio('/notification.mp3')
+        // Reuse cached Audio — avoids creating new object per message
+        if (!notifAudioRef.current) notifAudioRef.current = new Audio('/notification.mp3')
+        const audio = notifAudioRef.current
+        audio.currentTime = 0
         audio.volume = isMention ? Math.min(soundVolume * 2, 1) : soundVolume
         // Browser notification + vibration for @mention (only if permission granted)
         if (isMention && permission === 'granted') {
@@ -298,16 +308,17 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     return () => { document.title = base }
   }, [unreadSinceScroll])
 
-  const jumpToMessage = (messageId: string) => {
+  const jumpToMessage = useCallback((messageId: string) => {
     const element = document.getElementById(`message-${messageId}`)
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
       element.classList.add('highlight-message')
       setTimeout(() => element.classList.remove('highlight-message'), 2000)
     }
-  }
+  }, [])
 
-  const baseItems = [
+  // ── PERF: memoize expensive list computation ────────────────────────────
+  const baseItems = useMemo(() => [
     ...messages.map(m => ({ type: 'message' as const, data: m, time: new Date(m.created_at).getTime() })),
     ...systemMessages
       .filter(s => s.message_type === 'announcement')
@@ -320,35 +331,63 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
       const userMatch = !searchUserFilter || (item.data.user?.name || '').toLowerCase().includes(searchUserFilter.toLowerCase())
       const mentionMatch = !showMentionsOnly || item.data.content.includes(`@${currentUser.name}`)
       return textMatch && userMatch && mentionMatch
-    })
+    }),
+  [messages, systemMessages, searchQuery, searchUserFilter, showMentionsOnly, currentUser.name])
 
-  // Inject date separators between messages from different days
-  const formatDateLabel = (ts: number) => {
-    const d = new Date(ts)
+  // ── PERF: memoize date-separator injection ──────────────────────────────
+  type AllItem = (typeof baseItems)[0] | { type: 'date'; label: string; time: number }
+  const allItemsFull = useMemo<AllItem[]>(() => {
     const today = new Date(); today.setHours(0,0,0,0)
     const yesterday = new Date(today); yesterday.setDate(today.getDate()-1)
-    d.setHours(0,0,0,0)
-    if (d.getTime() === today.getTime()) return 'היום'
-    if (d.getTime() === yesterday.getTime()) return 'אתמול'
-    return new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
-  }
-
-  type AllItem = (typeof baseItems)[0] | { type: 'date'; label: string; time: number }
-  const allItemsFull: AllItem[] = []
-  let lastDate = ''
-  for (const item of baseItems) {
-    const d = new Date(item.time); d.setHours(0,0,0,0)
-    const dateKey = d.toISOString()
-    if (dateKey !== lastDate) {
-      allItemsFull.push({ type: 'date', label: formatDateLabel(item.time), time: item.time - 1 })
-      lastDate = dateKey
+    const formatDateLabel = (ts: number) => {
+      const d = new Date(ts); d.setHours(0,0,0,0)
+      if (d.getTime() === today.getTime()) return 'היום'
+      if (d.getTime() === yesterday.getTime()) return 'אתמול'
+      return new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
     }
-    allItemsFull.push(item)
-  }
+    const result: AllItem[] = []
+    let lastDate = ''
+    for (const item of baseItems) {
+      const d = new Date(item.time); d.setHours(0,0,0,0)
+      const dateKey = d.toISOString()
+      if (dateKey !== lastDate) {
+        result.push({ type: 'date', label: formatDateLabel(item.time), time: item.time - 1 })
+        lastDate = dateKey
+      }
+      result.push(item)
+    }
+    return result
+  }, [baseItems])
 
-  // Lazy loading: show last PAGE_SIZE items, reveal more on scroll to top
+  // ── PERF: precompute thread counts once (O(n) instead of O(n²) per render)
+  const threadCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    const replyMessages = messages.filter(m => m.content.startsWith('↩️ בתגובה ל'))
+    if (!replyMessages.length) return counts
+    for (const orig of messages) {
+      if (!orig.user?.name) continue
+      const origTime = new Date(orig.created_at).getTime()
+      let c = 0
+      for (const r of replyMessages) {
+        if (r.id === orig.id) continue
+        const rTime = new Date(r.created_at).getTime()
+        if (rTime > origTime && rTime - origTime < 4 * 60 * 60 * 1000 && r.content.includes(orig.user.name)) c++
+      }
+      if (c > 0) counts.set(orig.id, c)
+    }
+    return counts
+  }, [messages])
+
+  // ── PERF: parse upvoted IDs once per user change (not per message per render)
+  const upvotedIds = useMemo(() => {
+    if (typeof window === 'undefined') return new Set<string>()
+    try { return new Set<string>(JSON.parse(localStorage.getItem(`upvoted_${currentUser.id}`) || '[]')) }
+    catch { return new Set<string>() }
+  }, [currentUser.id])
+
+  // ── Lazy loading ────────────────────────────────────────────────────────
   const PAGE_SIZE = 80
-  const allItems = allItemsFull.slice(-displayedCount)
+  const allItems = useMemo(() => allItemsFull.slice(-displayedCount), [allItemsFull, displayedCount])
   const hasMore = allItemsFull.length > displayedCount
 
   const handleLoadMore = useCallback(() => {
@@ -360,6 +399,19 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     setDisplayedCount(80)
   }, [searchQuery, searchUserFilter, showMentionsOnly])
 
+  // ── PERF: stable callbacks that don't re-create on every render ─────────
+  const handleUserClick = useCallback((user: ChatUser) => setShowUserProfile(user), [])
+  const handleReply = useCallback((msg: ChatMessage) => {
+    setReplyTo(msg)
+    if (msg.user_id !== currentUser.id && msg.user?.name) setForwardedContent(`@${msg.user.name} `)
+  }, [currentUser.id])
+  const handleForward = useCallback((content: string) => {
+    setForwardedContent(content)
+    scrollToBottom()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const handleViewThread = useCallback((msg: ChatMessage) => setThreadMessage(msg), [])
+
   const handleSendAnnouncement = () => {
     if (announcementText.trim()) {
       sendAnnouncement(announcementText)
@@ -368,12 +420,8 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
     }
   }
 
-  const handleUserClick = (user: ChatUser) => {
-    setShowUserProfile(user)
-  }
-
   // Export chat — opens modal
-  const handleExportChat = () => setShowExport(true)
+  const handleExportChat = useCallback(() => setShowExport(true), [])
 
   // Confetti on first-ever message
   const handleSendMessage = useCallback((content: string) => {
@@ -760,34 +808,22 @@ export function ChatRoom({ currentUser, onLogout }: ChatRoomProps) {
                           onPin={togglePinMessage}
                           onReact={addReaction}
                           onUserClick={handleUserClick}
-                          onReply={(msg) => {
-                            setReplyTo(msg)
-                            // Auto-mention the user being replied to (if not own)
-                            if (msg.user_id !== currentUser.id && msg.user?.name) {
-                              setForwardedContent(`@${msg.user.name} `)
-                            }
-                          }}
+                          onReply={handleReply}
                           onEdit={editMessage}
                           searchQuery={searchQuery || undefined}
                           isBookmarked={isBookmarked(item.data.id)}
                           onToggleBookmark={toggleBookmark}
-                          onForward={(content) => { setForwardedContent(content); scrollToBottom() }}
+                          onForward={handleForward}
                           onBanUser={currentUser.user_type === 'admin' ? banUser : undefined}
                           isGrouped={isGrouped}
-                          onDoubleClick={() => setReplyTo(item.data)}
+                          onDoubleClick={handleReply.bind(null, item.data)}
                           onUpvote={upvoteMessage}
-                          currentUserUpvoted={JSON.parse(typeof window !== 'undefined' ? localStorage.getItem(`upvoted_${currentUser.id}`) || '[]' : '[]').includes(item.data.id)}
+                          currentUserUpvoted={upvotedIds.has(item.data.id)}
                           isMuted={item.data.user_id !== currentUser.id && isMuted(item.data.user_id)}
                           onToggleMute={item.data.user_id !== currentUser.id ? toggleMute : undefined}
                           onDM={item.data.user_id !== currentUser.id ? setDmTarget : undefined}
-                          onViewThread={(msg) => setThreadMessage(msg)}
-                          threadCount={messages.filter(m => {
-                            if (m.id === item.data.id) return false
-                            const rootTime = new Date(item.data.created_at).getTime()
-                            const msgTime = new Date(m.created_at).getTime()
-                            if (msgTime < rootTime || msgTime - rootTime > 4 * 60 * 60 * 1000) return false
-                            return m.content.startsWith('↩️ בתגובה ל') && item.data.user?.name ? m.content.includes(item.data.user.name) : false
-                          }).length}
+                          onViewThread={handleViewThread}
+                          threadCount={threadCounts.get(item.data.id) ?? 0}
                         />
                       </div>
                     )

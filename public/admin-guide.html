@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>מדריך מנהלים — ניתוק בקליק</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
+    }
+
+    /* ── Slide container ── */
+    .slides { width: 100%; }
+
+    .slide {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Backgrounds ── */
+    .slide-hero   { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
+    .slide-blue   { background: linear-gradient(135deg, #0c1445 0%, #1a237e 100%); }
+    .slide-purple { background: linear-gradient(135deg, #1a0533 0%, #4a1572 100%); }
+    .slide-dark   { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+    .slide-green  { background: linear-gradient(135deg, #052e16 0%, #14532d 100%); }
+    .slide-amber  { background: linear-gradient(135deg, #1c1100 0%, #451a03 100%); }
+    .slide-red    { background: linear-gradient(135deg, #1c0a0a 0%, #450a0a 100%); }
+    .slide-end    { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); }
+
+    /* ── Decorative orbs ── */
+    .slide::before {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      opacity: 0.08;
+      top: -100px; left: -100px;
+      background: radial-gradient(circle, #7c3aed, transparent);
+      pointer-events: none;
+    }
+    .slide::after {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      opacity: 0.06;
+      bottom: -80px; right: -80px;
+      background: radial-gradient(circle, #06b6d4, transparent);
+      pointer-events: none;
+    }
+
+    /* ── Slide number ── */
+    .slide-num {
+      position: absolute;
+      top: 20px; left: 24px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 1px;
+    }
+
+    /* ── Content ── */
+    .content { max-width: 800px; width: 100%; position: relative; z-index: 1; }
+
+    .badge {
+      display: inline-block;
+      background: rgba(124,58,237,0.2);
+      border: 1px solid rgba(124,58,237,0.4);
+      color: #a78bfa;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 100px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      font-size: clamp(24px, 4vw, 40px);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: clamp(18px, 3vw, 28px);
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #e2e8f0;
+    }
+
+    .subtitle {
+      font-size: clamp(16px, 2.5vw, 22px);
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Logo ── */
+    .logo {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 28px;
+      box-shadow: 0 0 40px rgba(124,58,237,0.4);
+    }
+
+    /* ── Steps ── */
+    .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 18px 20px;
+      transition: border-color 0.2s;
+    }
+
+    .step:hover { border-color: rgba(124,58,237,0.4); }
+
+    .step-num {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      shrink: 0;
+      flex-shrink: 0;
+    }
+
+    .step-text { flex: 1; }
+    .step-title { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+    .step-desc { font-size: 14px; color: #94a3b8; line-height: 1.5; }
+
+    /* ── URL box ── */
+    .url-box {
+      background: rgba(6,182,212,0.1);
+      border: 2px solid rgba(6,182,212,0.3);
+      border-radius: 14px;
+      padding: 18px 24px;
+      text-align: center;
+      margin: 24px 0;
+      font-family: 'Courier New', monospace;
+      font-size: clamp(14px, 2vw, 20px);
+      color: #67e8f9;
+      letter-spacing: 0.5px;
+      word-break: break-all;
+    }
+
+    /* ── Info cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .card-icon { font-size: 32px; margin-bottom: 10px; }
+    .card-title { font-size: 14px; font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
+    .card-desc { font-size: 13px; color: #64748b; line-height: 1.4; }
+
+    /* ── Warning / tip boxes ── */
+    .warning {
+      background: rgba(245,158,11,0.1);
+      border-right: 4px solid #f59e0b;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .tip {
+      background: rgba(16,185,129,0.1);
+      border-right: 4px solid #10b981;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .danger {
+      background: rgba(239,68,68,0.1);
+      border-right: 4px solid #ef4444;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .box-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .box-text { font-size: 14px; line-height: 1.6; color: #cbd5e1; }
+    .box-text strong { color: #f1f5f9; }
+
+    /* ── Tabs list ── */
+    .tabs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .tab-item {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .tab-icon { font-size: 20px; }
+
+    /* ── Security code box ── */
+    .code-box {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .code-digits {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .digit {
+      width: 42px; height: 52px;
+      background: rgba(124,58,237,0.15);
+      border: 2px solid rgba(124,58,237,0.4);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 900;
+      color: #a78bfa;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      margin: 24px 0;
+    }
+
+    /* ── Center helpers ── */
+    .text-center { text-align: center; }
+    .mt-4 { margin-top: 16px; }
+    .mt-6 { margin-top: 24px; }
+
+    /* ── Print ── */
+    @media print {
+      .slide { page-break-after: always; min-height: 100vh; }
+      body { background: white; color: #1e293b; }
+      .slide-hero, .slide-blue, .slide-purple, .slide-dark,
+      .slide-green, .slide-amber, .slide-red, .slide-end {
+        background: white !important;
+      }
+      h1, h2, h3 { color: #1e293b !important; }
+      .subtitle { color: #475569 !important; }
+      .gradient-text { -webkit-text-fill-color: #4f46e5 !important; color: #4f46e5 !important; }
+    }
+
+    /* ── Navigation dots (optional) ── */
+    .nav {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .nav a {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: block;
+      transition: background 0.2s;
+      text-decoration: none;
+    }
+    .nav a:hover { background: rgba(255,255,255,0.6); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 1 — Cover -->
+<section class="slide slide-hero" id="s1">
+  <div class="slide-num">01 / 08</div>
+  <div class="content text-center">
+    <div class="logo">🛡️</div>
+    <div class="badge">מדריך מנהלים</div>
+    <h1>דאשבורד ניהול<br><span class="gradient-text">ניתוק בקליק</span></h1>
+    <p class="subtitle">
+      מדריך שלב-אחר-שלב לכניסה, אבטחה ושימוש<br>
+      בממשק הניהול של הקהילה
+    </p>
+    <div class="divider"></div>
+    <p style="font-size:13px; color:#475569;">סודי — למנהלים מורשים בלבד</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 2 — URL -->
+<section class="slide slide-blue" id="s2">
+  <div class="slide-num">02 / 08</div>
+  <div class="content">
+    <div class="badge">שלב 1</div>
+    <h2>כניסה לדאשבורד</h2>
+    <p class="subtitle">פתחו דפדפן והיכנסו לכתובת הבאה:</p>
+
+    <div class="url-box">
+      https://nituk-beclick-chat.vercel.app/admin
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <div class="step-title">פתחו Chrome / Safari / Edge</div>
+          <div class="step-desc">כל דפדפן מודרני עובד. מומלץ Chrome לחוויה מיטבית.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <div class="step-title">הקלידו את הכתובת בשורת הכתובת</div>
+          <div class="step-desc">העתיקו את הכתובת שלמעלה והדביקו בדפדפן.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <div class="step-title">לחצו Enter</div>
+          <div class="step-desc">תועברו לדף הכניסה של ממשק הניהול.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip">
+      <div class="box-icon">💡</div>
+      <div class="box-text"><strong>טיפ:</strong> הוסיפו את הדף לסימניות לגישה מהירה בעתיד.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 3 — Google Login -->
+<section class="slide slide-dark" id="s3">
+  <div class="slide-num">03 / 08</div>
+  <div class="content">
+    <div class="badge">שלב 2</div>
+    <h2>כניסה עם Google</h2>
+    <p class="subtitle">הדף מציג כפתור כניסה אחד — Google בלבד.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <div class="step-title">לחצו "כניסה עם Google"</div>
+          <div class="step-desc">תיפתח חלון Google לבחירת חשבון.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <div class="step-title">בחרו את חשבון ה-Gmail המורשה שלכם</div>
+          <div class="step-desc">חשוב: רק 5 כתובות אימייל ספציפיות מורשות להיכנס. כתובות אחרות יידחו.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <div class="step-title">אשרו את הכניסה ב-Google</div>
+          <div class="step-desc">תועברו חזרה לאתר עם שלב האבטחה הנוסף.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="danger">
+      <div class="box-icon">🚫</div>
+      <div class="box-text"><strong>חשוב:</strong> השתמשו אך ורק בכתובת Gmail שנמסרה לכם על ידי מנהל ראשי. כניסה עם חשבון אחר תידחה.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 4 — MFA -->
+<section class="slide slide-purple" id="s4">
+  <div class="slide-num">04 / 08</div>
+  <div class="content">
+    <div class="badge">שלב 3 — אבטחה</div>
+    <h2>אימות דו-שלבי (2FA)</h2>
+    <p class="subtitle">אחרי כניסת Google תתבקשו להזין קוד מ-Google Authenticator.</p>
+
+    <div class="code-box">
+      <p style="font-size:13px; color:#94a3b8; margin-bottom:8px;">קוד 6 ספרות שמתחלף כל 30 שניות</p>
+      <div class="code-digits">
+        <div class="digit">•</div>
+        <div class="digit">•</div>
+        <div class="digit">•</div>
+        <div class="digit">•</div>
+        <div class="digit">•</div>
+        <div class="digit">•</div>
+      </div>
+      <p style="font-size:12px; color:#64748b;">פתחו Google Authenticator בטלפון → בחרו "ניתוק בקליק Admin"</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <h3 style="margin-bottom:12px;">הגדרה ראשונה של Google Authenticator</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <div class="step-title">הורידו Google Authenticator</div>
+          <div class="step-desc">App Store (iOS) או Google Play (Android) — חינמי לחלוטין.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <div class="step-title">לחצו "+" ← "הזן מפתח הגדרה"</div>
+          <div class="step-desc">שם חשבון: <strong>ניתוק בקליק Admin</strong> | סוג: מבוסס-זמן</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <div class="step-title">הזינו את המפתח שקיבלתם</div>
+          <div class="step-desc">המפתח הסודי נמסר בנפרד על ידי המנהל הראשי — שמרו אותו בסוד.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 5 — Dashboard Tabs -->
+<section class="slide slide-dark" id="s5">
+  <div class="slide-num">05 / 08</div>
+  <div class="content">
+    <div class="badge">הדאשבורד</div>
+    <h2>לשוניות הניהול</h2>
+    <p class="subtitle">לאחר הכניסה תמצאו 9 לשוניות בחלק העליון:</p>
+
+    <div class="tabs-grid">
+      <div class="tab-item"><div class="tab-icon">📊</div> סקירה כללית</div>
+      <div class="tab-item"><div class="tab-icon">👥</div> משתמשים</div>
+      <div class="tab-item"><div class="tab-icon">📝</div> הרשמות</div>
+      <div class="tab-item"><div class="tab-icon">💬</div> הודעות</div>
+      <div class="tab-item"><div class="tab-icon">🏆</div> לידרבורד</div>
+      <div class="tab-item"><div class="tab-icon">🚩</div> מודרציה</div>
+      <div class="tab-item"><div class="tab-icon">📧</div> תקשורת</div>
+      <div class="tab-item"><div class="tab-icon">💾</div> אחסון</div>
+      <div class="tab-item"><div class="tab-icon">⚙️</div> הגדרות</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <div class="card-title">סקירה כללית</div>
+        <div class="card-desc">נתוני זמן-אמת: משתמשים מחוברים, הודעות היום, הרשמות</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">👥</div>
+        <div class="card-title">משתמשים</div>
+        <div class="card-desc">ניהול משתמשים, שינוי הרשאות, חסימה, הענקת כתרים</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🚩</div>
+        <div class="card-title">מודרציה</div>
+        <div class="card-desc">דיווחים על הודעות, חסימת תוכן, ניהול עבירות</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 6 — Key Actions -->
+<section class="slide slide-green" id="s6">
+  <div class="slide-num">06 / 08</div>
+  <div class="content">
+    <div class="badge">פעולות עיקריות</div>
+    <h2>מה אפשר לעשות?</h2>
+    <p class="subtitle">הפעולות הנפוצות ביותר בדאשבורד:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">🔧</div>
+        <div class="step-text">
+          <div class="step-title">שינוי סוג משתמש</div>
+          <div class="step-desc">אורח → מנוי → ניוזלטר | לחצו על המשתמש ← "שנה סוג" ← בחרו מהרשימה.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🚫</div>
+        <div class="step-text">
+          <div class="step-title">חסימת משתמש</div>
+          <div class="step-desc">כנסו ל"משתמשים" ← מצאו את המשתמש ← לחצו "חסום". המשתמש לא יוכל לשלוח הודעות.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">📢</div>
+        <div class="step-text">
+          <div class="step-title">שליחת הודעה לכולם</div>
+          <div class="step-desc">לשונית "תקשורת" ← "שלח הודעה" ← בחרו קהל יעד ← כתבו ← שלחו.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">📌</div>
+        <div class="step-text">
+          <div class="step-title">הצמדת הודעה בצ'אט</div>
+          <div class="step-desc">לשונית "הודעות" ← מצאו הודעה ← לחצו 📌. תוצג לכולם בראש הצ'אט.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">⚙️</div>
+        <div class="step-text">
+          <div class="step-title">מצב איטי / מילים אסורות</div>
+          <div class="step-desc">לשונית "הגדרות" ← הפעילו "מצב איטי" להגבלת שליחה, או הוסיפו מילים אסורות.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 7 — Security Rules -->
+<section class="slide slide-red" id="s7">
+  <div class="slide-num">07 / 08</div>
+  <div class="content">
+    <div class="badge">כללי אבטחה</div>
+    <h2>חשוב לשמור! 🔒</h2>
+    <p class="subtitle">כללי אבטחה חובה לכל מנהל:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">🔑</div>
+        <div class="step-text">
+          <div class="step-title">אל תשתפו את מפתח ה-Authenticator</div>
+          <div class="step-desc">המפתח הסודי של Google Authenticator — לעיניים שלכם בלבד. לא בוואטסאפ, לא במייל.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🚪</div>
+        <div class="step-text">
+          <div class="step-title">התנתקו בסיום</div>
+          <div class="step-desc">לחצו על כפתור ה-logout בפינה הימנית עליונה. אל תסגרו רק את הטאב.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">💻</div>
+        <div class="step-text">
+          <div class="step-title">אל תיכנסו ממחשב ציבורי</div>
+          <div class="step-desc">השתמשו רק ממכשירים אישיים ומאובטחים. לא מקפה, ספרייה, או מחשב משותף.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">📱</div>
+        <div class="step-text">
+          <div class="step-title">שמרו על הטלפון עם האותנטיקטור</div>
+          <div class="step-desc">אם אבדתם גישה ל-Google Authenticator — פנו מיד למנהל הראשי.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="warning">
+      <div class="box-icon">⚠️</div>
+      <div class="box-text"><strong>שימו לב:</strong> כל פעולה בדאשבורד מתועדת ביומן ביקורת. פעולות לא מורשות יגרמו להסרת הרשאות.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ SLIDE 8 — End -->
+<section class="slide slide-end" id="s8">
+  <div class="slide-num">08 / 08</div>
+  <div class="content text-center">
+    <div class="logo">✅</div>
+    <div class="badge">סיכום</div>
+    <h2 class="gradient-text">מוכנים לנהל!</h2>
+    <p class="subtitle">
+      עקבו אחרי 3 השלבים ותהיו בדאשבורד בתוך דקה אחת
+    </p>
+
+    <div class="cards mt-6">
+      <div class="card">
+        <div class="card-icon">1️⃣</div>
+        <div class="card-title">היכנסו לכתובת</div>
+        <div class="card-desc">/admin.vercel.app</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">2️⃣</div>
+        <div class="card-title">כניסה עם Gmail</div>
+        <div class="card-desc">הכתובת המורשית שלכם</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">3️⃣</div>
+        <div class="card-title">קוד Authenticator</div>
+        <div class="card-desc">6 ספרות מהאפליקציה</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="font-size:14px; color:#475569; line-height:1.7;">
+      שאלות? פנו למנהל הראשי<br>
+      <strong style="color:#7c3aed;">arielgabayyy@gmail.com</strong>
+    </p>
+
+    <div style="margin-top:28px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px;">
+      <p style="font-size:11px; color:#334155; letter-spacing:1px;">NITUK BECLICK — ADMIN GUIDE © 2025 — CONFIDENTIAL</p>
+    </div>
+  </div>
+</section>
+
+<!-- Navigation dots -->
+<nav class="nav">
+  <a href="#s1"></a>
+  <a href="#s2"></a>
+  <a href="#s3"></a>
+  <a href="#s4"></a>
+  <a href="#s5"></a>
+  <a href="#s6"></a>
+  <a href="#s7"></a>
+  <a href="#s8"></a>
+</nav>
+
+</body>
+</html>

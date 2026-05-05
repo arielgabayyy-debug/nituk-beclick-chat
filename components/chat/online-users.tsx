@@ -165,7 +165,7 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
                     }}
                   >
                     {user.avatar_url ? (
-                      <img src={user.avatar_url} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                      <img src={user.avatar_url} alt={user.name} className="w-full h-full rounded-full object-cover" loading="lazy" decoding="async" />
                     ) : getInitials(user.name)}
                   </div>
                   <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900" />

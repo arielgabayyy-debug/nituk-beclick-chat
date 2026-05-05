@@ -55,10 +55,11 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     setUploading(true)
     try {
       const type = audioBlob.type || ''
-      const ext = type.includes('mp4') || type.includes('m4a') ? 'm4a'
+      const ext = type.includes('mp4') || type.includes('m4a') || type.includes('aac') ? 'm4a'
         : type.includes('ogg') ? 'ogg'
         : type.includes('webm') ? 'webm'
-        : 'audio'
+        : type.includes('wav') ? 'wav'
+        : 'm4a'  // safe default for iOS (records as audio/mp4 / audio/m4a)
       const fd = new FormData()
       fd.append('file', audioBlob, `voice.${ext}`)
       const res = await fetch('/api/upload-audio', { method: 'POST', body: fd })
