@@ -154,7 +154,7 @@ export default function ChatApp() {
     try {
       const { data: rows, error: fetchError } = await supabase
         .from('chat_users')
-        .select('id, name, email, avatar_color, user_type, is_online, last_seen, points, weekly_points, is_user_of_week, helpful_count, created_at')
+        .select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at')
         .eq('email', email)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -271,7 +271,7 @@ export default function ChatApp() {
 
           // Final fallback — check if user somehow got created
           const { data: refetch } = await supabase
-            .from('chat_users').select('id, name, email, avatar_color, user_type, is_online, last_seen, points, weekly_points, is_user_of_week, helpful_count, created_at').eq('email', email).limit(1)
+            .from('chat_users').select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at').eq('email', email).limit(1)
           const found = refetch?.[0]
           if (found) {
             localStorage.setItem('chat_user_id', found.id)
