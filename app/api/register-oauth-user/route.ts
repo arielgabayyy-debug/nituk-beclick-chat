@@ -148,23 +148,11 @@ export async function POST(request: Request) {
           })
         } catch { /* non-critical */ }
 
+        // NOTE: sql_fix intentionally not returned to client — contains internal infra details.
+        // Check server logs for the fix instructions.
         return NextResponse.json({
           error: 'trigger_broken',
-          message: 'Database trigger is broken. Please apply fix_trigger_safe.sql in Supabase SQL Editor.',
-          sql_fix: `
-CREATE OR REPLACE FUNCTION notify_admin_new_registration()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
-AS $$ BEGIN
-  IF NEW.user_type = 'guest' THEN RETURN NEW; END IF;
-  BEGIN INSERT INTO admin_notifications (type, user_name, user_email, user_type)
-    VALUES ('new_registration', NEW.name, NEW.email, NEW.user_type);
-  EXCEPTION WHEN OTHERS THEN NULL; END;
-  BEGIN PERFORM net.http_post(
-    url := 'https://nituk-beclick-chat.vercel.app/api/admin/notify-registration',
-    headers := '{"Content-Type":"application/json","x-trigger-source":"supabase"}'::jsonb,
-    body := json_build_object('name',NEW.name,'email',COALESCE(NEW.email,''),'userType',NEW.user_type)::text);
-  EXCEPTION WHEN OTHERS THEN NULL; END;
-  RETURN NEW; END; $$;`,
+          message: 'Registration temporarily unavailable. Please try again later.',
         }, { status: 503 })
       }
 

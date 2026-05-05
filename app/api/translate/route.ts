@@ -1,6 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export const runtime = 'edge'
+
+// Per-IP rate limit: 20 translations / 60s (edge-compatible Map)
+const translateRateMap = new Map<string, { count: number; reset: number }>()
+function checkTranslateRate(ip: string): boolean {
+  const now = Date.now()
+  const entry = translateRateMap.get(ip)
+  if (!entry || now > entry.reset) { translateRateMap.set(ip, { count: 1, reset: now + 60_000 }); return true }
+  if (entry.count >= 20) return false
+  entry.count++; return true
+}
 
 // Language codes for MyMemory API
 const LANG_MAP: Record<string, string> = {
@@ -27,7 +37,13 @@ function detectLang(text: string): string {
   return 'en'
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Rate limit
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (!checkTranslateRate(ip)) {
+    return NextResponse.json({ error: 'יותר מדי בקשות תרגום — נסה שוב בעוד דקה' }, { status: 429 })
+  }
+
   try {
     const { text, targetLang, sourceLang } = await request.json() as {
       text: string
@@ -52,7 +68,9 @@ export async function POST(request: Request) {
 
     // ── Primary: MyMemory API (free, reliable, no key needed) ─────────────
     try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${fromCode}|${toCode}&de=nitukbeclick@gmail.com`
+      const myMemoryEmail = process.env.MYMEMORY_EMAIL || ''
+      const deParam = myMemoryEmail ? `&de=${encodeURIComponent(myMemoryEmail)}` : ''
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${fromCode}|${toCode}${deParam}`
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
 
       if (res.ok) {

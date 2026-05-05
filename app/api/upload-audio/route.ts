@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       { url: publicUrl, path },
       {
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || 'https://nituk-beclick-chat.vercel.app',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
         },
       }
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
 export async function OPTIONS() {
   return new Response(null, {
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || 'https://nituk-beclick-chat.vercel.app',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },

@@ -763,7 +763,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
         )}>
           {/* GIF */}
           {message.has_gif && message.gif_url && (
-            <img src={message.gif_url} alt="gif" className="rounded-xl max-w-[240px] mb-2" />
+            <img src={message.gif_url} alt="gif" loading="lazy" decoding="async" className="rounded-xl max-w-[240px] mb-2" />
           )}
 
           {isEditing ? (
@@ -1269,11 +1269,18 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
       <ReportDialog
         messageContent={message.content}
         userName={user?.name || 'משתמש'}
-        onSubmit={(reason) => {
-          // Store report in localStorage for now; admin can view later
-          const reports = JSON.parse(localStorage.getItem('reported_messages') || '[]')
-          reports.push({ messageId: message.id, reason, time: new Date().toISOString() })
-          localStorage.setItem('reported_messages', JSON.stringify(reports.slice(-50)))
+        onSubmit={async (reason) => {
+          // Send report to server so admins can review it
+          try {
+            const reporterUserId = typeof window !== 'undefined' ? localStorage.getItem('chat_user_id') : null
+            await fetch('/api/report-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messageId: message.id, reason, reporterUserId }),
+            })
+          } catch {
+            // Non-critical — report submission failure is silent to the user
+          }
         }}
         onClose={() => setShowReportDialog(false)}
       />

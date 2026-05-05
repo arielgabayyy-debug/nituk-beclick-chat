@@ -76,7 +76,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { url: publicUrl },
-      { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS' } }
+      { headers: {
+        'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || 'https://nituk-beclick-chat.vercel.app',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      } }
     )
   } catch (err) {
     console.error('upload-image error:', err)
@@ -87,7 +90,7 @@ export async function POST(request: NextRequest) {
 export async function OPTIONS() {
   return new Response(null, {
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || 'https://nituk-beclick-chat.vercel.app',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },

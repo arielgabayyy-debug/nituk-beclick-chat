@@ -524,7 +524,8 @@ export function useChat(currentUser: ChatUser | null) {
           if (!userAlreadyKnown) {
             const { data: userData } = await supabase
               .from('chat_users')
-              .select('id, name, avatar_url, avatar_color, user_type, is_online, created_at, level')
+              // avatar_url intentionally excluded — potentially 200KB+ base64
+              .select('id, name, avatar_color, user_type, is_online, created_at, level')
               .eq('id', newMsg.user_id as string)
               .single()
             if (userData) {
