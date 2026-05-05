@@ -60,7 +60,9 @@ export function VoiceRecorder({ onSend, disabled }: VoiceRecorderProps) {
     setUploading(true)
     try {
       const type = audioBlob.type || ''
-      const ext = type.includes('mp4') || type.includes('m4a') || type.includes('aac') ? 'm4a'
+      const ext = type.includes('mp4') || type.includes('m4a') ? 'm4a'
+        : type.includes('aac') ? 'aac'
+        : type.includes('mpeg') || type.includes('mp3') ? 'mp3'
         : type.includes('ogg') ? 'ogg'
         : type.includes('webm') ? 'webm'
         : type.includes('wav') ? 'wav'

@@ -14,7 +14,7 @@ function checkUploadRate(ip: string): boolean {
 
 // Allowed MIME types for audio and video uploads
 const ALLOWED_AUDIO = new Set([
-  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg',
+  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/mp3',
   'audio/aac', 'audio/wav', 'audio/x-m4a', 'audio/m4a', 'audio/x-wav',
 ])
 const ALLOWED_VIDEO = new Set([
@@ -38,7 +38,7 @@ function deriveExt(file: File): string {
 // Full set of MIME types the bucket must allow (covers iOS + Android + desktop)
 const BUCKET_MIME_TYPES = [
   // Audio — desktop (webm/ogg) + iOS (mp4/m4a/aac) + generic
-  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg',
+  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/mp3',
   'audio/aac', 'audio/wav', 'audio/x-wav', 'audio/x-m4a', 'audio/m4a',
   // Video — desktop (webm) + iOS (quicktime/mp4) + Android + generic
   'video/webm', 'video/mp4', 'video/quicktime', 'video/x-m4v',

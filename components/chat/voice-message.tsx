@@ -47,10 +47,17 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
       return
     }
 
-    // If not yet loaded, show spinner
-    if (loadState === 'idle' || loadState === 'error') {
+    // Only call load() when recovering from an error (resets the element).
+    // On first play (idle), preload="metadata" has already buffered enough data,
+    // so calling load() would reset the buffer and guarantee a play() rejection on iOS.
+    if (loadState === 'error') {
       setLoadState('loading')
       audio.load()
+    } else if (loadState === 'idle') {
+      setLoadState('loading')
+      // Don't call audio.load() — preload="metadata" already ran it automatically.
+      // Re-applying load() here resets the internal buffer and causes NotSupportedError
+      // on iOS Safari when play() is called in the same microtask.
     }
 
     try {
@@ -152,7 +159,7 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
       <audio
         ref={audioRef}
         src={activeSrc}
-        preload="none"
+        preload="metadata"
         playsInline
         onTimeUpdate={() => {
           const audio = audioRef.current

@@ -103,7 +103,7 @@ const nextConfig = {
       },
       // Public static files: 7-day cache
       {
-        source: '/(.*)\\.(ico|png|jpg|jpeg|webp|avif|svg|woff2|woff|mp3)',
+        source: '/(.*)\\.(ico|png|jpg|jpeg|webp|avif|svg|woff2|woff|mp3|m4a|mp4|webm|ogg|wav|mov|aac)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' },
         ],

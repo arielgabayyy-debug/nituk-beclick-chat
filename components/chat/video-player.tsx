@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef } from 'react'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react'
 
 interface VideoPlayerProps {
   url: string
@@ -26,6 +26,7 @@ const fmt = (s: number) =>
 export function VideoPlayer({ url, duration, isOwn }: VideoPlayerProps) {
   const [activeSrc, setActiveSrc] = useState(url)
   const [hasError, setHasError]   = useState(false)
+  const [buffering, setBuffering]  = useState(false)
   const retried = useRef(false)
 
   const handleError = useCallback(async () => {
@@ -78,7 +79,16 @@ export function VideoPlayer({ url, duration, isOwn }: VideoPlayerProps) {
         className="w-full max-h-[220px] object-cover bg-black"
         style={{ maxWidth: 280 }}
         onError={handleError}
+        onWaiting={() => setBuffering(true)}
+        onCanPlay={() => setBuffering(false)}
+        onPlaying={() => setBuffering(false)}
       />
+      {/* Buffering spinner — shown when the browser is stalled waiting for data */}
+      {buffering && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+          <Loader2 className="w-8 h-8 text-white animate-spin" />
+        </div>
+      )}
       <div
         className={`absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded-full pointer-events-none ${
           isOwn ? 'bg-black/40 text-white' : 'bg-white/80 text-gray-700'
