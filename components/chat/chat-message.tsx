@@ -15,6 +15,7 @@ import { YoutubeEmbed, isYoutubeUrl } from './youtube-embed'
 import { ReportDialog } from './report-dialog'
 import { MessageTranslator } from './message-translator'
 import { CopyAsImage } from './copy-as-image'
+import { AvatarActionsSheet } from './avatar-actions'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -495,6 +496,8 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [showTranslator, setShowTranslator] = useState(false)
   const [showDM, setShowDM] = useState(false)
+  const [showAvatarActions, setShowAvatarActions] = useState(false)
+  const avatarLongPressRef = useRef<NodeJS.Timeout | null>(null)
   const [manualTag, setManualTag] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     return localStorage.getItem(`msg_tag_${message.id}`)
@@ -682,8 +685,28 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
         <button
           onClick={handleAvatarClick}
           onMouseLeave={handleAvatarMouseLeave}
+          onTouchStart={(e) => {
+            // Avatar-specific long-press: open AvatarActionsSheet (not message context menu)
+            e.stopPropagation()
+            if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+            if (avatarLongPressRef.current) clearTimeout(avatarLongPressRef.current)
+            if (user && !isOwn && currentUser) {
+              avatarLongPressRef.current = setTimeout(() => {
+                if ('vibrate' in navigator) navigator.vibrate(40)
+                setShowAvatarActions(true)
+              }, 500)
+            }
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation()
+            if (avatarLongPressRef.current) clearTimeout(avatarLongPressRef.current)
+          }}
+          onTouchMove={(e) => {
+            e.stopPropagation()
+            if (avatarLongPressRef.current) clearTimeout(avatarLongPressRef.current)
+          }}
           className={cn(
-            "w-8 h-8 rounded-full transition-transform hover:scale-105 cursor-pointer overflow-hidden",
+            "w-8 h-8 rounded-full transition-transform hover:scale-105 cursor-pointer overflow-hidden touch-manipulation",
             user?.is_online && "avatar-ring"
           )}
           style={{
@@ -703,7 +726,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
         {user?.is_online && (
           <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 border border-background rounded-full" />
         )}
-        {/* Hover card */}
+        {/* Hover card — desktop only */}
         {showHoverCard && user && (
           <UserHoverCard
             user={user}
@@ -1270,7 +1293,6 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
         messageContent={message.content}
         userName={user?.name || 'משתמש'}
         onSubmit={async (reason) => {
-          // Send report to server so admins can review it
           try {
             const reporterUserId = typeof window !== 'undefined' ? localStorage.getItem('chat_user_id') : null
             await fetch('/api/report-message', {
@@ -1278,11 +1300,19 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ messageId: message.id, reason, reporterUserId }),
             })
-          } catch {
-            // Non-critical — report submission failure is silent to the user
-          }
+          } catch { /* non-critical */ }
         }}
         onClose={() => setShowReportDialog(false)}
+      />
+    )}
+    {/* Avatar long-press → Follow / DM / Profile sheet */}
+    {showAvatarActions && user && currentUser && !isOwn && (
+      <AvatarActionsSheet
+        user={user}
+        currentUser={currentUser}
+        onViewProfile={() => { onUserClick?.(user); setShowAvatarActions(false) }}
+        onDM={() => { onDM?.(user); setShowAvatarActions(false) }}
+        onClose={() => setShowAvatarActions(false)}
       />
     )}
   </>

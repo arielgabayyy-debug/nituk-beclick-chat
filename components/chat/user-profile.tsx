@@ -1,16 +1,17 @@
 "use client"
 
 import { useState, useRef } from 'react'
-import { Star, Trophy, MessageSquare, Heart, TrendingUp, Award, Zap, Camera, Loader2 } from 'lucide-react'
+import { Star, Trophy, MessageSquare, Heart, TrendingUp, Award, Zap, Camera, Loader2, UserPlus, UserCheck, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChatUser, UserAchievement, ChatMessage } from '@/lib/chat-types'
-import { 
-  LEVEL_NAMES, ACHIEVEMENT_INFO, getPointsToNextLevel, 
-  formatNumber, USER_TYPE_LABELS 
+import {
+  LEVEL_NAMES, ACHIEVEMENT_INFO, getPointsToNextLevel,
+  formatNumber, USER_TYPE_LABELS
 } from '@/lib/chat-types'
 import { UserBadge } from './user-badge'
 import { StreakCalendar } from './streak-calendar'
 import { DMButton } from './direct-messages'
+import { useFollow } from '@/hooks/use-follow'
 
 interface UserProfileProps {
   user: ChatUser
@@ -27,6 +28,10 @@ export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, 
   const levelProgress = getPointsToNextLevel(user.points, user.level)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Follow state (only relevant when viewing someone else's profile)
+  const { isFollowing, toggleFollow, loading: followLoading, stats: followStats, canFollow } =
+    useFollow(currentUser?.id, user.id)
 
   const canUploadAvatar = isCurrentUser && (user.user_type === 'subscriber' || user.user_type === 'admin')
 
@@ -170,6 +175,39 @@ export function UserProfile({ user, achievements, rank, onClose, isCurrentUser, 
           <p className="text-xs text-muted-foreground mt-1.5 text-center">
             {levelProgress.current} / {levelProgress.needed} לרמה הבאה
           </p>
+        </div>
+
+        {/* Follow stats + Follow button */}
+        <div className="flex items-center gap-3">
+          <div className="flex gap-4 flex-1">
+            <div className="text-center">
+              <div className="font-bold text-foreground text-lg leading-tight">{formatNumber(followStats.followers)}</div>
+              <div className="text-xs text-muted-foreground">עוקבים</div>
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-foreground text-lg leading-tight">{formatNumber(followStats.following)}</div>
+              <div className="text-xs text-muted-foreground">עוקב אחרי</div>
+            </div>
+          </div>
+          {canFollow && (
+            <button
+              onClick={toggleFollow}
+              disabled={followLoading}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
+                isFollowing
+                  ? "bg-muted text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              {followLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : isFollowing
+                  ? <><UserCheck className="w-4 h-4" /> עוקב</>
+                  : <><UserPlus  className="w-4 h-4" /> עקוב</>
+              }
+            </button>
+          )}
         </div>
 
         {/* Stats */}
