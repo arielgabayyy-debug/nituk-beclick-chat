@@ -60,7 +60,7 @@ export function AvatarActionsSheet({
     >
       <div
         ref={sheetRef}
-        className="bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border/30
+        className="relative bg-card w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border/30
                    animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-250 overflow-hidden"
         onTouchStart={handleSheetTouchStart}
         onTouchEnd={handleSheetTouchEnd}

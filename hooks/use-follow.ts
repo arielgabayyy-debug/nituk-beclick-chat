@@ -51,24 +51,29 @@ export function useFollow(currentUserId: string | undefined, targetUserId: strin
   const toggleFollow = useCallback(async () => {
     if (!currentUserId || currentUserId === targetUserId || loading) return
     setLoading(true)
+    const wasFollowing = isFollowing
+    // Optimistic update
+    setIsFollowing(!wasFollowing)
+    setStats(s => ({ ...s, followers: wasFollowing ? Math.max(0, s.followers - 1) : s.followers + 1 }))
     try {
-      if (isFollowing) {
-        await supabase
+      if (wasFollowing) {
+        const { error } = await supabase
           .from('user_follows')
           .delete()
           .eq('follower_id', currentUserId)
           .eq('following_id', targetUserId)
-        setIsFollowing(false)
-        setStats(s => ({ ...s, followers: Math.max(0, s.followers - 1) }))
+        if (error) throw error
       } else {
-        await supabase
+        const { error } = await supabase
           .from('user_follows')
           .insert({ follower_id: currentUserId, following_id: targetUserId })
-        setIsFollowing(true)
-        setStats(s => ({ ...s, followers: s.followers + 1 }))
+        if (error) throw error
       }
     } catch (err) {
       console.error('[useFollow] toggle error:', err)
+      // Rollback optimistic update on failure
+      setIsFollowing(wasFollowing)
+      setStats(s => ({ ...s, followers: wasFollowing ? s.followers + 1 : Math.max(0, s.followers - 1) }))
     } finally {
       setLoading(false)
     }

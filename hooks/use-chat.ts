@@ -247,9 +247,9 @@ export function useChat(currentUser: ChatUser | null) {
       return
     }
 
-    // Client-side duplicate guard (same message within 5s)
+    // Client-side duplicate guard (same message within 5s) — skip for voice/video
     const lastMsg = messages[messages.length - 1]
-    if (lastMsg?.user_id === currentUser.id && lastMsg?.content === processedContent) {
+    if (!isMediaMessage && lastMsg?.user_id === currentUser.id && lastMsg?.content === processedContent) {
       setError('כבר שלחת הודעה זהה לאחרונה')
       setTimeout(() => setError(null), 3000)
       return

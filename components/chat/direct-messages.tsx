@@ -64,6 +64,20 @@ export function DirectMessages({ currentUser, targetUser, onClose }: DirectMessa
         setMessages(data as DM[])
         setLoading(false)
 
+        // Mark unread messages as read (messages sent to currentUser from targetUser)
+        const unreadIds = (data as DM[])
+          .filter(m => m.to_user_id === currentUser.id && m.from_user_id === targetUser.id && !m.read)
+          .map(m => m.id)
+        if (unreadIds.length > 0) {
+          supabase
+            .from('direct_messages')
+            .update({ read: true })
+            .in('id', unreadIds)
+            .then(() => {
+              setMessages(prev => prev.map(m => unreadIds.includes(m.id) ? { ...m, read: true } : m))
+            })
+        }
+
         // Subscribe to realtime
         const ch = supabase
           .channel(`dms-${key}`)
@@ -76,6 +90,12 @@ export function DirectMessages({ currentUser, targetUser, onClose }: DirectMessa
             const newMsg = payload.new as DM
             if (newMsg.from_user_id === targetUser.id) {
               setMessages(prev => [...prev, newMsg])
+              // Mark newly received message as read immediately (window is open)
+              supabase
+                .from('direct_messages')
+                .update({ read: true })
+                .eq('id', newMsg.id)
+                .then(() => {})
             }
           })
           .subscribe()

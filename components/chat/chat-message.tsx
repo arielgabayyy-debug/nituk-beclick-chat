@@ -556,7 +556,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
   }
   const COLLAPSE_THRESHOLD = 300 // chars
-  const isLong = !message.content.startsWith('[voice:') && message.content.length > COLLAPSE_THRESHOLD
+  const isLong = !message.content.startsWith('[voice:') && !message.content.startsWith('[video:') && message.content.length > COLLAPSE_THRESHOLD
   const displayContent = isLong && !expanded ? message.content.slice(0, COLLAPSE_THRESHOLD) + '…' : message.content
 
   const isOwn = message.user_id === currentUser?.id
