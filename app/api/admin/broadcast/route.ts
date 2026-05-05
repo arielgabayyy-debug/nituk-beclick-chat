@@ -5,21 +5,45 @@ export const runtime = 'edge'
 
 const ADMIN_EMAILS = ['arielgabayyy@gmail.com', 'nitukbeclick@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
+const MAX_SUBJECT_LENGTH = 200
+const MAX_MESSAGE_LENGTH = 5000
+const VALID_TARGET_TYPES = new Set(['all', 'subscribers', 'newsletter'])
+
 export async function POST(request: Request) {
-  const { subject, message, targetType, senderEmail } = await request.json() as {
-    subject: string
-    message: string
-    targetType: 'all' | 'subscribers' | 'newsletter'
-    senderEmail: string
+  let body: unknown
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 }) }
+  const { subject, message, targetType, senderEmail } = body as {
+    subject?: unknown
+    message?: unknown
+    targetType?: unknown
+    senderEmail?: unknown
   }
 
-  // ── Server-side admin verification (not just client email claim) ──────
-  // Verify via Supabase Auth — check the actual session, not just email
-  if (!senderEmail || !ADMIN_EMAILS.includes(senderEmail)) {
+  // ── Input validation ──────────────────────────────────────────────────
+  if (!senderEmail || typeof senderEmail !== 'string') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
+  if (!ADMIN_EMAILS.includes(senderEmail)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+  if (!subject || typeof subject !== 'string' || !subject.trim()) {
+    return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 })
+  }
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 })
+  }
+  if (subject.length > MAX_SUBJECT_LENGTH || message.length > MAX_MESSAGE_LENGTH) {
+    return NextResponse.json({ error: 'Content too long' }, { status: 400 })
+  }
+  if (!targetType || typeof targetType !== 'string' || !VALID_TARGET_TYPES.has(targetType)) {
+    return NextResponse.json({ error: 'Invalid target type' }, { status: 400 })
+  }
 
-  // Double-check: email must be in the admin list in DB too
+  const safeSubject = subject.trim()
+  const safeMessage = message.trim()
+  const safeTarget = targetType as 'all' | 'subscribers' | 'newsletter'
+
+  // ── Server-side admin verification — DB check ─────────────────────────
   const supabaseCheck = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -34,21 +58,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized — not an admin in DB' }, { status: 403 })
   }
 
-  // Input validation
-  if (!subject?.trim() || !message?.trim()) {
-    return NextResponse.json({ error: 'Subject and message are required' }, { status: 400 })
-  }
-  if (subject.length > 200 || message.length > 5000) {
-    return NextResponse.json({ error: 'Content too long' }, { status: 400 })
-  }
-
   const supabase = supabaseCheck
 
   // Get target users
   let query = supabase.from('chat_users').select('email, name').not('email', 'is', null)
-  if (targetType === 'subscribers') {
+  if (safeTarget === 'subscribers') {
     query = query.eq('user_type', 'subscriber')
-  } else if (targetType === 'newsletter') {
+  } else if (safeTarget === 'newsletter') {
     query = query.eq('user_type', 'newsletter')
   }
 
@@ -66,11 +82,11 @@ export async function POST(request: Request) {
   const htmlBody = `
     <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: linear-gradient(135deg, #06b6d4, #8b5cf6); border-radius: 16px; padding: 24px; color: white; margin-bottom: 24px; text-align: center;">
-        <h1 style="margin: 0 0 8px; font-size: 22px;">📢 ${subject}</h1>
+        <h1 style="margin: 0 0 8px; font-size: 22px;">📢 ${safeSubject.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h1>
         <p style="margin: 0; opacity: 0.9; font-size: 14px;">מהקהילה שלנו</p>
       </div>
       <div style="background: #f9f9f9; border-radius: 12px; padding: 20px; margin-bottom: 20px; white-space: pre-wrap; line-height: 1.7; font-size: 15px;">
-        ${message.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}
+        ${safeMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}
       </div>
       <div style="text-align: center; margin-top: 24px;">
         <a href="https://nituk-beclick-chat.vercel.app" style="display: inline-block; background: linear-gradient(135deg, #06b6d4, #8b5cf6); color: white; padding: 12px 28px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 15px;">
@@ -99,7 +115,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: process.env.RESEND_FROM_EMAIL || 'נוזלטר <noreply@resend.dev>',
           to: batch,
-          subject,
+          subject: safeSubject,
           html: htmlBody,
         }),
       })

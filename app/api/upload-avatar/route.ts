@@ -53,6 +53,12 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validate userId is a valid UUID
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_REGEX.test(userId)) {
+      return NextResponse.json({ error: 'מזהה משתמש לא תקין' }, { status: 400 })
+    }
+
     // Convert file to base64 for storage
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)

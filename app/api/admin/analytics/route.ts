@@ -5,7 +5,8 @@ export const runtime = 'edge'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const days = parseInt(searchParams.get('days') || '7')
+  const rawDays = parseInt(searchParams.get('days') || '7')
+  const days = isNaN(rawDays) ? 7 : Math.min(Math.max(rawDays, 1), 90)
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

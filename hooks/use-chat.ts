@@ -37,8 +37,9 @@ export function useChat(currentUser: ChatUser | null) {
       const { data: messagesData, error: messagesError } = await supabase
         .from('chat_messages')
         .select(`
-          *,
-          user:chat_users(*)
+          id, user_id, content, created_at, updated_at, is_pinned,
+          upvotes_count, has_gif, gif_url, mentions,
+          user:chat_users(id, name, avatar_url, avatar_color, user_type, is_online, created_at, level)
         `)
         .order('created_at', { ascending: true })
         .limit(100)
@@ -50,7 +51,7 @@ export function useChat(currentUser: ChatUser | null) {
         const messageIds = messagesData.map(m => m.id)
         const { data: reactionsData } = await supabase
           .from('message_reactions')
-          .select(`*, user:chat_users(*)`)
+          .select(`id, message_id, user_id, emoji, created_at, user:chat_users(id, name, avatar_color)`)
           .in('message_id', messageIds)
 
         const messagesWithReactions = messagesData.map(msg => ({
@@ -75,7 +76,7 @@ export function useChat(currentUser: ChatUser | null) {
     try {
       const { data, error } = await supabase
         .from('system_messages')
-        .select(`*, user:chat_users(*)`)
+        .select(`id, user_id, message_type, content, created_at, user:chat_users(id, name, avatar_color, user_type)`)
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -91,7 +92,7 @@ export function useChat(currentUser: ChatUser | null) {
     try {
       const { data, error } = await supabase
         .from('chat_users')
-        .select('*')
+        .select('id, name, avatar_url, avatar_color, user_type, is_online, last_seen, created_at, level, points')
         .eq('is_online', true)
 
       if (error) throw error
@@ -386,7 +387,7 @@ export function useChat(currentUser: ChatUser | null) {
     try {
       const { data, error } = await supabase
         .from('typing_users')
-        .select(`*, user:chat_users(*)`)
+        .select(`user_id, started_at, user:chat_users(id, name, avatar_color)`)
         .neq('user_id', currentUser.id)
 
       if (error) throw error
@@ -467,7 +468,7 @@ export function useChat(currentUser: ChatUser | null) {
         async (payload) => {
           const { data } = await supabase
             .from('chat_messages')
-            .select(`*, user:chat_users(*)`)
+            .select(`id, user_id, content, created_at, updated_at, is_pinned, upvotes_count, has_gif, gif_url, mentions, user:chat_users(id, name, avatar_url, avatar_color, user_type, is_online, created_at, level)`)
             .eq('id', payload.new.id)
             .single()
 
@@ -551,7 +552,7 @@ export function useChat(currentUser: ChatUser | null) {
         async (payload) => {
           const { data } = await supabase
             .from('system_messages')
-            .select(`*, user:chat_users(*)`)
+            .select(`id, user_id, message_type, content, created_at, user:chat_users(id, name, avatar_color, user_type)`)
             .eq('id', payload.new.id)
             .single()
 
@@ -575,7 +576,7 @@ export function useChat(currentUser: ChatUser | null) {
         async (payload) => {
           const { data } = await supabase
             .from('message_reactions')
-            .select(`*, user:chat_users(*)`)
+            .select(`id, message_id, user_id, emoji, created_at, user:chat_users(id, name, avatar_color)`)
             .eq('id', payload.new.id)
             .single()
           if (data) {

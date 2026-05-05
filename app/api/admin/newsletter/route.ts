@@ -1,13 +1,27 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+const MAX_SUBJECT_LENGTH = 200
+const MAX_CONTENT_LENGTH = 5000
+
 export async function POST(request: Request) {
   try {
-    const { subject, content } = await request.json()
+    let body: unknown
+    try { body = await request.json() } catch { return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 }) }
+    const { subject, content } = body as { subject?: unknown; content?: unknown }
 
-    if (!subject || !content) {
+    if (!subject || typeof subject !== 'string' || !subject.trim()) {
       return NextResponse.json({ error: 'חסר נושא או תוכן' }, { status: 400 })
     }
+    if (!content || typeof content !== 'string' || !content.trim()) {
+      return NextResponse.json({ error: 'חסר נושא או תוכן' }, { status: 400 })
+    }
+    if (subject.length > MAX_SUBJECT_LENGTH || content.length > MAX_CONTENT_LENGTH) {
+      return NextResponse.json({ error: 'תוכן ארוך מדי' }, { status: 400 })
+    }
+
+    const safeSubject = subject.trim()
+    const safeContent = content.trim()
 
     const supabase = await createClient()
 
@@ -37,8 +51,8 @@ export async function POST(request: Request) {
           </div>
 
           <div style="background: linear-gradient(135deg, #f0f9ff, #f5f3ff); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px;">${subject}</h2>
-            <div style="color: #334155; line-height: 1.8; white-space: pre-wrap;">${content}</div>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px;">${safeSubject.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h2>
+            <div style="color: #334155; line-height: 1.8; white-space: pre-wrap;">${safeContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
           </div>
 
           <div style="text-align: center; margin-top: 24px;">
@@ -72,7 +86,7 @@ export async function POST(request: Request) {
             body: JSON.stringify({
               from: process.env.RESEND_FROM_EMAIL || 'ניתוק בקליק <noreply@resend.dev>',
               to: user.email,
-              subject,
+              subject: safeSubject,
               html: emailHtml,
             }),
           })

@@ -23,15 +23,11 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https: http:",
               "media-src 'self' blob: https: data:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.brevo.com https://vercel.live",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com https://api.brevo.com https://vercel.live https://tenor.googleapis.com",
               "worker-src 'self' blob:",
             ].join('; '),
           },
           // ── Permissions-Policy ───────────────────────────────────────────
-          // self = nituk-beclick-chat.vercel.app (direct access)
-          // nitukbeclick.co.il = WordPress parent that embeds us in an iframe
-          // www.nitukbeclick.co.il = with www
-          // The iframe ALSO needs allow="microphone; camera" — see WordPress snippet below
           {
             key: 'Permissions-Policy',
             value: [
@@ -46,8 +42,10 @@ const nextConfig = {
             ].join(', '),
           },
           // ── Standard security headers ────────────────────────────────────
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Strict-Transport-Security',

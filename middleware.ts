@@ -53,15 +53,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ── Protect /admin page ────────────────────────────────────────────────
-  // (client-side also checks, this is the server-side layer)
-  if (request.nextUrl.pathname === '/admin') {
-    const email = user?.email?.toLowerCase() || ''
-    if (!user || !ADMIN_EMAILS.includes(email)) {
-      // Don't redirect — let the client-side Google login handle it
-      // (the page shows a login button, not a redirect loop)
-    }
-  }
+  // ── Note on /admin page ────────────────────────────────────────────────
+  // The /admin page is intentionally not server-redirected because users
+  // authenticate via Google OAuth (client-side). The page renders a login
+  // button for unauthenticated users. All sensitive data is fetched via
+  // /api/admin/* routes which ARE protected by the middleware above.
+  // This is a deliberate UX decision, not a security gap.
 
   return supabaseResponse
 }

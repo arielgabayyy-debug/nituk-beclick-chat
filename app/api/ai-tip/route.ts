@@ -14,18 +14,26 @@ const SYSTEM_PROMPT = `אתה עוזר AI של קהילת "חיבור וניתו
 - אם אינך יודע — אמור בכנות
 - אל תבטיח מחירים — אמור "סביב" או "בממוצע"`
 
-export async function POST(request: Request) {
-  const { question } = await request.json() as { question: string }
+const MAX_QUESTION_LENGTH = 500
 
-  if (!question?.trim()) {
+export async function POST(request: Request) {
+  let body: unknown
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 }) }
+  const { question } = body as { question?: unknown }
+
+  if (!question || typeof question !== 'string' || !question.trim()) {
     return NextResponse.json({ error: 'שאלה ריקה' }, { status: 400 })
   }
+  if (question.length > MAX_QUESTION_LENGTH) {
+    return NextResponse.json({ error: 'שאלה ארוכה מדי (מקסימום 500 תווים)' }, { status: 400 })
+  }
 
+  const sanitizedQuestion = question.trim().slice(0, MAX_QUESTION_LENGTH)
   const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
 
   if (!apiKey) {
     // Return a smart fallback without AI
-    const fallback = generateFallbackTip(question)
+    const fallback = generateFallbackTip(sanitizedQuestion)
     return NextResponse.json({ answer: fallback, source: 'fallback' })
   }
 
@@ -42,7 +50,7 @@ export async function POST(request: Request) {
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: question },
+            { role: 'user', content: sanitizedQuestion },
           ],
           max_tokens: 250,
           temperature: 0.7,
@@ -57,9 +65,9 @@ export async function POST(request: Request) {
     }
 
     // Fallback
-    return NextResponse.json({ answer: generateFallbackTip(question), source: 'fallback' })
+    return NextResponse.json({ answer: generateFallbackTip(sanitizedQuestion), source: 'fallback' })
   } catch {
-    return NextResponse.json({ answer: generateFallbackTip(question), source: 'fallback' })
+    return NextResponse.json({ answer: generateFallbackTip(sanitizedQuestion), source: 'fallback' })
   }
 }
 

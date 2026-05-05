@@ -2,12 +2,45 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'edge'
 
+// Block SSRF — deny requests to private/internal IP ranges
+function isPrivateUrl(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr)
+    const hostname = parsed.hostname
+    // Block localhost, private IP ranges, and metadata services
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('172.16.') ||
+      hostname.startsWith('192.168.') ||
+      hostname === '169.254.169.254' || // AWS metadata
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.local')
+    ) return true
+    return false
+  } catch { return true }
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url')
   if (!url) return NextResponse.json({ error: 'Missing url' }, { status: 400 })
+  if (url.length > 2048) return NextResponse.json({ error: 'URL too long' }, { status: 400 })
 
-  // Validate URL
-  try { new URL(url) } catch { return NextResponse.json({ error: 'Invalid url' }, { status: 400 }) }
+  // Validate URL — must be http/https only
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return NextResponse.json({ error: 'Invalid url' }, { status: 400 })
+    }
+  } catch { return NextResponse.json({ error: 'Invalid url' }, { status: 400 }) }
+
+  // Block SSRF attacks
+  if (isPrivateUrl(url)) {
+    return NextResponse.json({ error: 'Invalid url' }, { status: 400 })
+  }
 
   // Skip image/audio/video direct links
   if (/\.(jpg|jpeg|png|gif|webp|svg|mp4|mp3|webm|pdf)(\?.*)?$/i.test(url)) {

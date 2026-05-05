@@ -4,6 +4,24 @@ import nodemailer from 'nodemailer'
 
 const ADMIN_EMAIL = 'nitukbeclick@gmail.com'
 
+// ── Simple in-memory rate limiter (per IP, max 5 req/min) ─────────────────
+const rateLimitMap = new Map<string, { count: number; reset: number }>()
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.reset) {
+    rateLimitMap.set(ip, { count: 1, reset: now + 60_000 })
+    return false
+  }
+  if (entry.count >= 5) return true
+  entry.count++
+  return false
+}
+
+const MAX_NAME_LENGTH = 100
+const MAX_EMAIL_LENGTH = 255
+const VALID_USER_TYPES = new Set(['subscriber', 'newsletter', 'guest', 'admin'])
+
 const USER_TYPE_LABEL: Record<string, string> = {
   subscriber:  'מנוי פרימיום ⭐',
   newsletter:  'מנוי ניוזלטר 📰',
@@ -63,27 +81,43 @@ function buildHtml(name: string, email: string | undefined, typeLabel: string, n
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { name, email, userType } = body as {
-      name: string
-      email?: string
-      userType: string
+    // Rate limit by IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (isRateLimited(ip)) {
+      return NextResponse.json({ error: 'יותר מדי בקשות' }, { status: 429 })
     }
 
-    if (!name || !userType) {
+    let body: unknown
+    try { body = await request.json() } catch { return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 }) }
+    const { name, email, userType } = body as { name?: unknown; email?: unknown; userType?: unknown }
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'חסרים שדות' }, { status: 400 })
     }
+    if (!userType || typeof userType !== 'string' || !VALID_USER_TYPES.has(userType)) {
+      return NextResponse.json({ error: 'סוג משתמש לא תקין' }, { status: 400 })
+    }
+    if (name.length > MAX_NAME_LENGTH) {
+      return NextResponse.json({ error: 'שם ארוך מדי' }, { status: 400 })
+    }
+    if (email && (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH)) {
+      return NextResponse.json({ error: 'אימייל לא תקין' }, { status: 400 })
+    }
+
+    const safeName = name.trim()
+    const safeEmail = email && typeof email === 'string' ? email.toLowerCase().trim() : undefined
+    const safeUserType = userType as string
 
     // Skip guests
-    if (userType === 'guest') {
+    if (safeUserType === 'guest') {
       return NextResponse.json({ success: true, method: 'skipped_guest' })
     }
 
     const fromTrigger = request.headers.get('x-trigger-source') === 'supabase'
-    const typeLabel   = USER_TYPE_LABEL[userType] || userType
+    const typeLabel   = USER_TYPE_LABEL[safeUserType] || safeUserType
     const now         = new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })
-    const subject     = `🎉 נרשם משתמש חדש: ${name} (${typeLabel})`
-    const html        = buildHtml(name, email, typeLabel, now)
+    const subject     = `🎉 נרשם משתמש חדש: ${safeName} (${typeLabel})`
+    const html        = buildHtml(safeName, safeEmail, typeLabel, now)
 
     // ── 1. Log to DB (only when called from frontend — trigger logs itself) ─
     if (!fromTrigger) {
@@ -94,9 +128,9 @@ export async function POST(request: Request) {
         )
         await supabase.from('admin_notifications').insert({
           type:       'new_registration',
-          user_name:  name,
-          user_email: email || null,
-          user_type:  userType,
+          user_name:  safeName,
+          user_email: safeEmail || null,
+          user_type:  safeUserType,
         })
       } catch (dbErr) {
         console.warn('[notify] DB log failed:', dbErr)
@@ -120,7 +154,7 @@ export async function POST(request: Request) {
         html,
       })
 
-      console.log(`[notify] Email sent via Gmail — ${name} (${userType})`)
+      console.log(`[notify] Email sent via Gmail — ${safeName} (${safeUserType})`)
       return NextResponse.json({ success: true, method: 'gmail' })
     }
 
@@ -142,14 +176,14 @@ export async function POST(request: Request) {
 
       if (res.ok) {
         const data = await res.json()
-        console.log(`[notify] Email sent via Resend — ${name} (id: ${data.id})`)
+        console.log(`[notify] Email sent via Resend — ${safeName} (id: ${data.id})`)
         return NextResponse.json({ success: true, method: 'resend', emailId: data.id })
       }
       console.error('[notify] Resend error:', await res.text())
     }
 
     // ── 4. No email provider configured — just DB log ────────────────────
-    console.log(`[notify] No email provider — DB logged only. User: ${name} (${userType})`)
+    console.log(`[notify] No email provider — DB logged only. User: ${safeName} (${safeUserType})`)
     return NextResponse.json({ success: true, method: 'db_logged' })
 
   } catch (err) {
