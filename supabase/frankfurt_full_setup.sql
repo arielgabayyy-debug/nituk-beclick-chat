@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS chat_users (
   weekly_points    INTEGER     NOT NULL DEFAULT 0,
   helpful_count    INTEGER     NOT NULL DEFAULT 0,
   is_user_of_week  BOOLEAN     NOT NULL DEFAULT false,
+  level            INTEGER     NOT NULL DEFAULT 1,
+  messages_count   INTEGER     NOT NULL DEFAULT 0,
   violation_count  INTEGER     NOT NULL DEFAULT 0,
   last_violation_at TIMESTAMPTZ,
   email_consent    BOOLEAN     NOT NULL DEFAULT false,
