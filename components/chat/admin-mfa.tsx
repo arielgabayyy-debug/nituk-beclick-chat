@@ -1,17 +1,9 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Shield, Smartphone, KeyRound, CheckCircle, Loader2, AlertCircle, Copy, Eye, EyeOff } from 'lucide-react'
+import { Shield, Smartphone, KeyRound, CheckCircle, Loader2, AlertCircle, Copy } from 'lucide-react'
 import { CommunityLogo } from './community-logo'
-
-const ADMIN_EMAILS = [
-  'nitukbeclick@gmail.com',
-  'arielgabayyy@gmail.com',
-  'uziel10@gmail.com',
-  'inbal2526@gmail.com',
-  'hilaoh3263@gmail.com',
-]
 
 interface AdminMFAProps {
   userEmail: string
@@ -19,136 +11,201 @@ interface AdminMFAProps {
   onLogout: () => void
 }
 
-type MFAStep = 'checking' | 'enroll' | 'verify' | 'done'
+type MFAStep = 'loading' | 'enroll' | 'verify' | 'success'
 
 export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
   const supabase = createClient()
 
-  const [step, setStep]           = useState<MFAStep>('checking')
-  const [qrCode, setQrCode]       = useState('')
-  const [secret, setSecret]       = useState('')
+  const [step, setStep]           = useState<MFAStep>('loading')
   const [factorId, setFactorId]   = useState('')
-  const [code, setCode]           = useState(['', '', '', '', '', ''])
+  const [challengeId, setChallengeId] = useState('')
+  const [qrUrl, setQrUrl]         = useState('')   // blob URL from SVG
+  const [secret, setSecret]       = useState('')
+  const [digits, setDigits]       = useState(['', '', '', '', '', ''])
   const [error, setError]         = useState('')
-  const [loading, setLoading]     = useState(false)
+  const [busy, setBusy]           = useState(false)
   const [copied, setCopied]       = useState(false)
-  const [showSecret, setShowSecret] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  // ── On mount: check current AAL and enrolled factors ────────────────────
-  useEffect(() => {
-    checkMFAStatus()
-  }, [])
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-  async function checkMFAStatus() {
-    setStep('checking')
+  /** Convert an SVG string to a blob URL safe for <img src> */
+  function svgToUrl(svg: string): string {
     try {
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-
-      // Already at aal2 — fully verified
-      if (aal?.currentLevel === 'aal2') {
-        setStep('done')
-        onVerified()
-        return
-      }
-
-      // Check if user has any TOTP factors enrolled
-      const { data: factors } = await supabase.auth.mfa.listFactors()
-      const totpFactors = factors?.totp || []
-
-      if (totpFactors.length > 0) {
-        // Has factor, needs to verify
-        setFactorId(totpFactors[0].id)
-        setStep('verify')
-      } else {
-        // No factor — needs to enroll
-        await startEnrollment()
-      }
-    } catch (err) {
-      console.error('MFA check error:', err)
-      setStep('enroll')
-      await startEnrollment()
+      const blob = new Blob([svg], { type: 'image/svg+xml' })
+      return URL.createObjectURL(blob)
+    } catch {
+      // Fallback: data URI
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
     }
   }
 
+  /** Create a challenge for an existing verified factor */
+  const createChallenge = useCallback(async (fid: string) => {
+    const { data, error: err } = await supabase.auth.mfa.challenge({ factorId: fid })
+    if (err) throw err
+    setChallengeId(data.id)
+  }, [supabase])
+
+  // ── Mount: determine what the user needs to do ───────────────────────────
+  useEffect(() => {
+    let revoked = false
+
+    async function init() {
+      try {
+        // 1. Check current AAL — if already aal2, we're done
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        if (revoked) return
+        if (aal?.currentLevel === 'aal2') {
+          setStep('success')
+          onVerified()
+          return
+        }
+
+        // 2. List factors — only use verified ones
+        const { data: factors } = await supabase.auth.mfa.listFactors()
+        if (revoked) return
+        const verifiedFactors = factors?.totp?.filter(f => f.status === 'verified') ?? []
+
+        if (verifiedFactors.length > 0) {
+          // Has a verified factor — show verify screen
+          const fid = verifiedFactors[0].id
+          setFactorId(fid)
+          await createChallenge(fid)
+          if (revoked) return
+          setStep('verify')
+          // Auto-focus handled by autoFocus prop
+        } else {
+          // No verified factor — start enrollment
+          // Clean up any pending (unverified) factors first
+          const pendingFactors = factors?.totp?.filter(f => f.status !== 'verified') ?? []
+          for (const pf of pendingFactors) {
+            await supabase.auth.mfa.unenroll({ factorId: pf.id }).catch(() => {/* ignore */})
+          }
+          if (revoked) return
+          await startEnrollment()
+        }
+      } catch (err) {
+        if (revoked) return
+        console.error('MFA init error:', err)
+        setError(err instanceof Error ? err.message : 'שגיאת MFA — נסה לרענן')
+        setStep('enroll')
+      }
+    }
+
+    init()
+    return () => { revoked = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Enrollment ───────────────────────────────────────────────────────────
   async function startEnrollment() {
-    setLoading(true)
+    setBusy(true)
     setError('')
     try {
-      const { data, error: enrollError } = await supabase.auth.mfa.enroll({
+      const { data, error: enrollErr } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: `Admin — ${userEmail}`,
       })
-      if (enrollError) throw enrollError
+      if (enrollErr) throw enrollErr
 
-      setQrCode(data.totp.qr_code)
+      const url = data.totp.qr_code.startsWith('<svg')
+        ? svgToUrl(data.totp.qr_code)
+        : data.totp.qr_code
+
+      setQrUrl(url)
       setSecret(data.totp.secret)
       setFactorId(data.id)
       setStep('enroll')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'שגיאה בהגדרת MFA')
+      const msg = err instanceof Error ? err.message : 'שגיאה בהגדרת MFA'
+      // If factor already exists but wasn't caught above, surface a useful message
+      setError(msg.includes('already') ? 'יש כבר גורם MFA פעיל — נסה לרענן את הדף' : msg)
+      setStep('enroll')
     } finally {
-      setLoading(false)
+      setBusy(false)
     }
   }
 
+  // ── Verification ─────────────────────────────────────────────────────────
   async function verifyCode(codeString: string) {
-    if (codeString.length !== 6) return
-    setLoading(true)
+    if (codeString.length !== 6 || busy) return
+    setBusy(true)
     setError('')
     try {
-      const { data: challenge, error: challengeErr } = await supabase.auth.mfa.challenge({ factorId })
-      if (challengeErr) throw challengeErr
+      // For enroll step we already have factorId but no challengeId yet
+      let cid = challengeId
+      if (!cid) {
+        const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId })
+        if (chErr) throw chErr
+        cid = ch.id
+        setChallengeId(cid)
+      }
 
       const { error: verifyErr } = await supabase.auth.mfa.verify({
         factorId,
-        challengeId: challenge.id,
+        challengeId: cid,
         code: codeString,
       })
       if (verifyErr) throw verifyErr
 
-      setStep('done')
+      setStep('success')
       onVerified()
     } catch (err: unknown) {
-      setError('קוד שגוי — נסה שוב')
-      setCode(['', '', '', '', '', ''])
-      inputRefs.current[0]?.focus()
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.includes('expired') || msg.includes('challenge')) {
+        // Challenge expired — create a new one
+        setError('הקוד פג תוקף — נסה שוב')
+        try {
+          await createChallenge(factorId)
+        } catch {/* ignore */}
+      } else {
+        setError('קוד שגוי — נסה שוב')
+      }
+      setDigits(['', '', '', '', '', ''])
+      setTimeout(() => inputRefs.current[0]?.focus(), 50)
     } finally {
-      setLoading(false)
+      setBusy(false)
     }
   }
 
-  // ── OTP Input Handling ───────────────────────────────────────────────────
+  // ── OTP Input ────────────────────────────────────────────────────────────
   function handleDigit(index: number, value: string) {
     if (!/^\d*$/.test(value)) return
-    const newCode = [...code]
-    newCode[index] = value.slice(-1)
-    setCode(newCode)
+    const next = [...digits]
+    next[index] = value.slice(-1)
+    setDigits(next)
     setError('')
 
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus()
     }
 
-    const full = newCode.join('')
+    const full = next.join('')
     if (full.length === 6) verifyCode(full)
   }
 
   function handleKeyDown(index: number, e: React.KeyboardEvent) {
-    if (e.key === 'Backspace' && !code[index] && index > 0) {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
       inputRefs.current[index - 1]?.focus()
     }
     if (e.key === 'Enter') {
-      const full = code.join('')
+      const full = digits.join('')
       if (full.length === 6) verifyCode(full)
     }
   }
 
   function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault()
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!pasted) return
+    const next = [...'000000'].map((_, i) => pasted[i] ?? '')
+    setDigits(next)
+    setError('')
     if (pasted.length === 6) {
-      setCode(pasted.split(''))
       verifyCode(pasted)
+    } else {
+      inputRefs.current[pasted.length]?.focus()
     }
   }
 
@@ -158,8 +215,31 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // ── Loading / Done ───────────────────────────────────────────────────────
-  if (step === 'checking' || step === 'done') {
+  // ── OTP digit grid (shared between enroll & verify steps) ────────────────
+  function DigitGrid({ autoFocusFirst = false }: { autoFocusFirst?: boolean }) {
+    return (
+      <div className="flex gap-2 justify-center" onPaste={handlePaste}>
+        {digits.map((d, i) => (
+          <input
+            key={i}
+            ref={el => { inputRefs.current[i] = el }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={d}
+            autoFocus={autoFocusFirst && i === 0}
+            onChange={e => handleDigit(i, e.target.value)}
+            onKeyDown={e => handleKeyDown(i, e)}
+            disabled={busy}
+            className="w-11 h-13 text-center text-lg font-bold bg-slate-900/60 border border-slate-600 rounded-xl text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition disabled:opacity-50"
+          />
+        ))}
+      </div>
+    )
+  }
+
+  // ── Loading / Success screens ────────────────────────────────────────────
+  if (step === 'loading' || step === 'success') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -170,6 +250,7 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
     )
   }
 
+  // ── Main card ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -204,11 +285,11 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
                 </div>
               </div>
 
-              {loading ? (
+              {busy ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
                 </div>
-              ) : qrCode ? (
+              ) : qrUrl ? (
                 <>
                   {/* Steps */}
                   <div className="space-y-2 mb-5 text-sm text-slate-300">
@@ -225,23 +306,17 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
                     ))}
                   </div>
 
-                  {/* QR Code — Supabase returns SVG string */}
+                  {/* QR Code — rendered via blob URL into <img> */}
                   <div className="flex justify-center mb-5">
-                    <div
-                      className="bg-white p-4 rounded-2xl shadow-lg"
-                      style={{ width: 200, height: 200 }}
-                      dangerouslySetInnerHTML={{
-                        __html: qrCode.startsWith('<svg')
-                          ? qrCode.replace(/width="[^"]*"/, 'width="168"').replace(/height="[^"]*"/, 'height="168"').replace('<svg ', '<svg style="display:block" ')
-                          : `<img src="${qrCode}" width="168" height="168" alt="QR" />`
-                      }}
-                    />
+                    <div className="bg-white p-4 rounded-2xl shadow-lg" style={{ width: 200, height: 200 }}>
+                      <img src={qrUrl} width={168} height={168} alt="QR Code" style={{ display: 'block' }} />
+                    </div>
                   </div>
 
-                  {/* Manual entry — always visible, prominent */}
+                  {/* Manual entry */}
                   <div className="mb-5 bg-slate-900/80 rounded-2xl p-4 border border-purple-500/30">
                     <p className="text-xs text-purple-400 font-semibold mb-3 text-center uppercase tracking-wide">
-                      📋 או הכנס ידנית ב-Google Authenticator
+                      או הכנס ידנית ב-Google Authenticator
                     </p>
 
                     {/* Account name */}
@@ -250,50 +325,49 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
                       <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5">
                         <span className="flex-1 text-sm text-white font-medium">ניתוק בקליק Admin</span>
                         <button
-                          onClick={() => { navigator.clipboard.writeText('ניתוק בקליק Admin') }}
+                          onClick={() => navigator.clipboard.writeText('ניתוק בקליק Admin')}
                           className="text-slate-400 hover:text-purple-400 transition shrink-0"
+                          type="button"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
 
-                    {/* Secret key — always visible */}
+                    {/* Secret key */}
                     <div>
                       <p className="text-[11px] text-slate-500 mb-1">מפתח סודי (Secret Key)</p>
                       <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2.5">
                         <code className="flex-1 text-sm text-purple-300 font-mono tracking-widest break-all">
                           {secret}
                         </code>
-                        <button onClick={copySecret} className="text-slate-400 hover:text-purple-400 transition shrink-0">
+                        <button onClick={copySecret} className="text-slate-400 hover:text-purple-400 transition shrink-0" type="button">
                           {copied
                             ? <CheckCircle className="w-4 h-4 text-green-400" />
                             : <Copy className="w-4 h-4" />}
                         </button>
                       </div>
-                      {copied && <p className="text-xs text-green-400 text-center mt-1">✓ הועתק!</p>}
+                      {copied && <p className="text-xs text-green-400 text-center mt-1">הועתק!</p>}
                     </div>
                   </div>
 
-                  {/* Code input after enrollment */}
+                  {/* Code input for enrollment verification */}
                   <p className="text-center text-sm text-slate-300 mb-3 font-medium">הכנס את הקוד מהאפליקציה לאימות:</p>
-                  <div className="flex gap-2 justify-center mb-4" onPaste={handlePaste}>
-                    {code.map((digit, i) => (
-                      <input
-                        key={i}
-                        ref={el => { inputRefs.current[i] = el }}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={1}
-                        value={digit}
-                        onChange={e => handleDigit(i, e.target.value)}
-                        onKeyDown={e => handleKeyDown(i, e)}
-                        className="w-11 h-12 text-center text-lg font-bold bg-slate-900/60 border border-slate-600 rounded-xl text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition"
-                      />
-                    ))}
-                  </div>
+                  <DigitGrid autoFocusFirst />
                 </>
-              ) : null}
+              ) : (
+                /* Error state with retry */
+                <div className="text-center py-8">
+                  <p className="text-slate-400 text-sm mb-4">לא ניתן לטעון קוד QR</p>
+                  <button
+                    onClick={startEnrollment}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-xl transition"
+                    type="button"
+                  >
+                    נסה שוב
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -314,37 +388,22 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
                 הכנס את הקוד בן 6 הספרות מ-<span className="text-purple-400 font-medium">Google Authenticator</span>
               </p>
 
-              <div className="flex gap-2 justify-center mb-6" onPaste={handlePaste}>
-                {code.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={el => { inputRefs.current[i] = el }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    autoFocus={i === 0}
-                    onChange={e => handleDigit(i, e.target.value)}
-                    onKeyDown={e => handleKeyDown(i, e)}
-                    className="w-11 h-14 text-center text-xl font-bold bg-slate-900/60 border border-slate-600 rounded-xl text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition"
-                  />
-                ))}
-              </div>
+              <DigitGrid autoFocusFirst />
 
-              <p className="text-center text-xs text-slate-500">הקוד מתחלף כל 30 שניות</p>
+              <p className="text-center text-xs text-slate-500 mt-3">הקוד מתחלף כל 30 שניות</p>
             </>
           )}
 
           {/* Error */}
           {error && (
-            <div className="mt-3 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+            <div className="mt-4 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
 
-          {/* Loading overlay */}
-          {loading && step === 'verify' && (
+          {/* Loading overlay for verify */}
+          {busy && (step === 'verify' || step === 'enroll') && (
             <div className="mt-4 flex items-center justify-center gap-2 text-slate-400 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>מאמת...</span>
@@ -356,6 +415,7 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
         <div className="text-center mt-4">
           <button
             onClick={onLogout}
+            type="button"
             className="text-xs text-slate-600 hover:text-slate-400 transition"
           >
             יציאה מהחשבון
