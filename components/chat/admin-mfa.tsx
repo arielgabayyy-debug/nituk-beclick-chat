@@ -53,34 +53,27 @@ export function AdminMFA({ userEmail, onVerified, onLogout }: AdminMFAProps) {
 
     async function init() {
       try {
-        // 1. Check current AAL — if already aal2, we're done
-        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-        if (revoked) return
-        if (aal?.currentLevel === 'aal2') {
-          setStep('success')
-          onVerified()
-          return
-        }
+        // Always require fresh code entry — never auto-pass on existing aal2.
+        // Security: admin must verify on every /admin visit.
 
-        // 2. List factors — only use verified ones
+        // 1. List factors — only use verified ones
         const { data: factors } = await supabase.auth.mfa.listFactors()
         if (revoked) return
         const verifiedFactors = factors?.totp?.filter(f => f.status === 'verified') ?? []
 
         if (verifiedFactors.length > 0) {
-          // Has a verified factor — show verify screen
+          // Enrolled factor exists → always show verify screen
           const fid = verifiedFactors[0].id
           setFactorId(fid)
           await createChallenge(fid)
           if (revoked) return
           setStep('verify')
-          // Auto-focus handled by autoFocus prop
         } else {
-          // No verified factor — start enrollment
+          // No verified factor → enrollment required
           // Clean up any pending (unverified) factors first
           const pendingFactors = factors?.totp?.filter(f => f.status !== 'verified') ?? []
           for (const pf of pendingFactors) {
-            await supabase.auth.mfa.unenroll({ factorId: pf.id }).catch(() => {/* ignore */})
+            await supabase.auth.mfa.unenroll({ factorId: pf.id }).catch(() => {})
           }
           if (revoked) return
           await startEnrollment()
