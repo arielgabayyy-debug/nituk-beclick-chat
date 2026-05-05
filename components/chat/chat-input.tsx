@@ -568,7 +568,7 @@ export function ChatInput({
       )}
 
       {/* Hidden file input for images */}
-      <input ref={fileInputRef} type="file" accept="image/*" capture={undefined} className="hidden" onChange={handleImageSelect} />
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
 
       {/* ── Main input row ─────────────────────────────────────────────────── */}
       <form onSubmit={handleSubmit} className="flex items-end gap-1.5">

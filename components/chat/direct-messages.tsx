@@ -44,7 +44,9 @@ export function DirectMessages({ currentUser, targetUser, onClose }: DirectMessa
     const loadFromLS = () => {
       try {
         setMessages(JSON.parse(localStorage.getItem(key) || '[]'))
-      } catch {}
+      } catch {
+        setMessages([])
+      }
       setLoading(false)
     }
 

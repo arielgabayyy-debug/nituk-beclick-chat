@@ -123,7 +123,7 @@ export async function POST(request: Request) {
 
     if (!insertError && inserted) {
       // Trigger is working or doesn't block us
-      console.log('[register-oauth-user] user created successfully:', normalizedEmail)
+      console.info('[register-oauth-user] user created successfully')
       return NextResponse.json({ user: inserted })
     }
 

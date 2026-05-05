@@ -512,12 +512,6 @@ export function useChat(currentUser: ChatUser | null) {
             return [...prev, composed]
           })
 
-          // If user wasn't in local state, fetch just that user (rare case)
-          setMessages(prev => {
-            if (prev.find(m => m.id === newMsg.id && m.user)) return prev
-            return prev
-          })
-
           // Background user fetch only if missing
           const userAlreadyKnown = messages.some(m => m.user_id === newMsg.user_id && m.user)
             || onlineUsers.some(u => u.id === newMsg.user_id)

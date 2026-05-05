@@ -126,6 +126,7 @@ export function OnlineUsers({ users, currentUserId, onUserClick }: OnlineUsersPr
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="חפש משתמש..."
+                aria-label="חפש משתמש"
                 className="flex-1 bg-transparent text-xs focus:outline-none placeholder:text-muted-foreground"
               />
             </div>

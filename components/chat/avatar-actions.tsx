@@ -190,7 +190,7 @@ export function AvatarActionsSheet({
         </div>
 
         {/* iOS safe-area spacer */}
-        <div className="h-safe-bottom pb-4 sm:pb-2" />
+        <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }} className="sm:pb-2" />
       </div>
     </div>
   )

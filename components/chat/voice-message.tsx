@@ -172,10 +172,11 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
         onError={handleError}
       />
 
-      {/* Play / Pause button */}
+      {/* Play / Pause button — min 44×44px touch target */}
       <button
         onClick={toggle}
-        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition ${btnBase}`}
+        aria-label={playing ? 'השהה' : 'נגן'}
+        className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition touch-manipulation select-none ${btnBase}`}
       >
         {loadState === 'loading'
           ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -190,6 +191,12 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
         <div
           className={`h-1.5 rounded-full overflow-hidden cursor-pointer ${trackBg}`}
           onClick={handleSeek}
+          onTouchEnd={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const x = e.changedTouches[0].clientX - rect.left
+            const pct = Math.max(0, Math.min(1, x / rect.width))
+            if (audioRef.current) audioRef.current.currentTime = pct * (audioRef.current.duration || 0)
+          }}
         >
           <div
             className={`h-full rounded-full transition-all ${trackFill}`}
@@ -202,10 +209,11 @@ export function VoiceMessage({ url, duration, isOwn }: VoiceMessageProps) {
         </div>
       </div>
 
-      {/* Speed button */}
+      {/* Speed button — padded for touch target */}
       <button
         onClick={cycleSpeed}
-        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md transition shrink-0 ${
+        aria-label="שנה מהירות השמעה"
+        className={`text-[10px] font-bold px-2.5 py-1.5 rounded-md transition shrink-0 touch-manipulation select-none min-h-[36px] ${
           isOwn
             ? 'bg-white/20 hover:bg-white/30 text-white'
             : 'bg-muted hover:bg-muted/80 text-muted-foreground'

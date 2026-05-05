@@ -692,7 +692,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      <div className="p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto" dir="rtl">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />

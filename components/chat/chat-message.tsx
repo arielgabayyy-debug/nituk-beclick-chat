@@ -535,7 +535,7 @@ export const ChatMessageComponent = memo(function ChatMessageComponent({
     longPressTimerRef.current = setTimeout(() => {
       setShowContextMenu(true)
       if ('vibrate' in navigator) navigator.vibrate(50)
-    }, 600)
+    }, 500)
   }
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartXRef.current === null) return
