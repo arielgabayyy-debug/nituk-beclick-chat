@@ -86,7 +86,7 @@ export async function GET(request: Request) {
       .map(([id]) => id)
 
     const { data: topUsers } = topUserIds.length > 0
-      ? await supabase.from('chat_users').select('id, name, user_type, avatar_color, messages_count').in('id', topUserIds)
+      ? await supabase.from('chat_users').select('id, name, user_type, avatar_color').in('id', topUserIds)
       : { data: [] }
 
     const topUsersWithCount = (topUsers || []).map(u => ({
