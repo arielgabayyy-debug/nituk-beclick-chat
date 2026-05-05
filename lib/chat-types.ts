@@ -12,8 +12,8 @@ export interface ChatUser {
   created_at: string
   // Gamification
   points: number
-  level: number
-  messages_count: number
+  level?: number
+  messages_count?: number
   helpful_count: number
   weekly_points: number
   is_user_of_week: boolean

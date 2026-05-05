@@ -44,7 +44,7 @@ export function useChat(currentUser: ChatUser | null) {
           .select(`
             id, user_id, content, created_at, updated_at, is_pinned,
             upvotes_count, has_gif, gif_url, mentions,
-            user:chat_users(id, name, avatar_color, user_type, is_online, created_at, level)
+            user:chat_users(id, name, avatar_color, user_type, is_online, created_at)
           `)
           // avatar_url intentionally omitted — stored as base64 in DB (can be 200KB+)
           .order('created_at', { ascending: true })
@@ -103,7 +103,7 @@ export function useChat(currentUser: ChatUser | null) {
     try {
       const { data, error } = await supabase
         .from('chat_users')
-        .select('id, name, avatar_color, user_type, is_online, last_seen, created_at, level, points')
+        .select('id, name, avatar_color, user_type, is_online, last_seen, created_at, points')
         .eq('is_online', true)
         .limit(100)
         .order('last_seen', { ascending: false })
@@ -557,7 +557,7 @@ export function useChat(currentUser: ChatUser | null) {
             const { data: userData } = await supabase
               .from('chat_users')
               // avatar_url intentionally excluded — potentially 200KB+ base64
-              .select('id, name, avatar_color, user_type, is_online, created_at, level')
+              .select('id, name, avatar_color, user_type, is_online, created_at')
               .eq('id', newMsg.user_id as string)
               .single()
             if (userData) {
@@ -845,6 +845,11 @@ export function useChat(currentUser: ChatUser | null) {
 }
 
 // Hook for user registration/login
+function enrichUser<T extends { points?: number; level?: number; messages_count?: number }>(u: T): T & { level: number; messages_count: number } {
+  const pts = u.points ?? 0
+  const lvl = u.level != null ? u.level : (pts >= 3000 ? 10 : pts >= 2000 ? 9 : pts >= 1500 ? 8 : pts >= 1000 ? 7 : pts >= 700 ? 6 : pts >= 450 ? 5 : pts >= 250 ? 4 : pts >= 100 ? 3 : pts >= 30 ? 2 : 1)
+  return { ...u, level: lvl, messages_count: u.messages_count ?? 0 }
+}
 export function useChatUser() {
   const [currentUser, setCurrentUser] = useState<ChatUser | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -862,7 +867,7 @@ export function useChatUser() {
       const { data, error } = await supabase
         .from('chat_users')
         // avatar_url intentionally excluded — stored as base64 (can be 200KB+)
-        .select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at')
+        .select('id, name, email, avatar_color, user_type, is_online, last_seen, points, weekly_points, is_user_of_week, helpful_count, created_at')
         .eq('id', userId)
         .single()
 
@@ -890,7 +895,7 @@ export function useChatUser() {
       if (normalizedEmail) {
         const { data: existing } = await supabase
           .from('chat_users')
-          .select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at')
+          .select('id, name, email, avatar_color, user_type, is_online, last_seen, points, weekly_points, is_user_of_week, helpful_count, created_at')
           .eq('email', normalizedEmail)
           .maybeSingle()
 

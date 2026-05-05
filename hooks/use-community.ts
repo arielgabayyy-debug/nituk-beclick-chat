@@ -85,7 +85,7 @@ export function useCommunity(currentUser: ChatUser | null) {
         // Narrow columns — avatar_url excluded (large base64)
         supabase
           .from('chat_users')
-          .select('id, name, avatar_color, user_type, level, points, weekly_points, messages_count, helpful_count, is_user_of_week, is_online, created_at, last_seen')
+          .select('id, name, avatar_color, user_type, points, weekly_points, helpful_count, is_user_of_week, is_online, created_at, last_seen')
           .order('weekly_points', { ascending: false })
           .limit(10),
 
@@ -409,7 +409,7 @@ export function useCommunity(currentUser: ChatUser | null) {
     try {
       const { data: userData } = await supabase
         .from('chat_users')
-        .select('points, level, weekly_points')
+        .select('points, weekly_points')
         .eq('id', currentUser.id)
         .single()
 
@@ -421,7 +421,6 @@ export function useCommunity(currentUser: ChatUser | null) {
           .from('chat_users')
           .update({
             points: newPoints,
-            level: newLevel,
             weekly_points: (userData.weekly_points || 0) + points
           })
           .eq('id', currentUser.id)

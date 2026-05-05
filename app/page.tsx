@@ -17,6 +17,13 @@ type AuthError = null | 'blocked' | 'generic'
 
 const ADMIN_EMAILS = ['nitukbeclick@gmail.com', 'arielgabayyy@gmail.com', 'uziel10@gmail.com', 'inbal2526@gmail.com', 'hilaoh3263@gmail.com']
 
+
+// Compute level from points if not returned by DB (Frankfurt migration)
+function enrichUser<T extends { points?: number; level?: number; messages_count?: number }>(u: T): T & { level: number; messages_count: number } {
+  const pts = u.points ?? 0
+  const lvl = u.level != null ? u.level : (pts >= 3000 ? 10 : pts >= 2000 ? 9 : pts >= 1500 ? 8 : pts >= 1000 ? 7 : pts >= 700 ? 6 : pts >= 450 ? 5 : pts >= 250 ? 4 : pts >= 100 ? 3 : pts >= 30 ? 2 : 1)
+  return { ...u, level: lvl, messages_count: u.messages_count ?? 0 }
+}
 export default function ChatApp() {
   const [screen, setScreen] = useState<Screen>('loading')
   const [loginMode, setLoginMode] = useState<LoginMode>('guest')
@@ -147,7 +154,7 @@ export default function ChatApp() {
     try {
       const { data: rows, error: fetchError } = await supabase
         .from('chat_users')
-        .select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at')
+        .select('id, name, email, avatar_color, user_type, is_online, last_seen, points, weekly_points, is_user_of_week, helpful_count, created_at')
         .eq('email', email)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -181,7 +188,7 @@ export default function ChatApp() {
         // Clean up OAuth intent keys
         localStorage.removeItem('nituk_intended_type')
         localStorage.removeItem('nituk_intended_name')
-        setOauthUser({ ...chatUser, is_online: true })
+        setOauthUser(enrichUser({ ...chatUser, is_online: true }))
         clearTimeout(timeout)
         setScreen('chat')
       } else {
@@ -216,7 +223,7 @@ export default function ChatApp() {
 
         if (upserted) {
           localStorage.setItem('chat_user_id', upserted.id)
-          setOauthUser(upserted)
+          setOauthUser(enrichUser(upserted))
           clearTimeout(timeout)
           setScreen('chat')
         } else {
@@ -246,7 +253,7 @@ export default function ChatApp() {
               localStorage.setItem('chat_user_id', regData.user.id)
               localStorage.removeItem('nituk_intended_type')
               localStorage.removeItem('nituk_intended_name')
-              setOauthUser(regData.user)
+              setOauthUser(enrichUser(regData.user))
               clearTimeout(timeout)
               setScreen('chat')
               return
@@ -264,13 +271,13 @@ export default function ChatApp() {
 
           // Final fallback — check if user somehow got created
           const { data: refetch } = await supabase
-            .from('chat_users').select('id, name, email, avatar_color, user_type, is_online, last_seen, level, points, weekly_points, is_user_of_week, messages_count, helpful_count, created_at').eq('email', email).limit(1)
+            .from('chat_users').select('id, name, email, avatar_color, user_type, is_online, last_seen, points, weekly_points, is_user_of_week, helpful_count, created_at').eq('email', email).limit(1)
           const found = refetch?.[0]
           if (found) {
             localStorage.setItem('chat_user_id', found.id)
             localStorage.removeItem('nituk_intended_type')
             localStorage.removeItem('nituk_intended_name')
-            setOauthUser(found)
+            setOauthUser(enrichUser(found))
             clearTimeout(timeout)
             setScreen('chat')
           } else {
