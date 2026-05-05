@@ -1,16 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-
-export const runtime = 'edge'
-
-// Per-IP rate limit: 20 translations / 60s (edge-compatible Map)
-const translateRateMap = new Map<string, { count: number; reset: number }>()
-function checkTranslateRate(ip: string): boolean {
-  const now = Date.now()
-  const entry = translateRateMap.get(ip)
-  if (!entry || now > entry.reset) { translateRateMap.set(ip, { count: 1, reset: now + 60_000 }); return true }
-  if (entry.count >= 20) return false
-  entry.count++; return true
-}
+import { checkRateLimitDB } from '@/lib/rate-limit-db'
 
 // Language codes for MyMemory API
 const LANG_MAP: Record<string, string> = {
@@ -40,7 +29,8 @@ function detectLang(text: string): string {
 export async function POST(request: NextRequest) {
   // Rate limit
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-  if (!checkTranslateRate(ip)) {
+  const rl = await checkRateLimitDB(ip, 'translate', 20, 60)
+  if (!rl.allowed) {
     return NextResponse.json({ error: 'יותר מדי בקשות תרגום — נסה שוב בעוד דקה' }, { status: 429 })
   }
 

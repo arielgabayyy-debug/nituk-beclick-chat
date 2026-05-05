@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimitDB } from '@/lib/rate-limit-db'
 
 export const maxDuration = 30
-
-// Per-IP rate limit: 10 AI queries / 60s (prevents API cost abuse)
-const aiRateMap = new Map<string, { count: number; reset: number }>()
-function checkAiRate(ip: string): boolean {
-  const now = Date.now()
-  const entry = aiRateMap.get(ip)
-  if (!entry || now > entry.reset) { aiRateMap.set(ip, { count: 1, reset: now + 60_000 }); return true }
-  if (entry.count >= 10) return false
-  entry.count++; return true
-}
 
 const SYSTEM_PROMPT = `אתה עוזר AI של קהילת "חיבור וניתוק בקליק" — קהילת השוואת מחירים סלולר בישראל.
 תפקידך לעזור לחברים לחסוך כסף על חבילות סלולר, אינטרנט, וטלפון.
@@ -27,7 +18,8 @@ const MAX_QUESTION_LENGTH = 500
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-  if (!checkAiRate(ip)) return NextResponse.json({ error: 'יותר מדי שאלות — נסה שוב עוד דקה', source: 'fallback' }, { status: 429 })
+  const rl = await checkRateLimitDB(ip, 'ai-tip', 10, 60)
+  if (!rl.allowed) return NextResponse.json({ error: 'יותר מדי שאלות — נסה שוב עוד דקה', source: 'fallback' }, { status: 429 })
 
   let body: unknown
   try { body = await request.json() } catch { return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 }) }
