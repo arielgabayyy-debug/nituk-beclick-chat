@@ -26,22 +26,47 @@ const ADMIN_EMAILS = [
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { email, name, user_type, avatar_color, avatar_url } = body as {
-      email: string
-      name: string
-      user_type: string
-      avatar_color: string
-      avatar_url?: string | null
+    // ── Verify caller has a valid Supabase session (prevents email spoofing) ──
+    // The client MUST pass Authorization: Bearer <access_token>
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const accessToken = authHeader.slice(7)
+
+    // Verify the token and get the authenticated user's real email
+    const supabaseVerify = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+    const { data: { user: sessionUser }, error: authError } = await supabaseVerify.auth.getUser(accessToken)
+    if (authError || !sessionUser?.email) {
+      return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 })
     }
 
-    if (!email || !name) {
+    const body = await request.json()
+    const { name, avatar_color, avatar_url } = body as {
+      name: string
+      avatar_color: string
+      avatar_url?: string | null
+      // email and user_type from body are IGNORED — we use verified session data
+      email?: string
+      user_type?: string
+    }
+
+    // Always use the email from the verified session — never trust client-supplied email
+    const email = sessionUser.email
+
+    if (!name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const normalizedEmail = email.toLowerCase().trim()
     const isAdmin = ADMIN_EMAILS.includes(normalizedEmail)
-    const finalType = isAdmin ? 'admin' : (user_type || 'subscriber')
+    // user_type from session metadata (Google login) or default subscriber
+    const metaType = (sessionUser.user_metadata?.user_type as string) || 'subscriber'
+    const finalType = isAdmin ? 'admin' : metaType
 
     // Use service role to bypass RLS
     const supabase = createClient(

@@ -1,5 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+
+// Per-IP rate limit: 15 uploads / 60s
+const uploadRateMap = new Map<string, { count: number; reset: number }>()
+function checkUploadRate(ip: string): boolean {
+  const now = Date.now()
+  const entry = uploadRateMap.get(ip)
+  if (!entry || now > entry.reset) { uploadRateMap.set(ip, { count: 1, reset: now + 60_000 }); return true }
+  if (entry.count >= 15) return false
+  entry.count++; return true
+}
 
 // Allowed MIME types for audio and video uploads
 const ALLOWED_AUDIO = new Set([
@@ -24,26 +35,56 @@ function deriveExt(file: File): string {
   return ext || 'mp4'
 }
 
-// Ensure the bucket exists and is public (idempotent)
+// Full set of MIME types the bucket must allow (covers iOS + Android + desktop)
+const BUCKET_MIME_TYPES = [
+  // Audio — desktop (webm/ogg) + iOS (mp4/m4a/aac) + generic
+  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg',
+  'audio/aac', 'audio/wav', 'audio/x-wav', 'audio/x-m4a', 'audio/m4a',
+  // Video — desktop (webm) + iOS (quicktime/mp4) + Android + generic
+  'video/webm', 'video/mp4', 'video/quicktime', 'video/x-m4v',
+  'video/avi', 'video/x-msvideo', 'video/x-matroska',
+  // Fallback (some browsers send this)
+  'application/octet-stream',
+]
+
+// Ensure the bucket exists and is public, and keep allowed MIME types up to date.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function ensureBucket(supabase: any) {
-  const { error } = await supabase.storage.createBucket('chat-audio', {
+  const bucketConfig = {
     public: true,
     fileSizeLimit: 20 * 1024 * 1024,
-    allowedMimeTypes: [
-      'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg',
-      'audio/aac', 'audio/wav', 'audio/x-m4a', 'audio/m4a',
-      'video/webm', 'video/mp4', 'video/quicktime',
-      'video/avi', 'video/x-msvideo', 'application/octet-stream',
-    ],
-  })
-  // Ignore "already exists" error
-  if (error && !error.message.includes('already exists') && !error.message.includes('duplicate')) {
-    console.warn('ensureBucket warning:', error.message)
+    allowedMimeTypes: BUCKET_MIME_TYPES,
+  }
+
+  const { error: createError } = await supabase.storage.createBucket('chat-audio', bucketConfig)
+
+  if (createError) {
+    if (createError.message.includes('already exists') || createError.message.includes('duplicate')) {
+      // Bucket exists — update its config so MIME types stay in sync
+      const { error: updateError } = await supabase.storage.updateBucket('chat-audio', bucketConfig)
+      if (updateError) {
+        console.warn('ensureBucket updateBucket warning:', updateError.message)
+      }
+    } else {
+      console.warn('ensureBucket createBucket warning:', createError.message)
+    }
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // ── Rate limit ──────────────────────────────────────────────────────────
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (!checkUploadRate(ip)) return NextResponse.json({ error: 'יותר מדי העלאות — נסה שוב עוד דקה' }, { status: 429 })
+
+  // ── Auth: require valid Supabase session ────────────────────────────────
+  const supabaseAuth = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => request.cookies.getAll(), setAll: () => {} } }
+  )
+  const { data: { user } } = await supabaseAuth.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 })
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null

@@ -206,13 +206,17 @@ export default function ChatApp() {
           // service_role access and handles the broken trigger more gracefully
           const metaAvatarUrl = (authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null) as string | null
           try {
+            // Get access token to authenticate the server-side call
+            const { data: { session: currentSession } } = await supabase.auth.getSession()
+            const accessToken = currentSession?.access_token || ''
             const regRes = await fetch('/api/register-oauth-user', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+              },
               body: JSON.stringify({
-                email,
                 name,
-                user_type: isAdmin ? 'admin' : intendedType,
                 avatar_color: avatarColor,
                 avatar_url: metaAvatarUrl,
               }),

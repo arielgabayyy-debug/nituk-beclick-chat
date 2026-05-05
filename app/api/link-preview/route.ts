@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export const runtime = 'edge'
+// Per-IP rate limit: 60 previews / 60s
+const previewRateMap = new Map<string, { count: number; reset: number }>()
+function checkPreviewRate(ip: string): boolean {
+  const now = Date.now()
+  const entry = previewRateMap.get(ip)
+  if (!entry || now > entry.reset) { previewRateMap.set(ip, { count: 1, reset: now + 60_000 }); return true }
+  if (entry.count >= 60) return false
+  entry.count++; return true
+}
 
 // Block SSRF — deny requests to private/internal IP ranges
 function isPrivateUrl(urlStr: string): boolean {
@@ -24,6 +32,9 @@ function isPrivateUrl(urlStr: string): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (!checkPreviewRate(ip)) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   const url = req.nextUrl.searchParams.get('url')
   if (!url) return NextResponse.json({ error: 'Missing url' }, { status: 400 })
   if (url.length > 2048) return NextResponse.json({ error: 'URL too long' }, { status: 400 })

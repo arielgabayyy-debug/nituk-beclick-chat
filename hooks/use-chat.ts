@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { ChatUser, ChatMessage, UserType, SystemMessage, TypingUser, MessageReaction } from '@/lib/chat-types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -24,11 +24,9 @@ export function useChat(currentUser: ChatUser | null) {
     return []
   })
   const isPageVisibleRef = useRef(true)
-  const channelRef = useRef<RealtimeChannel | null>(null)
-  const presenceChannelRef = useRef<RealtimeChannel | null>(null)
-  const typingChannelRef = useRef<RealtimeChannel | null>(null)
-  const systemChannelRef = useRef<RealtimeChannel | null>(null)
-  const reactionsChannelRef = useRef<RealtimeChannel | null>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)        // messages + reactions + system (consolidated)
+  const presenceChannelRef = useRef<RealtimeChannel | null>(null) // online users
+  const typingChannelRef = useRef<RealtimeChannel | null>(null)   // typing indicators
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch initial messages with reactions
@@ -39,8 +37,10 @@ export function useChat(currentUser: ChatUser | null) {
         .select(`
           id, user_id, content, created_at, updated_at, is_pinned,
           upvotes_count, has_gif, gif_url, mentions,
-          user:chat_users(id, name, avatar_url, avatar_color, user_type, is_online, created_at, level)
+          user:chat_users(id, name, avatar_color, user_type, is_online, created_at, level)
         `)
+        // avatar_url intentionally omitted — stored as base64 in DB (can be 200KB+)
+        // Chat messages only need the avatar_color for the colored initials fallback.
         .order('created_at', { ascending: true })
         .limit(100)
 
@@ -87,13 +87,15 @@ export function useChat(currentUser: ChatUser | null) {
     }
   }, [])
 
-  // Fetch online users
+  // Fetch online users — exclude avatar_url (potentially large base64) for speed
   const fetchOnlineUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('chat_users')
-        .select('id, name, avatar_url, avatar_color, user_type, is_online, last_seen, created_at, level, points')
+        .select('id, name, avatar_color, user_type, is_online, last_seen, created_at, level, points')
         .eq('is_online', true)
+        .limit(100)
+        .order('last_seen', { ascending: false })
 
       if (error) throw error
       setOnlineUsers(data || [])
@@ -233,23 +235,55 @@ export function useChat(currentUser: ChatUser | null) {
       return
     }
 
+    // ── Client-side pre-checks (fast, before hitting DB) ──────────────────
+    if (processedContent.length > 2000) {
+      setError('ההודעה ארוכה מדי (מקסימום 2000 תווים)')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
+    // Client-side duplicate guard (same message within 5s)
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg?.user_id === currentUser.id && lastMsg?.content === processedContent) {
+      setError('כבר שלחת הודעה זהה לאחרונה')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
     try {
       const { error } = await supabase
         .from('chat_messages')
-        .insert({
-          user_id: currentUser.id,
-          content: processedContent
-        })
+        .insert({ user_id: currentUser.id, content: processedContent })
 
-      if (error) throw error
+      if (error) {
+        // Map Supabase/PostgreSQL error messages to Hebrew user-friendly text
+        const msg = error.message || ''
+        const spamMessages: Record<string, string> = {
+          rate_limit_exceeded: '⏱️ שולח הודעות מהר מדי — המתן רגע',
+          duplicate_message:   '🔁 שלחת הודעה זהה לאחרונה',
+          repetitive_message:  '🔁 הודעה דומה מדי לאחרונה',
+          too_many_urls:       '🚫 יותר מדי קישורים בהודעה אחת (מקסימום 3)',
+          url_rate_limit:      '🚫 יותר מדי קישורים — המתן לפני שליחת קישור נוסף',
+          flood_detected:      '🛑 נזוהו שליחות מהירות מדי — המתן כמה שניות',
+          new_account_limit:   '🆕 חשבון חדש — ניתן לשלוח עד 3 הודעות בתחילה',
+          blocked_user:        '🚫 החשבון שלך חסום. צור קשר עם המנהל',
+          content_too_long:    '📏 ההודעה ארוכה מדי (מקסימום 2000 תווים)',
+          content_too_short:   '📏 ההודעה קצרה מדי',
+        }
+        const match = Object.keys(spamMessages).find(k => msg.includes(k))
+        const display = match ? spamMessages[match] : 'שגיאה בשליחת ההודעה'
+        setError(display)
+        setTimeout(() => setError(null), 4000)
+        return
+      }
 
-      // Stop typing when sending
       stopTyping()
     } catch (err) {
       console.error('Error sending message:', err)
-      setError('שגיאה בשליחת ההודעה')
+      setError('שגיאה בשליחת ההודעה — נסה שוב')
+      setTimeout(() => setError(null), 3000)
     }
-  }, [currentUser, bannedWords])
+  }, [currentUser, bannedWords, messages])
 
   // Edit message (own messages only)
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
@@ -455,9 +489,11 @@ export function useChat(currentUser: ChatUser | null) {
     // Mark user as online
     setUserOnline(currentUser.id, true)
 
-    // Subscribe to new messages
+    // Subscribe to new messages — use payload directly + user from local state
+    // to avoid an extra DB round-trip per message
+    // ── Consolidated channel: messages + reactions + system (3 → 1 WebSocket) ──
     channelRef.current = supabase
-      .channel('chat_messages_channel')
+      .channel('chat_main_channel')
       .on(
         'postgres_changes',
         {
@@ -466,18 +502,40 @@ export function useChat(currentUser: ChatUser | null) {
           table: 'chat_messages'
         },
         async (payload) => {
-          const { data } = await supabase
-            .from('chat_messages')
-            .select(`id, user_id, content, created_at, updated_at, is_pinned, upvotes_count, has_gif, gif_url, mentions, user:chat_users(id, name, avatar_url, avatar_color, user_type, is_online, created_at, level)`)
-            .eq('id', payload.new.id)
-            .single()
+          const newMsg = payload.new as Record<string, unknown>
 
-          if (data) {
-            setMessages(prev => [...prev, { ...data, reactions: [] }])
-            // Count as unread if page is hidden or not the sender
-            if (!isPageVisibleRef.current && data.user_id !== currentUser?.id) {
-              setUnreadCount(c => c + 1)
+          // Try to resolve user from existing messages/online users (zero extra queries)
+          setMessages(prev => {
+            const existingUser = prev.find(m => m.user_id === newMsg.user_id)?.user
+              || onlineUsers.find(u => u.id === newMsg.user_id) as unknown as ChatUser | undefined
+            const composed = { ...newMsg, user: existingUser || null, reactions: [] } as unknown as ChatMessage
+            return [...prev, composed]
+          })
+
+          // If user wasn't in local state, fetch just that user (rare case)
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMsg.id && m.user)) return prev
+            return prev
+          })
+
+          // Background user fetch only if missing
+          const userAlreadyKnown = messages.some(m => m.user_id === newMsg.user_id && m.user)
+            || onlineUsers.some(u => u.id === newMsg.user_id)
+          if (!userAlreadyKnown) {
+            const { data: userData } = await supabase
+              .from('chat_users')
+              .select('id, name, avatar_url, avatar_color, user_type, is_online, created_at, level')
+              .eq('id', newMsg.user_id as string)
+              .single()
+            if (userData) {
+              setMessages(prev => prev.map(m =>
+                m.id === newMsg.id ? { ...m, user: userData as unknown as ChatUser } : m
+              ))
             }
+          }
+
+          if (!isPageVisibleRef.current && newMsg.user_id !== currentUser?.id) {
+            setUnreadCount(c => c + 1)
           }
         }
       )
@@ -505,20 +563,66 @@ export function useChat(currentUser: ChatUser | null) {
           ))
         }
       )
+      // ── System messages — merged into main channel (saves 1 WebSocket) ──
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'system_messages' },
+        async (payload) => {
+          const { data } = await supabase
+            .from('system_messages')
+            .select('id, user_id, message_type, content, created_at, user:chat_users(id, name, avatar_color, user_type)')
+            .eq('id', payload.new.id)
+            .single()
+          if (data) setSystemMessages(prev => [data, ...prev].slice(0, 50))
+        }
+      )
+      // ── Reactions — merged into main channel (saves 1 more WebSocket) ──
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_reactions' },
+        async (payload) => {
+          const { data } = await supabase
+            .from('message_reactions')
+            .select('id, message_id, user_id, emoji, created_at, user:chat_users(id, name, avatar_color)')
+            .eq('id', payload.new.id)
+            .single()
+          if (data) {
+            setMessages(prev => prev.map(m =>
+              m.id === data.message_id
+                ? { ...m, reactions: [...(m.reactions || []).filter(r => r.id !== data.id), data] }
+                : m
+            ))
+          }
+        }
+      )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'message_reactions' },
+        (payload) => {
+          setMessages(prev => prev.map(m =>
+            m.reactions?.some(r => r.id === payload.old.id)
+              ? { ...m, reactions: (m.reactions || []).filter(r => r.id !== payload.old.id) }
+              : m
+          ))
+        }
+      )
       .subscribe()
 
-    // Subscribe to user changes
+    // Subscribe to user changes — debounce refetch to avoid stampede
+    let onlineUsersDebounce: ReturnType<typeof setTimeout> | null = null
     presenceChannelRef.current = supabase
       .channel('chat_users_channel')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_users'
-        },
+        { event: 'UPDATE', schema: 'public', table: 'chat_users', filter: 'is_online=eq.true' },
         () => {
-          fetchOnlineUsers()
+          if (onlineUsersDebounce) clearTimeout(onlineUsersDebounce)
+          onlineUsersDebounce = setTimeout(() => fetchOnlineUsers(), 500)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chat_users', filter: 'is_online=eq.false' },
+        (payload) => {
+          // Immediately remove user from online list without DB refetch
+          setOnlineUsers(prev => prev.filter(u => u.id !== payload.new.id))
         }
       )
       .subscribe()
@@ -539,72 +643,6 @@ export function useChat(currentUser: ChatUser | null) {
       )
       .subscribe()
 
-    // Subscribe to system messages
-    systemChannelRef.current = supabase
-      .channel('system_messages_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'system_messages'
-        },
-        async (payload) => {
-          const { data } = await supabase
-            .from('system_messages')
-            .select(`id, user_id, message_type, content, created_at, user:chat_users(id, name, avatar_color, user_type)`)
-            .eq('id', payload.new.id)
-            .single()
-
-          if (data) {
-            setSystemMessages(prev => [data, ...prev])
-          }
-        }
-      )
-      .subscribe()
-
-    // Subscribe to reactions — update local state instead of full refetch
-    reactionsChannelRef.current = supabase
-      .channel('reactions_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'message_reactions'
-        },
-        async (payload) => {
-          const { data } = await supabase
-            .from('message_reactions')
-            .select(`id, message_id, user_id, emoji, created_at, user:chat_users(id, name, avatar_color)`)
-            .eq('id', payload.new.id)
-            .single()
-          if (data) {
-            setMessages(prev => prev.map(m =>
-              m.id === data.message_id
-                ? { ...m, reactions: [...(m.reactions || []).filter(r => r.id !== data.id), data] }
-                : m
-            ))
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'message_reactions'
-        },
-        (payload) => {
-          setMessages(prev => prev.map(m =>
-            m.reactions?.some(r => r.id === payload.old.id)
-              ? { ...m, reactions: (m.reactions || []).filter(r => r.id !== payload.old.id) }
-              : m
-          ))
-        }
-      )
-      .subscribe()
-
     // Fetch initial data
     fetchMessages()
     fetchOnlineUsers()
@@ -617,11 +655,10 @@ export function useChat(currentUser: ChatUser | null) {
         setUserOnline(currentUser.id, false)
         stopTyping()
       }
+      // 3 channels now (was 5) — messages+reactions+system, users, typing
       if (channelRef.current) supabase.removeChannel(channelRef.current)
       if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current)
       if (typingChannelRef.current) supabase.removeChannel(typingChannelRef.current)
-      if (systemChannelRef.current) supabase.removeChannel(systemChannelRef.current)
-      if (reactionsChannelRef.current) supabase.removeChannel(reactionsChannelRef.current)
     }
   }, [currentUser, fetchMessages, fetchOnlineUsers, fetchSystemMessages, fetchTypingUsers, setUserOnline, stopTyping])
 
@@ -652,8 +689,8 @@ export function useChat(currentUser: ChatUser | null) {
     }
   }, [currentUser, setUserOnline, stopTyping])
 
-  // Get pinned messages
-  const pinnedMessages = messages.filter(m => m.is_pinned)
+  // Get pinned messages — memoized so it doesn't re-filter on unrelated state changes
+  const pinnedMessages = useMemo(() => messages.filter(m => m.is_pinned), [messages])
 
   // Upvote/helpful a message
   const upvoteMessage = useCallback(async (messageId: string) => {
