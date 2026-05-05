@@ -65,7 +65,8 @@ export async function checkRateLimitDB(
     }
 
     // Record this request (fire-and-forget — don't await)
-    sb.from('rate_limits').insert({ ip, endpoint }).then(({ error }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sb.from('rate_limits').insert({ ip, endpoint } as any).then(({ error }) => {
       if (error) console.error('[rate-limit-db] insert error:', error.message)
     })
 

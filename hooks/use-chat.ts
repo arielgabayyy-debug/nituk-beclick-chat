@@ -59,7 +59,8 @@ export function useChat(currentUser: ChatUser | null) {
           reactions: reactionsData?.filter(r => r.message_id === msg.id) || []
         }))
 
-        setMessages(messagesWithReactions)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setMessages(messagesWithReactions as any as ChatMessage[])
       } else {
         setMessages([])
       }
@@ -81,7 +82,8 @@ export function useChat(currentUser: ChatUser | null) {
         .limit(50)
 
       if (error) throw error
-      setSystemMessages(data || [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setSystemMessages((data || []) as any as SystemMessage[])
     } catch (err) {
       console.error('Error fetching system messages:', err)
     }
@@ -98,7 +100,8 @@ export function useChat(currentUser: ChatUser | null) {
         .order('last_seen', { ascending: false })
 
       if (error) throw error
-      setOnlineUsers(data || [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setOnlineUsers((data || []) as any as ChatUser[])
     } catch (err) {
       console.error('Error fetching online users:', err)
     }
@@ -430,7 +433,8 @@ export function useChat(currentUser: ChatUser | null) {
         .neq('user_id', currentUser.id)
 
       if (error) throw error
-      setTypingUsers(data || [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setTypingUsers((data || []) as any as TypingUser[])
     } catch (err) {
       console.error('Error fetching typing users:', err)
     }
@@ -572,7 +576,8 @@ export function useChat(currentUser: ChatUser | null) {
             .select('id, user_id, message_type, content, created_at, user:chat_users(id, name, avatar_color, user_type)')
             .eq('id', payload.new.id)
             .single()
-          if (data) setSystemMessages(prev => [data, ...prev].slice(0, 50))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (data) setSystemMessages(prev => [data as any as SystemMessage, ...prev].slice(0, 50))
         }
       )
       // ── Reactions — merged into main channel (saves 1 more WebSocket) ──
@@ -587,7 +592,8 @@ export function useChat(currentUser: ChatUser | null) {
           if (data) {
             setMessages(prev => prev.map(m =>
               m.id === data.message_id
-                ? { ...m, reactions: [...(m.reactions || []).filter(r => r.id !== data.id), data] }
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ? { ...m, reactions: [...(m.reactions || []).filter(r => r.id !== data.id), data as any as MessageReaction] }
                 : m
             ))
           }

@@ -290,7 +290,8 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false })
       if (search) q2 = q2.ilike('content', `%${search}%`)
       const res2 = await q2.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
-      data = res2.data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data = res2.data as any
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (page === 0) setMessages((data || []) as any as MessageRow[])
