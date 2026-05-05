@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { AdminMFA } from '@/components/chat/admin-mfa'
 import {
   Users, MessageCircle, TrendingUp, Mail, Send, Trash2,
   Crown, Shield, Ban, RefreshCw, BarChart3, CheckCircle,
@@ -127,6 +128,7 @@ const supabase = createClient()
 export default function AdminDashboard() {
   const [tab, setTab] = useState<TabId>('overview')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [mfaVerified, setMfaVerified] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
   const [authedEmail, setAuthedEmail] = useState<string | null>(null)
 
@@ -545,6 +547,20 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
       <Loader2 className="w-10 h-10 text-purple-400 animate-spin" />
     </div>
+  )
+
+  // ── MFA gate — shown after Google login, before dashboard ───────────────
+  if (isAuthenticated && !mfaVerified) return (
+    <AdminMFA
+      userEmail={authedEmail || ''}
+      onVerified={() => setMfaVerified(true)}
+      onLogout={async () => {
+        await supabase.auth.signOut()
+        setIsAuthenticated(false)
+        setMfaVerified(false)
+        setAuthedEmail(null)
+      }}
+    />
   )
 
   if (!isAuthenticated) return (
