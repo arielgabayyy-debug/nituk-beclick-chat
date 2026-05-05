@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin()
     .from('chat_settings')
     .select('*')
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('[settings/get]', error); return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 }) }
   // Return as key→value map
   const map: Record<string, unknown> = {}
   for (const row of data || []) map[row.key] = row.value
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     )
   )
   const err = results.find(r => r.error)
-  if (err?.error) return NextResponse.json({ error: err.error.message }, { status: 500 })
+  if (err?.error) { console.error('[settings/post]', err.error); return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 }) }
 
   // Audit log: record what was changed and by whom
   const changedKeys = entries.map(([k]) => k)

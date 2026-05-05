@@ -49,11 +49,12 @@ export function generateTOTP(secret: string, window = 0): string {
 }
 
 /**
- * Verify a TOTP token, allowing ±1 time window for clock skew
+ * Verify a TOTP token, allowing ±3 time windows for clock skew
+ * (3-window tolerance = 90-second grace period on each side)
  */
 export function verifyTOTP(token: string, secret: string): boolean {
   if (!/^\d{6}$/.test(token)) return false
-  for (const w of [-1, 0, 1]) {
+  for (const w of [-3, -2, -1, 0, 1, 2, 3]) {
     if (generateTOTP(secret, w) === token) return true
   }
   return false

@@ -4,10 +4,15 @@
  */
 import { createHmac } from 'crypto'
 
-// Fail loudly if secret is not configured — never fall back to a hardcoded value
+/**
+ * Return the secret used to HMAC-sign the MFA session cookie.
+ * Prefer ADMIN_MFA_COOKIE_SECRET (dedicated key) over ADMIN_TOTP_SECRET
+ * so that the TOTP shared secret and the cookie signing key are independent.
+ * Fail loudly if neither is set — never fall back to a hardcoded value.
+ */
 function getSecret(): string {
-  const secret = process.env.ADMIN_TOTP_SECRET
-  if (!secret) throw new Error('ADMIN_TOTP_SECRET environment variable is not set')
+  const secret = process.env.ADMIN_MFA_COOKIE_SECRET || process.env.ADMIN_TOTP_SECRET
+  if (!secret) throw new Error('ADMIN_MFA_COOKIE_SECRET (or ADMIN_TOTP_SECRET) environment variable is not set')
   return secret
 }
 

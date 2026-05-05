@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { verifyAdminRequest } from '@/lib/admin-auth'
 
-export const runtime = 'edge'
+// NOTE: Do NOT set runtime = 'edge' — in-memory rate limiting requires Node.js
+// runtime so the Map persists across requests within the same server instance.
 
 const MAX_SUBJECT_LENGTH = 200
 const MAX_MESSAGE_LENGTH = 2000
@@ -75,7 +76,8 @@ export async function POST(request: Request) {
 
   const { data: users, error: usersError } = await query
   if (usersError) {
-    return NextResponse.json({ error: usersError.message }, { status: 500 })
+    console.error('[broadcast/users]', usersError)
+    return NextResponse.json({ error: 'Failed to fetch recipients' }, { status: 500 })
   }
 
   const emails = (users || []).filter(u => u.email).map(u => u.email as string)

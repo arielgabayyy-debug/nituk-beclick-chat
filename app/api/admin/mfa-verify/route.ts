@@ -11,10 +11,21 @@ const ADMIN_EMAILS = [
   'hilaoh3263@gmail.com',
 ]
 
-// Fail loudly if secret not configured — never use a hardcoded fallback
+// Fail loudly if TOTP secret not configured — never use a hardcoded fallback
 function getSecret(): string {
   const s = process.env.ADMIN_TOTP_SECRET
   if (!s) throw new Error('ADMIN_TOTP_SECRET is not set')
+  return s
+}
+
+/**
+ * Return the secret used to HMAC-sign the MFA session cookie.
+ * Prefer ADMIN_MFA_COOKIE_SECRET (dedicated key) over ADMIN_TOTP_SECRET
+ * so that the TOTP shared secret and the cookie signing key are independent.
+ */
+function getCookieSecret(): string {
+  const s = process.env.ADMIN_MFA_COOKIE_SECRET || process.env.ADMIN_TOTP_SECRET
+  if (!s) throw new Error('ADMIN_MFA_COOKIE_SECRET (or ADMIN_TOTP_SECRET) is not set')
   return s
 }
 
@@ -45,10 +56,11 @@ export async function POST(request: Request) {
     }
 
     // 3. Issue a signed session cookie (8 hours)
+    const cookieSecret = getCookieSecret()
     const expires = Date.now() + 8 * 60 * 60 * 1000
     const payload = `${user.email}:${expires}`
-    // Full SHA-256 digest — no truncation
-    const sig = createHmac('sha256', secret).update(payload).digest('hex')
+    // Full SHA-256 digest — no truncation, uses dedicated cookie signing key
+    const sig = createHmac('sha256', cookieSecret).update(payload).digest('hex')
     const cookieValue = `${Buffer.from(payload).toString('base64')}.${sig}`
 
     const response = NextResponse.json({ success: true })

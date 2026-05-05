@@ -69,7 +69,7 @@ export async function PATCH(req: Request) {
         .from('chat_users')
         .update({ user_type: 'blocked', is_online: false })
         .eq('id', userId)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) { console.error('[users/block]', error); return NextResponse.json({ error: 'Failed to block user' }, { status: 500 }) }
 
       await logAudit(supabase, 'block_user', userId, 'user', {
         admin_email: auth.email,
@@ -91,7 +91,7 @@ export async function PATCH(req: Request) {
         .from('chat_users')
         .update({ user_type: 'guest' })
         .eq('id', userId)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) { console.error('[users/unblock]', error); return NextResponse.json({ error: 'Failed to unblock user' }, { status: 500 }) }
 
       await logAudit(supabase, 'unblock_user', userId, 'user', {
         admin_email: auth.email,
@@ -115,7 +115,7 @@ export async function PATCH(req: Request) {
         .from('chat_users')
         .update({ user_type: value })
         .eq('id', userId)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) { console.error('[users/promote]', error); return NextResponse.json({ error: 'Failed to update user type' }, { status: 500 }) }
 
       await logAudit(supabase, 'promote_user', userId, 'user', {
         admin_email: auth.email,
@@ -147,7 +147,7 @@ export async function PATCH(req: Request) {
         .from('chat_users')
         .update({ points: newPts })
         .eq('id', userId)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) { console.error('[users/award_points]', error); return NextResponse.json({ error: 'Failed to update points' }, { status: 500 }) }
 
       await logAudit(supabase, 'award_points', userId, 'user', {
         admin_email: auth.email,
@@ -172,7 +172,7 @@ export async function PATCH(req: Request) {
         .from('chat_users')
         .update({ is_user_of_week: true })
         .eq('id', userId)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) { console.error('[users/set_user_of_week]', error); return NextResponse.json({ error: 'Failed to set user of week' }, { status: 500 }) }
 
       await logAudit(supabase, 'set_user_of_week', userId, 'user', {
         admin_email: auth.email,
@@ -218,7 +218,7 @@ export async function DELETE(req: Request) {
   }
 
   const { error } = await supabase.from('chat_users').delete().eq('id', userId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('[users/delete]', error); return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 }) }
 
   await logAudit(supabase, 'delete_user', userId, 'user', {
     admin_email: auth.email,

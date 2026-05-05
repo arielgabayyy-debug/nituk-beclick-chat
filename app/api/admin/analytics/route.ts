@@ -95,6 +95,7 @@ export async function GET(request: Request) {
       hourlyData: Array.from({ length: 24 }, (_, i) => ({ hour: i, count: byHour[i] || 0 })),
     })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[analytics]', err)
+    return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 })
   }
 }

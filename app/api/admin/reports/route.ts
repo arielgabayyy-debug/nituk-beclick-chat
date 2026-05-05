@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('[reports/get]', error); return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 }) }
   return NextResponse.json({ reports: data })
 }
 
@@ -80,7 +80,7 @@ export async function PATCH(req: Request) {
     })
     .eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('[reports/patch]', error); return NextResponse.json({ error: 'Failed to update report' }, { status: 500 }) }
 
   // Audit log
   try {

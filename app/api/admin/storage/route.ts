@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     sortBy: { column: 'created_at', order: 'desc' },
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('[storage/list]', error); return NextResponse.json({ error: 'Failed to list storage files' }, { status: 500 }) }
 
   const files = (data || []).map(f => ({
     name: f.name,
@@ -74,7 +74,7 @@ export async function DELETE(req: Request) {
   // Validate each name is a non-empty string with no path traversal
   for (const name of names) {
     if (typeof name !== 'string' || !name.trim() || name.includes('..') || name.includes('/')) {
-      return NextResponse.json({ error: 'Invalid file name: ' + String(name) }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid file name in request' }, { status: 400 })
     }
   }
 
@@ -82,7 +82,7 @@ export async function DELETE(req: Request) {
   const supabase = admin()
 
   const { error } = await supabase.storage.from(bucket).remove(safeNames)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('[storage/delete]', error); return NextResponse.json({ error: 'Failed to delete files' }, { status: 500 }) }
 
   // Audit log
   try {
