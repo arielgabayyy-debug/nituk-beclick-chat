@@ -274,10 +274,7 @@
   height: 100dvh;
   height: 100vh; /* fallback */
 }
-
-/* Input area: always stick to the bottom of the visible area */
-
-}
+
 
 /* Prevent iOS rubber-band bounce on the whole page.
    overflow:hidden on html prevents body bounce; h-dvh on the root div handles sizing. */
@@ -1111,11 +1108,7 @@ body.bg-theme-israel {
   border-color: oklch(0.24 0.01 270);
 }
 
-/* ── Desktop 3-column layout fix ────────────────────────────────────────── */
 
-}
-
-}
 
 /* ── Active bottom nav tab gradient ─────────────────────────────────────── */
 .bottom-nav-active {
